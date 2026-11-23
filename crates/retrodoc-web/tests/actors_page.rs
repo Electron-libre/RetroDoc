@@ -75,7 +75,7 @@ fn rule(slug: &str, statement: &str, kind: RuleKind, use_cases: &[&str]) -> Busi
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "Pay an invoice"),
@@ -84,7 +84,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[
             use_case(
@@ -112,7 +112,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_rules(
+    retrodoc_core::artifacts::save_rules(
         root,
         &[
             rule(
@@ -282,7 +282,7 @@ async fn each_actor_lists_the_permission_rules_of_its_use_cases() {
 #[tokio::test]
 async fn a_name_the_steps_give_both_kinds_is_a_row_under_each() {
     let repo = generated_repo();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         repo.path(),
         &[
             use_case(
@@ -323,8 +323,11 @@ async fn a_name_the_steps_give_both_kinds_is_a_row_under_each() {
 #[tokio::test]
 async fn a_run_with_no_actor_says_none_was_found() {
     let repo = generated_repo();
-    retrodoc_pipeline::save_use_cases(repo.path(), &[use_case("check", "audit", None, Vec::new())])
-        .unwrap();
+    retrodoc_core::artifacts::save_use_cases(
+        repo.path(),
+        &[use_case("check", "audit", None, Vec::new())],
+    )
+    .unwrap();
     let page = actors(repo.path()).await;
     assert!(page.contains("No actor was found"), "{page}");
     assert!(!page.contains("<table"), "{page}");

@@ -78,10 +78,7 @@ pub use entry_points::{
     build_entry_points, EntryFile, EntryKind, EntryPoint, EntryPoints, Output, OutputKind,
 };
 pub use error::PipelineError;
-pub use features::{
-    build_features_from_surface, entry_point_id, load_features, load_technical_features,
-    save_features,
-};
+pub use features::{build_features_from_surface, entry_point_id};
 pub use glossary::build_glossary;
 pub use language::{InLanguage, READING_PASSES, WRITING_PASSES};
 pub use progress::format_duration;
@@ -91,15 +88,12 @@ pub use report::{
     OutdatedReview, Section, SetApartUseCase, TechnicalFeature, WeakSection,
 };
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
-pub use rules::{
-    build_rules, load_rules, load_set_aside, save_rules, AsideFeature, AsideRule, RuleInput,
-    SetAside,
-};
+pub use rules::{build_rules, RuleInput};
 pub use slices::{CodeIndex, Follow};
 pub use source_hashes::{hash_paths, hash_sources};
 pub use sources::{infer_sources, saved_or_sniffed, SourceMapFile};
 pub use surface::{Resource, Surface};
-pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};
+pub use use_cases::{build_use_cases, UseCaseContext};
 pub use vocabulary::{score_business_language, score_unscored_business_language};
 pub use walked::WalkedFiles;
 

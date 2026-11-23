@@ -28,7 +28,7 @@ fn generated_repo(config: &str) -> tempfile::TempDir {
         entry_points: Vec::new(),
         confidence: None,
     };
-    retrodoc_pipeline::save_features(dir.path(), &[feature]).unwrap();
+    retrodoc_core::artifacts::save_features(dir.path(), &[feature]).unwrap();
     DomainMap {
         domains: vec![DomainCluster {
             slug: "orders".into(),

@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-pub use retrodoc_core::artifacts::{load_features, load_technical_features, save_features};
+pub(crate) use retrodoc_core::artifacts::{load_features, load_technical_features, save_features};
 use retrodoc_core::model::Feature;
 use retrodoc_core::text::fold_latin;
 

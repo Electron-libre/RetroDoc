@@ -234,13 +234,13 @@ impl GeneratedDocs {
         edits: Edits,
     ) -> Result<Option<Self>, FormatError> {
         cache_format::check(repo_root)?;
-        let Some(features) = retrodoc_pipeline::load_features(repo_root) else {
+        let Some(features) = retrodoc_core::artifacts::load_features(repo_root) else {
             return Ok(None);
         };
-        let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
+        let use_cases = retrodoc_core::artifacts::load_use_cases(repo_root).unwrap_or_default();
         let map = DomainMap::load(repo_root).unwrap_or_default();
         let glossary = Glossary::load(repo_root).unwrap_or_default();
-        let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+        let rules = retrodoc_core::artifacts::load_rules(repo_root).unwrap_or_default();
         let uncovered = Uncovered {
             reconciliation: None,
             no_domain: map.uncategorized_paths().cloned().collect(),
@@ -506,7 +506,7 @@ mod tests {
     fn saved_run() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        retrodoc_pipeline::save_features(
+        retrodoc_core::artifacts::save_features(
             root,
             &[Feature {
                 back_office: false,
@@ -590,7 +590,7 @@ mod tests {
     fn the_reconciled_items_take_the_edited_names_and_keep_their_verdicts() {
         let dir = saved_run();
         let root = dir.path();
-        retrodoc_pipeline::save_use_cases(
+        retrodoc_core::artifacts::save_use_cases(
             root,
             &[retrodoc_core::model::UseCase {
                 entry_points: Vec::new(),

@@ -37,7 +37,7 @@ fn generated_repo() -> tempfile::TempDir {
         entry_points: Vec::new(),
         confidence: Some(ConfidenceScore::new(0.2, None)),
     };
-    retrodoc_pipeline::save_features(root, &[feature]).unwrap();
+    retrodoc_core::artifacts::save_features(root, &[feature]).unwrap();
     DomainMap {
         domains: vec![DomainCluster {
             slug: "orders".into(),
@@ -322,7 +322,7 @@ fn four_domains_repo() -> tempfile::TempDir {
             confidence: None,
         })
         .collect();
-    retrodoc_pipeline::save_features(root, &features).unwrap();
+    retrodoc_core::artifacts::save_features(root, &features).unwrap();
     DomainMap {
         domains: names
             .iter()

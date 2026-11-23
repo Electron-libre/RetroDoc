@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use super::matching::{saved_features, scored_domains};
 use crate::usage_log::{load_history, RunUsage};
-use crate::use_cases::load_use_cases;
 use retrodoc_core::artifacts::domains::UNCATEGORIZED_SLUG;
+use retrodoc_core::artifacts::load_use_cases;
 use retrodoc_core::artifacts::DomainMap;
 
 /// What the last `generate` of the clone cost.
@@ -138,9 +138,9 @@ mod tests {
 
     use super::*;
     use crate::artifact::{save_yaml, Artifact};
-    use crate::features::save_features;
     use crate::usage_log::{record_run, ModelRecord, PassRecord};
-    use crate::use_cases::save_use_cases;
+    use retrodoc_core::artifacts::save_features;
+    use retrodoc_core::artifacts::save_use_cases;
     use retrodoc_core::artifacts::DomainCluster;
 
     fn cluster(slug: &str, paths: &[&str]) -> DomainCluster {

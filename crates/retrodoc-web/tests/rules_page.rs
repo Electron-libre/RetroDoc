@@ -44,7 +44,7 @@ fn rule(slug: &str, statement: &str, kind: RuleKind, evidence: Vec<RuleEvidence>
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "billing", "Pay an invoice"),
@@ -52,7 +52,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_rules(
+    retrodoc_core::artifacts::save_rules(
         root,
         &[
             rule(
@@ -383,7 +383,7 @@ async fn each_feature_choice_names_its_domain() {
 #[tokio::test]
 async fn a_run_with_no_rule_says_so() {
     let repo = generated_repo();
-    retrodoc_pipeline::save_rules(repo.path(), &[]).unwrap();
+    retrodoc_core::artifacts::save_rules(repo.path(), &[]).unwrap();
     let page = rules(repo.path(), "/rules").await;
     assert!(list(&page).contains("No business rule was found"), "{page}");
 }

@@ -40,7 +40,7 @@ fn generated_repo() -> tempfile::TempDir {
         hashes.put(name, &hash_content(name));
     }
     hashes.save(root).unwrap();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[Feature {
             back_office: false,
@@ -62,7 +62,7 @@ fn generated_repo() -> tempfile::TempDir {
         }],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[UseCase {
             slug: "pay-by-card".into(),
@@ -92,7 +92,7 @@ fn generated_repo() -> tempfile::TempDir {
         }],
     )
     .unwrap();
-    retrodoc_pipeline::save_rules(
+    retrodoc_core::artifacts::save_rules(
         root,
         &[BusinessRule {
             slug: "pay-invoice-1".into(),

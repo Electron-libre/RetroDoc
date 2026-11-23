@@ -25,7 +25,7 @@ use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::rules::build_rules;
 use crate::text::truncate_chars;
-use crate::use_cases::load_use_cases;
+use retrodoc_core::artifacts::load_use_cases;
 
 /// Generated rules shown to the judge for each rule of the reference: the closest by BM25.
 const CANDIDATES: usize = 12;

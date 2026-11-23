@@ -48,8 +48,8 @@ fn use_case(slug: &str) -> UseCase {
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(root, &[feature("pay-invoice")]).unwrap();
-    retrodoc_pipeline::save_use_cases(root, &[use_case("pay-by-card")]).unwrap();
+    retrodoc_core::artifacts::save_features(root, &[feature("pay-invoice")]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &[use_case("pay-by-card")]).unwrap();
     DomainMap {
         domains: vec![DomainCluster {
             slug: "billing".into(),

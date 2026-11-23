@@ -21,12 +21,12 @@ use crate::actors::Actors;
 use crate::confidence::mechanical_score;
 use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
-use crate::features::load_features;
 use crate::slices::CodeIndex;
 use crate::surface::Surface;
 use crate::use_cases::{build_use_cases, UseCaseContext};
 use crate::vocabulary::score_business_language;
 use crate::walked::WalkedFiles;
+use retrodoc_core::artifacts::load_features;
 use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::model::{Feature, Step};
 

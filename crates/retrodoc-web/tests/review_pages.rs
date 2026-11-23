@@ -50,9 +50,13 @@ fn use_case(slug: &str) -> UseCase {
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(root, &[feature("pay-invoice"), feature("refund")]).unwrap();
-    retrodoc_pipeline::save_use_cases(root, &[use_case("pay-by-card"), use_case("pay-by-cash")])
+    retrodoc_core::artifacts::save_features(root, &[feature("pay-invoice"), feature("refund")])
         .unwrap();
+    retrodoc_core::artifacts::save_use_cases(
+        root,
+        &[use_case("pay-by-card"), use_case("pay-by-cash")],
+    )
+    .unwrap();
     DomainMap {
         domains: vec![DomainCluster {
             slug: "billing".into(),
@@ -734,7 +738,7 @@ fn repo_with_a_cited_file() -> tempfile::TempDir {
     let root = dir.path();
     let mut refund = feature("refund");
     refund.source_paths = vec!["app/refund.rb".into()];
-    retrodoc_pipeline::save_features(root, &[feature("pay-invoice"), refund]).unwrap();
+    retrodoc_core::artifacts::save_features(root, &[feature("pay-invoice"), refund]).unwrap();
     std::fs::create_dir_all(root.join("app")).unwrap();
     std::fs::write(root.join("app/refund.rb"), "class Refund; end").unwrap();
     dir
@@ -759,7 +763,7 @@ async fn the_review_of_a_section_says_it_is_outdated_and_why() {
     rewritten.description = "Pays an invoice by card or cash".into();
     let mut refund = feature("refund");
     refund.source_paths = vec!["app/refund.rb".into()];
-    retrodoc_pipeline::save_features(root, &[rewritten, refund]).unwrap();
+    retrodoc_core::artifacts::save_features(root, &[rewritten, refund]).unwrap();
 
     let (_, page) = get(root, "/domains/billing/refund").await;
     let block = review_block(&page);
@@ -823,7 +827,7 @@ async fn the_badge_of_an_outdated_review_in_a_list_says_so() {
     std::fs::write(root.join("app/refund.rb"), "edited").unwrap();
     let mut card = use_case("pay-by-card");
     card.description = "Pays by card".into();
-    retrodoc_pipeline::save_use_cases(root, &[card, use_case("pay-by-cash")]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &[card, use_case("pay-by-cash")]).unwrap();
 
     let outdated = "<span class=\"badge review outdated\">outdated</span>";
     let (_, home) = get(root, "/").await;

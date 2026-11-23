@@ -54,10 +54,10 @@ caller at core. Pure move, no change of behaviour (no spec). Out of scope: the p
    `CacheError`) and `retrodoc_core::artifacts::set_aside` (`SetAside` with `of_feature`, `forget_features`,
    `extend` made public, `load`); the pipeline uses them and re-exports them for now, so no caller outside
    changes; verified by `just check` and a unit test of the round trip in core; ~350 lines. (autonomous)
-2. [ ] Callers on core: `retrodoc-web`, `retrodoc-mcp`, `retrodoc-cli`, `retrodoc-bench` import the loaders and
+2. [x] Callers on core: `retrodoc-web`, `retrodoc-mcp`, `retrodoc-cli`, `retrodoc-bench` import the loaders and
    `SetAside` from core, the pipeline's public re-exports dropped; docs (`docs/crates/core-ingest.md`,
    `docs/crates/pipeline.md`, ADR 0051); verified by `just check` and a rerun of `generate` on a copy of a saved run
-   (bogus key) that calls no LLM and rewrites no file; ~350 lines.
+   (bogus key) that calls no LLM and rewrites no file; ~350 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -81,6 +81,29 @@ done: `SetAside` (with `AsideFeature`, `AsideRule`, now with `load`/`save`, its 
 red: none (a move: the new core tests cover code moved as is)
 
 Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 2
+done: `retrodoc-web`, `retrodoc-mcp`, `retrodoc-cli`, `retrodoc-bench` and the pipeline's integration tests load
+and save the features, use cases, rules and set-aside items through `retrodoc_core::artifacts`; the pipeline's
+public re-exports and `load_set_aside` are gone (its modules import them `pub(crate)`).
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (no change of behaviour) |
+| docs | updated with deliverable 1 (`core-ingest.md`, `pipeline.md`, ADR 0051); no stale path left |
+| rerun | `generate --no-confidence` on a copy of the saved vingilot run with a bogus key: no LLM call, the 141 files of `.retrodoc/` and `docs/` identical; ledger line |
+| size | 340 lines |
+| file size | `edit_pages.rs` 883 and `review_pages.rs` 845 lines (879 and 841 before, rustfmt wrapping the longer paths): not split, test files over the limit before this move |
+
+red: none (a move)
+
+Code review: no findings (two notes, both settled by `project-check`: no unused `pub(crate)` import, `retrodoc-bench` depends on core)
 
 not verified: nothing
 

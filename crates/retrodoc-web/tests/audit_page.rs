@@ -69,7 +69,7 @@ fn use_case(slug: &str, feature: &str, confidence: Option<f32>) -> UseCase {
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "billing"),
@@ -77,7 +77,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[
             use_case("refund", "pay-invoice", Some(0.3)),
@@ -310,8 +310,11 @@ async fn the_figures_the_run_has_are_shown_and_the_missing_ones_say_how_to_get_t
 #[tokio::test]
 async fn an_overall_confidence_below_the_threshold_is_flagged_low() {
     let repo = generated_repo();
-    retrodoc_pipeline::save_use_cases(repo.path(), &[use_case("ship", "ship-order", Some(0.2))])
-        .unwrap();
+    retrodoc_core::artifacts::save_use_cases(
+        repo.path(),
+        &[use_case("ship", "ship-order", Some(0.2))],
+    )
+    .unwrap();
 
     let page = audit(repo.path()).await;
 
@@ -328,7 +331,7 @@ async fn a_run_with_no_confidence_says_it_is_missing_and_still_shows_the_heatmap
     let repo = generated_repo();
     let mut ship = use_case("ship", "ship-order", None);
     ship.business_language = Some(score(0.9));
-    retrodoc_pipeline::save_use_cases(repo.path(), &[ship]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(repo.path(), &[ship]).unwrap();
 
     let page = audit(repo.path()).await;
 

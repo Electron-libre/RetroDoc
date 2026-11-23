@@ -61,11 +61,11 @@ fn saved_again(root: &Path) -> Vec<(&'static str, String)> {
     vec![
         (
             "features.yaml",
-            yaml(&retrodoc_pipeline::load_features(root).expect("features.yaml")),
+            yaml(&retrodoc_core::artifacts::load_features(root).expect("features.yaml")),
         ),
         (
             "use-cases.yaml",
-            yaml(&retrodoc_pipeline::load_use_cases(root).expect("use-cases.yaml")),
+            yaml(&retrodoc_core::artifacts::load_use_cases(root).expect("use-cases.yaml")),
         ),
         (
             "domains.yaml",
@@ -77,7 +77,7 @@ fn saved_again(root: &Path) -> Vec<(&'static str, String)> {
         ),
         (
             "rules.yaml",
-            yaml(&retrodoc_pipeline::load_rules(root).expect("rules.yaml")),
+            yaml(&retrodoc_core::artifacts::load_rules(root).expect("rules.yaml")),
         ),
         ("scope.yaml", yaml(&Scope::load(root).expect("scope.yaml"))),
         (

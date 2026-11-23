@@ -60,8 +60,8 @@ fn use_case(slug: &str, feature: &str) -> UseCase {
 fn served_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(root, &[feature("pay-invoice", "billing")]).unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_features(root, &[feature("pay-invoice", "billing")]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[
             use_case("refund", "pay-invoice"),

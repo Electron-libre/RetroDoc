@@ -109,7 +109,7 @@ fn concept(name: &str) -> ModelFile {
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "billing"),
@@ -120,7 +120,7 @@ fn generated_repo() -> tempfile::TempDir {
     )
     .unwrap();
     let shared = ["app/address.rb", "app/card.rb", "app/customer.rb"];
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[
             acted(
@@ -519,9 +519,9 @@ async fn each_node_of_the_map_of_a_domain_is_the_link_of_its_item_in_the_list() 
 #[tokio::test]
 async fn a_double_quote_of_a_feature_name_stays_inside_its_label() {
     let repo = generated_repo();
-    let mut features = retrodoc_pipeline::load_features(repo.path()).unwrap();
+    let mut features = retrodoc_core::artifacts::load_features(repo.path()).unwrap();
     features[0].name = "a\"] --> x[\"b".into();
-    retrodoc_pipeline::save_features(repo.path(), &features).unwrap();
+    retrodoc_core::artifacts::save_features(repo.path(), &features).unwrap();
     let source = source(&page(repo.path(), "/map/billing").await);
     assert!(source.contains("\"a#quot;] --> x[#quot;b"), "{source}");
 }
@@ -569,9 +569,9 @@ async fn the_actors_of_a_feature_are_sorted_by_name_ignoring_case() {
 #[tokio::test]
 async fn a_hash_of_a_name_is_no_entity_of_its_label() {
     let repo = generated_repo();
-    let mut features = retrodoc_pipeline::load_features(repo.path()).unwrap();
+    let mut features = retrodoc_core::artifacts::load_features(repo.path()).unwrap();
     features[0].name = "Ticket #12;".into();
-    retrodoc_pipeline::save_features(repo.path(), &features).unwrap();
+    retrodoc_core::artifacts::save_features(repo.path(), &features).unwrap();
     let source = source(&page(repo.path(), "/map/billing").await);
     assert!(source.contains("\"Ticket #35;12;<br>"), "{source}");
 }
@@ -580,7 +580,7 @@ async fn a_hash_of_a_name_is_no_entity_of_its_label() {
 #[tokio::test]
 async fn a_primary_actor_the_steps_name_a_system_and_a_blank_human_are_no_nodes() {
     let repo = generated_repo();
-    let mut use_cases = retrodoc_pipeline::load_use_cases(repo.path()).unwrap();
+    let mut use_cases = retrodoc_core::artifacts::load_use_cases(repo.path()).unwrap();
     for use_case in &mut use_cases {
         if use_case.slug == "cancel-now" {
             use_case.primary_actor = Some("System".into());
@@ -589,7 +589,7 @@ async fn a_primary_actor_the_steps_name_a_system_and_a_blank_human_are_no_nodes(
             *use_case = acted(use_case.clone(), None, &["  "]);
         }
     }
-    retrodoc_pipeline::save_use_cases(repo.path(), &use_cases).unwrap();
+    retrodoc_core::artifacts::save_use_cases(repo.path(), &use_cases).unwrap();
     let page = page(repo.path(), "/map/billing").await;
     let source = source(&page);
     assert!(!source.contains("\"System"), "{source}");

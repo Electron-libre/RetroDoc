@@ -40,7 +40,7 @@ fn generated_repo() -> tempfile::TempDir {
             "The rider gets the shortest path",
         ),
     ];
-    retrodoc_pipeline::save_features(dir.path(), &features).unwrap();
+    retrodoc_core::artifacts::save_features(dir.path(), &features).unwrap();
     DomainMap {
         domains: vec![DomainCluster {
             slug: "delivery".into(),

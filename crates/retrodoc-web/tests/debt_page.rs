@@ -69,7 +69,7 @@ fn use_case(slug: &str, feature: &str, name: &str, confidence: Option<f32>) -> U
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "billing", "Pay an invoice"),
@@ -77,7 +77,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[
             use_case("refund", "pay-invoice", "Refund <script>", Some(0.3)),
@@ -231,7 +231,7 @@ async fn the_debt_page_lists_each_section_that_needs_a_human() {
 #[tokio::test]
 async fn a_run_with_no_score_says_so_rather_than_listing_every_use_case() {
     let repo = generated_repo();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         repo.path(),
         &[use_case("refund", "pay-invoice", "Refund", None)],
     )
@@ -247,8 +247,8 @@ async fn a_run_with_no_score_and_nothing_else_does_not_say_the_docs_need_no_huma
     let clean = tempfile::tempdir().unwrap();
     let mut unscored = feature("pay-invoice", "billing", "Pay an invoice");
     unscored.confidence = None;
-    retrodoc_pipeline::save_features(clean.path(), &[unscored]).unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_features(clean.path(), &[unscored]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(
         clean.path(),
         &[use_case("refund", "pay-invoice", "Refund", None)],
     )
@@ -379,7 +379,7 @@ async fn the_debt_page_says_when_nothing_needs_a_human_or_nothing_matches() {
     let clean = tempfile::tempdir().unwrap();
     let mut fine = feature("pay-invoice", "billing", "Pay an invoice");
     fine.source_paths.clear();
-    retrodoc_pipeline::save_features(clean.path(), &[fine]).unwrap();
+    retrodoc_core::artifacts::save_features(clean.path(), &[fine]).unwrap();
     let page = debt(clean.path(), "/debt").await;
     assert!(
         list(&page).contains("No section of the docs needs a human."),

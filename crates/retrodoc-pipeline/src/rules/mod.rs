@@ -22,7 +22,9 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-pub use retrodoc_core::artifacts::{load_rules, save_rules, AsideFeature, AsideRule, SetAside};
+pub(crate) use retrodoc_core::artifacts::{
+    load_rules, save_rules, AsideFeature, AsideRule, SetAside,
+};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
@@ -67,13 +69,6 @@ use self::judge::{judge_rules_with, JUDGEMENT, KIND};
 pub use self::judge::{JUDGE_SYSTEM_PROMPT, NOISE};
 use self::prompt::{rules_prompt, STATEMENT};
 use self::split::stated_rules;
-
-/// What the rules pass set aside on a judgement of the LLM, to check the doubtful cases. Missing or
-/// unreadable: `None`.
-#[must_use]
-pub fn load_set_aside(repo_root: &Path) -> Option<SetAside> {
-    SetAside::load(repo_root)
-}
 
 /// The rules as each feature stated them, else (a run from before this artifact) the saved rules.
 fn load_stated(repo_root: &Path) -> Option<Vec<BusinessRule>> {
@@ -151,7 +146,7 @@ pub async fn build_rules(
     warn_unknown_features(&context.put_back.keep_features, features);
     let splitter = load_splitter(repo_root);
     let previous = saved.unwrap_or_default();
-    let previous_aside = load_set_aside(repo_root).unwrap_or_default();
+    let previous_aside = SetAside::load(repo_root).unwrap_or_default();
     let judgement = judgement_print(llm);
     let last = Last {
         prints: &known,

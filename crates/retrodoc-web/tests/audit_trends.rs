@@ -18,7 +18,7 @@ use tower::ServiceExt;
 fn served_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[Feature {
             back_office: false,

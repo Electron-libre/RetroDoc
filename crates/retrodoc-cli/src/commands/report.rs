@@ -19,7 +19,8 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
     };
 
     let docs = retrodoc_mcp::GeneratedDocs::load(&repo_root, &[])?;
-    let Some((docs, use_cases)) = docs.zip(retrodoc_pipeline::load_use_cases(&repo_root)) else {
+    let Some((docs, use_cases)) = docs.zip(retrodoc_core::artifacts::load_use_cases(&repo_root))
+    else {
         anyhow::bail!(NO_DOCS);
     };
     if use_cases.iter().all(|u| u.confidence.is_none()) {

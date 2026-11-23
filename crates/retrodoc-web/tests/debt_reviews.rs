@@ -72,7 +72,7 @@ fn use_cases() -> Vec<UseCase> {
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "billing", "Pay an invoice"),
@@ -80,7 +80,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(root, &use_cases()).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &use_cases()).unwrap();
     DomainMap {
         domains: ["billing", "shipping"]
             .map(|slug| DomainCluster {
@@ -191,7 +191,7 @@ async fn a_validated_section_rewritten_since_is_listed_again() {
     );
     let mut rewritten = use_cases();
     rewritten[0].description = "Refunds the paid invoice.".into();
-    retrodoc_pipeline::save_use_cases(repo.path(), &rewritten).unwrap();
+    retrodoc_core::artifacts::save_use_cases(repo.path(), &rewritten).unwrap();
     let page = get(repo.path(), "/debt").await;
     assert!(
         listed(&page).contains(&pair(
@@ -254,7 +254,7 @@ async fn an_item_marked_wrong_or_to_review_says_its_review_is_outdated() {
     .unwrap();
     let mut rewritten = use_cases();
     rewritten[1].description = "Pays the invoice by card.".into();
-    retrodoc_pipeline::save_use_cases(root, &rewritten).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &rewritten).unwrap();
 
     let page = get(root, "/debt").await;
     let item = |kind: &str| {
@@ -350,7 +350,7 @@ async fn a_review_of_a_section_the_run_no_longer_holds_is_not_listed() {
         Status::Wrong,
         "",
     );
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         repo.path(),
         &[feature("pay-invoice", "billing", "Pay an invoice")],
     )
@@ -476,8 +476,11 @@ async fn the_audit_page_shows_the_share_of_each_kind_of_section_reviewed_by_stat
     );
     // The run no longer holds `ship-order` nor its domain: neither its review nor its use case
     // count.
-    retrodoc_pipeline::save_features(root, &[feature("pay-invoice", "billing", "Pay an invoice")])
-        .unwrap();
+    retrodoc_core::artifacts::save_features(
+        root,
+        &[feature("pay-invoice", "billing", "Pay an invoice")],
+    )
+    .unwrap();
 
     let reviewed = reviewed(&get(root, "/audit").await);
 
@@ -512,7 +515,7 @@ async fn the_audit_page_counts_the_outdated_reviews_of_each_kind() {
     );
     let mut rewritten = use_cases();
     rewritten[0].description = "Refunds the paid invoice.".into();
-    retrodoc_pipeline::save_use_cases(root, &rewritten).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &rewritten).unwrap();
 
     let reviewed = reviewed(&get(root, "/audit").await);
 
@@ -580,7 +583,7 @@ async fn an_edit_of_a_section_rewritten_since_enters_the_debt() {
 
     let mut rewritten = feature("ship-order", "shipping", "Ship an order");
     rewritten.description = "Sends the parcel.".into();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "billing", "Pay an invoice"),
@@ -590,7 +593,7 @@ async fn an_edit_of_a_section_rewritten_since_enters_the_debt() {
     .unwrap();
     let mut use_cases = use_cases();
     use_cases.retain(|u| u.slug != "pay-by-card");
-    retrodoc_pipeline::save_use_cases(root, &use_cases).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &use_cases).unwrap();
 
     let page = get(root, "/debt").await;
     let edited: Vec<String> = items(&page)

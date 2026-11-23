@@ -44,8 +44,8 @@ fn generated_repo() -> tempfile::TempDir {
         feature("cancel-plan", "Cancel a plan"),
     ];
     features.extend((1..=12).map(|n| feature(&format!("ledger-{n}"), &format!("Ledger {n}"))));
-    retrodoc_pipeline::save_features(root, &features).unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_features(root, &features).unwrap();
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[UseCase {
             slug: "by-card".into(),
@@ -63,7 +63,7 @@ fn generated_repo() -> tempfile::TempDir {
         }],
     )
     .unwrap();
-    retrodoc_pipeline::save_rules(
+    retrodoc_core::artifacts::save_rules(
         root,
         &[BusinessRule {
             slug: "pay-invoice-1".into(),
@@ -433,7 +433,7 @@ async fn an_htmx_history_restore_gets_the_full_search_page() {
 #[tokio::test]
 async fn a_rule_whose_feature_is_not_in_the_run_has_no_link() {
     let repo = generated_repo();
-    retrodoc_pipeline::save_rules(
+    retrodoc_core::artifacts::save_rules(
         repo.path(),
         &[BusinessRule {
             slug: "gone-1".into(),

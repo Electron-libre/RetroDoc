@@ -39,10 +39,10 @@ impl GeneratedDocs {
         let Some(root) = self.repo_root() else {
             return report;
         };
-        report.with_technical_features(retrodoc_pipeline::load_technical_features(root));
+        report.with_technical_features(retrodoc_core::artifacts::load_technical_features(root));
         if let Some(put_back) = inputs.put_back {
             report.with_set_aside(
-                retrodoc_pipeline::load_set_aside(root).unwrap_or_default(),
+                retrodoc_core::artifacts::SetAside::load(root).unwrap_or_default(),
                 put_back,
                 self.rules(),
             );

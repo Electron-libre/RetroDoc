@@ -92,7 +92,7 @@ fn generated_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     hashes.save(&root).unwrap();
     std::fs::write(root.join("app/card.rb"), "card changed\n").unwrap();
 
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         &root,
         &[Feature {
             back_office: false,
@@ -114,7 +114,7 @@ fn generated_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         }],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         &root,
         &[UseCase {
             slug: "pay-by-card".into(),
@@ -144,7 +144,7 @@ fn generated_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         }],
     )
     .unwrap();
-    retrodoc_pipeline::save_rules(
+    retrodoc_core::artifacts::save_rules(
         &root,
         &[BusinessRule {
             slug: "pay-invoice-1".into(),

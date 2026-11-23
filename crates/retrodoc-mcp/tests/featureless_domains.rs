@@ -29,7 +29,7 @@ fn the_read_model_lists_no_domain_without_a_feature() {
         entry_points: Vec::new(),
         confidence: None,
     };
-    retrodoc_pipeline::save_features(dir.path(), &[feature]).unwrap();
+    retrodoc_core::artifacts::save_features(dir.path(), &[feature]).unwrap();
     DomainMap {
         domains: vec![domain("billing", "Billing"), domain("feeds", "Feeds")],
     }

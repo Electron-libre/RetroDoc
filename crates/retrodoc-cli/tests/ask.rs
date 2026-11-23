@@ -26,7 +26,7 @@ fn generated_repo(config: &str) -> tempfile::TempDir {
         entry_points: Vec::new(),
         confidence: None,
     };
-    retrodoc_pipeline::save_features(dir.path(), &[feature]).unwrap();
+    retrodoc_core::artifacts::save_features(dir.path(), &[feature]).unwrap();
     DomainMap {
         domains: vec![DomainCluster {
             slug: "orders".into(),
@@ -214,9 +214,9 @@ fn without_generated_docs_the_command_fails_before_any_call() {
 fn the_warnings_of_the_sources_are_printed_after_them() {
     let llm = navigating();
     let dir = generated_repo(&llm_section(&llm));
-    let mut features = retrodoc_pipeline::load_features(dir.path()).unwrap();
+    let mut features = retrodoc_core::artifacts::load_features(dir.path()).unwrap();
     features[0].confidence = Some(retrodoc_core::model::ConfidenceScore::new(0.3, None));
-    retrodoc_pipeline::save_features(dir.path(), &features).unwrap();
+    retrodoc_core::artifacts::save_features(dir.path(), &features).unwrap();
     let mut hashes = retrodoc_core::artifacts::SourceHashes::default();
     hashes.put(
         "app/order.rb",

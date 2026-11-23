@@ -65,7 +65,7 @@ fn model(name: &str, description: &str) -> ModelFile {
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[Feature {
             back_office: false,
@@ -80,7 +80,7 @@ fn generated_repo() -> tempfile::TempDir {
         }],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[
             use_case("pay-by-card", &["app/invoice.rb", "app/card.rb"]),
@@ -88,7 +88,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_rules(
+    retrodoc_core::artifacts::save_rules(
         root,
         &[BusinessRule {
             slug: "pay-invoice-1".into(),

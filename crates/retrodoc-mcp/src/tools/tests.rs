@@ -315,7 +315,7 @@ fn nothing_is_loaded_before_a_first_generate() {
 #[test]
 fn the_saved_artifacts_are_loaded_and_navigable() {
     let dir = tempfile::tempdir().unwrap();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         dir.path(),
         &[feature(
             "pay-invoice",
@@ -324,7 +324,7 @@ fn the_saved_artifacts_are_loaded_and_navigable() {
         )],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         dir.path(),
         &[use_case("pay-by-card", "pay-invoice", "Pay by card", "x")],
     )
@@ -662,7 +662,7 @@ fn a_second_set_of_rules_replaces_the_first() {
 #[test]
 fn the_saved_rules_are_loaded_with_the_docs() {
     let dir = tempfile::tempdir().unwrap();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         dir.path(),
         &[feature(
             "pay-invoice",
@@ -671,7 +671,7 @@ fn the_saved_rules_are_loaded_with_the_docs() {
         )],
     )
     .unwrap();
-    retrodoc_pipeline::save_rules(dir.path(), &rules()[..1]).unwrap();
+    retrodoc_core::artifacts::save_rules(dir.path(), &rules()[..1]).unwrap();
     let docs = Docs::load(dir.path(), &[]).unwrap().unwrap();
     assert!(docs.get_feature("pay-invoice").contains("`pay-invoice-1`"));
     assert_eq!(docs.index().len(), 2);

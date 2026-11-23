@@ -86,7 +86,7 @@ async fn start(args: &[String]) -> Result<(), Failure> {
         Ok(judgement) => matches = matches.with_proposals(&judgement),
         Err(error) => eprintln!("no judge's pairs, the hand pairs only: {error}"),
     }
-    let features = retrodoc_pipeline::load_features(run)
+    let features = retrodoc_core::artifacts::load_features(run)
         .ok_or_else(|| format!("no features in {}", run.display()))?;
     let names: Vec<&str> = reference
         .domains

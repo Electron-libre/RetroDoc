@@ -167,7 +167,7 @@ async fn document(
         .await
         .context("failed to derive the features from the entry points")?;
     repo.map.arrange(&mut features);
-    retrodoc_pipeline::save_features(repo_root, &features)
+    retrodoc_core::artifacts::save_features(repo_root, &features)
         .context("could not save the features")?;
     report_entries_by_context(repo_root, repo, &in_run)?;
 

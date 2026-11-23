@@ -93,11 +93,13 @@ async fn scores_steps_caps_ungrounded_ones_and_aggregates_to_the_feature() {
     assert_eq!(features[0].confidence.as_ref().unwrap().value, uc.value);
     assert_eq!(features[1].confidence.as_ref().unwrap().value, 0.0);
 
-    let saved = crate::load_use_cases(dir.path()).unwrap();
+    let saved = retrodoc_core::artifacts::load_use_cases(dir.path()).unwrap();
     assert!(saved[0].confidence.is_some());
-    assert!(crate::load_features(dir.path()).unwrap()[0]
-        .confidence
-        .is_some());
+    assert!(
+        retrodoc_core::artifacts::load_features(dir.path()).unwrap()[0]
+            .confidence
+            .is_some()
+    );
 }
 
 #[tokio::test]

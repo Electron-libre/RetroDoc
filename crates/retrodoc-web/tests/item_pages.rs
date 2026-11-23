@@ -107,7 +107,7 @@ fn generated_repo() -> tempfile::TempDir {
     let mut pay = feature("pay-invoice", "billing", false);
     pay.source_paths = vec!["app/invoice.rb".into(), "app/card.rb".into()];
     pay.entry_points = vec!["app/invoice.rb#pay".into()];
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             pay,
@@ -150,7 +150,7 @@ fn generated_repo() -> tempfile::TempDir {
     by_card.diagram_mermaid = Some("sequenceDiagram\n  Customer->>Gateway: pay".into());
     let mut retry = use_case("retry-job", "pay-invoice");
     retry.business_language = Some(ConfidenceScore::new(0.1, None));
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[by_card, retry, use_case("refund-now", "refund-tool")],
     )
@@ -171,7 +171,7 @@ fn generated_repo() -> tempfile::TempDir {
             path: "spec/invoice_spec.rb".into(),
         },
     ];
-    retrodoc_pipeline::save_rules(root, &[paid]).unwrap();
+    retrodoc_core::artifacts::save_rules(root, &[paid]).unwrap();
     DomainMap {
         domains: vec![
             DomainCluster {
@@ -535,11 +535,11 @@ async fn a_feature_asked_under_another_domain_or_unknown_is_the_not_found_page()
 
 /// Replaces the use cases of the run with `use_cases`.
 fn save_use_cases(root: &Path, use_cases: &[UseCase]) {
-    retrodoc_pipeline::save_use_cases(root, use_cases).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, use_cases).unwrap();
 }
 
 fn saved_use_case(root: &Path, slug: &str) -> UseCase {
-    retrodoc_pipeline::load_use_cases(root)
+    retrodoc_core::artifacts::load_use_cases(root)
         .unwrap()
         .into_iter()
         .find(|u| u.slug == slug)

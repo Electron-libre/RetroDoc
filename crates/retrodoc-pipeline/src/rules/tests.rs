@@ -683,7 +683,7 @@ async fn a_feature_set_aside_as_tests_is_kept_with_its_reason_until_it_changes()
     let dir = repo();
     run(dir.path(), &knowing(r#"{"about_tests":true}"#)).await;
 
-    let aside = load_set_aside(dir.path()).expect("the features set aside are on disk");
+    let aside = SetAside::load(dir.path()).expect("the features set aside are on disk");
     assert_eq!(aside.features.len(), 1);
     let set_aside = &aside.features[0];
     assert_eq!(set_aside.slug, "orders");
@@ -695,7 +695,7 @@ async fn a_feature_set_aside_as_tests_is_kept_with_its_reason_until_it_changes()
     let again = FakeLlm::answering("not even json");
     run(dir.path(), &again).await;
     assert_eq!(again.calls(), 0);
-    assert_eq!(load_set_aside(dir.path()).unwrap(), aside);
+    assert_eq!(SetAside::load(dir.path()).unwrap(), aside);
 
     // Asked again and no longer about tests: nothing is set aside.
     let mut changed = feature();
@@ -710,7 +710,7 @@ async fn a_feature_set_aside_as_tests_is_kept_with_its_reason_until_it_changes()
     )
     .await
     .unwrap();
-    assert!(load_set_aside(dir.path()).unwrap().is_empty());
+    assert!(SetAside::load(dir.path()).unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -722,7 +722,7 @@ async fn a_rule_dropped_by_the_judgement_is_kept_with_its_class() {
     );
     run(dir.path(), &llm).await;
 
-    let aside = load_set_aside(dir.path()).unwrap();
+    let aside = SetAside::load(dir.path()).unwrap();
     assert_eq!(aside.features, []);
     assert_eq!(aside.rules.len(), 1);
     let dropped = &aside.rules[0];
@@ -734,7 +734,7 @@ async fn a_rule_dropped_by_the_judgement_is_kept_with_its_class() {
     let again = FakeLlm::answering("not even json");
     run(dir.path(), &again).await;
     assert_eq!(again.calls(), 0);
-    assert_eq!(load_set_aside(dir.path()).unwrap(), aside);
+    assert_eq!(SetAside::load(dir.path()).unwrap(), aside);
 }
 
 #[tokio::test]
@@ -747,7 +747,7 @@ async fn a_run_saved_before_the_set_aside_file_is_asked_again_once() {
     run(dir.path(), &again).await;
 
     assert_eq!(again.calls(), 1);
-    assert_eq!(load_set_aside(dir.path()).unwrap().features.len(), 1);
+    assert_eq!(SetAside::load(dir.path()).unwrap().features.len(), 1);
 }
 
 /// The context of the tests, with the features and rules of `put_back` put back by hand.
@@ -792,7 +792,7 @@ async fn a_feature_put_back_by_hand_is_not_asked_whether_it_is_about_tests() {
         .system_prompts()
         .iter()
         .any(|p| p == judge::FEATURE_SYSTEM_PROMPT));
-    assert_eq!(load_set_aside(dir.path()).unwrap().features, []);
+    assert_eq!(SetAside::load(dir.path()).unwrap().features, []);
 }
 
 // spec: RSA-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
@@ -867,7 +867,7 @@ async fn dropping_storage(dir: &Path) {
 async fn a_rule_put_back_by_hand_is_published_with_its_evidence_without_a_call_until_unlisted() {
     let dir = repo();
     dropping_storage(dir.path()).await;
-    let dropped = load_set_aside(dir.path()).unwrap().rules[0].clone();
+    let dropped = SetAside::load(dir.path()).unwrap().rules[0].clone();
     assert_eq!(dropped.slug, "orders-1");
 
     let listed = FakeLlm::answering("not even json");
@@ -886,7 +886,7 @@ async fn a_rule_put_back_by_hand_is_published_with_its_evidence_without_a_call_u
     assert_eq!(load_rules(dir.path()).unwrap(), rules);
     // Still a decision of the LLM on record: the set-aside file keeps it.
     assert_eq!(
-        load_set_aside(dir.path()).unwrap().rules,
+        SetAside::load(dir.path()).unwrap().rules,
         std::slice::from_ref(&dropped)
     );
 
@@ -895,7 +895,7 @@ async fn a_rule_put_back_by_hand_is_published_with_its_evidence_without_a_call_u
     assert_eq!(unlisted.calls(), 0);
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0].slug, "orders-2");
-    assert_eq!(load_set_aside(dir.path()).unwrap().rules, [dropped]);
+    assert_eq!(SetAside::load(dir.path()).unwrap().rules, [dropped]);
 }
 
 // spec: RSA-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
@@ -931,7 +931,7 @@ async fn a_rule_put_back_from_an_older_set_aside_file_is_warned_about_and_not_ma
     dropping_storage(dir.path()).await;
     // As written before the dropped rule was kept whole.
     let path = Artifact::RulesSetAside.path(dir.path());
-    let mut older = load_set_aside(dir.path()).unwrap();
+    let mut older = SetAside::load(dir.path()).unwrap();
     older.rules[0].rule = None;
     save_yaml(&path, &older).unwrap();
 
@@ -1003,7 +1003,7 @@ async fn a_failing_run_keeps_the_rules_put_back_in_what_it_saves() {
 async fn a_feature_put_back_whose_answer_is_unreadable_is_no_longer_listed_as_set_aside() {
     let dir = repo();
     run(dir.path(), &knowing(r#"{"about_tests":true}"#)).await;
-    assert_eq!(load_set_aside(dir.path()).unwrap().features.len(), 1);
+    assert_eq!(SetAside::load(dir.path()).unwrap().features.len(), 1);
 
     ask_with(
         dir.path(),
@@ -1013,7 +1013,7 @@ async fn a_feature_put_back_whose_answer_is_unreadable_is_no_longer_listed_as_se
     )
     .await;
 
-    assert_eq!(load_set_aside(dir.path()).unwrap().features, []);
+    assert_eq!(SetAside::load(dir.path()).unwrap().features, []);
 }
 
 #[test]
@@ -1250,7 +1250,7 @@ async fn a_change_of_the_judgement_alone_judges_the_saved_rules_again_with_no_st
     );
     let slugs: Vec<&str> = rules.iter().map(|r| r.slug.as_str()).collect();
     assert_eq!(slugs, ["orders-1"]);
-    let aside = load_set_aside(dir.path()).unwrap();
+    let aside = SetAside::load(dir.path()).unwrap();
     let dropped: Vec<&str> = aside.rules.iter().map(|r| r.slug.as_str()).collect();
     assert_eq!(dropped, ["orders-2"]);
 
@@ -1269,7 +1269,7 @@ async fn a_rule_set_aside_without_its_whole_rule_states_the_feature_again() {
     );
     run(dir.path(), &first).await;
     change_the_judgement(dir.path());
-    let mut aside = load_set_aside(dir.path()).unwrap();
+    let mut aside = SetAside::load(dir.path()).unwrap();
     aside.rules[0].rule = None;
     save_yaml(&Artifact::RulesSetAside.path(dir.path()), &aside).unwrap();
 

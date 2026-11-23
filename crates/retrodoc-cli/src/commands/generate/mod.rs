@@ -286,7 +286,7 @@ async fn reconcile_with_docs(
             return Ok(());
         }
     };
-    let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+    let rules = retrodoc_core::artifacts::load_rules(repo_root).unwrap_or_default();
     let corpus = reconcile::corpus(&docs);
     let candidates = reconcile::candidates(
         reconcile::items(
@@ -507,7 +507,7 @@ async fn derive_use_cases(
         ),
     }
     // Persist again now that the diagrams are attached.
-    retrodoc_pipeline::save_use_cases(repo_root, &use_cases)
+    retrodoc_core::artifacts::save_use_cases(repo_root, &use_cases)
         .context("failed to save the use cases")?;
     let coverage = retrodoc_pipeline::save_use_case_coverage(repo_root, features, &use_cases)
         .context("could not save the behaviour coverage")?;

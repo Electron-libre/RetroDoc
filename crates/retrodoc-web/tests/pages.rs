@@ -69,7 +69,7 @@ fn generated_repo() -> tempfile::TempDir {
     }
     hashes.save(root).unwrap();
     std::fs::write(root.join("app/rider.rb"), "edited since the run").unwrap();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[
             feature("pay-invoice", "billing", 0.8, "app/invoice.rb"),
@@ -83,7 +83,7 @@ fn generated_repo() -> tempfile::TempDir {
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[
             use_case("pay-by-card", "pay-invoice"),
@@ -693,8 +693,8 @@ async fn the_frame_and_the_home_search_and_not_found_pages_are_in_french() {
 /// A run that grouped no source file into a domain.
 fn no_domain_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
-    retrodoc_pipeline::save_features(dir.path(), &[]).unwrap();
-    retrodoc_pipeline::save_use_cases(dir.path(), &[]).unwrap();
+    retrodoc_core::artifacts::save_features(dir.path(), &[]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(dir.path(), &[]).unwrap();
     DomainMap { domains: vec![] }.save(dir.path()).unwrap();
     dir
 }
@@ -749,12 +749,12 @@ fn healthy_repo() -> tempfile::TempDir {
     let mut hashes = SourceHashes::default();
     hashes.put("app/invoice.rb", &hash_content(content));
     hashes.save(root).unwrap();
-    retrodoc_pipeline::save_features(
+    retrodoc_core::artifacts::save_features(
         root,
         &[feature("pay-invoice", "billing", 0.9, "app/invoice.rb")],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[UseCase {
             confidence: Some(ConfidenceScore::new(0.9, None)),

@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-pub use retrodoc_core::artifacts::{load_use_cases, save_use_cases};
+pub(crate) use retrodoc_core::artifacts::{load_use_cases, save_use_cases};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;

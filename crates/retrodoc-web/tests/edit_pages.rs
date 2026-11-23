@@ -58,8 +58,10 @@ fn generated_repo() -> tempfile::TempDir {
             .unwrap();
         assert!(status.success());
     }
-    retrodoc_pipeline::save_features(root, &[feature("pay-invoice"), feature("refund")]).unwrap();
-    retrodoc_pipeline::save_use_cases(root, &[use_case("The clerk takes the card.")]).unwrap();
+    retrodoc_core::artifacts::save_features(root, &[feature("pay-invoice"), feature("refund")])
+        .unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &[use_case("The clerk takes the card.")])
+        .unwrap();
     DomainMap {
         domains: vec![DomainCluster {
             slug: "billing".into(),
@@ -174,7 +176,8 @@ async fn an_outdated_edit_is_flagged_with_the_new_generated_text() {
         &Section::use_case("pay-invoice", "pay-by-card"),
         fields,
     );
-    retrodoc_pipeline::save_use_cases(root, &[use_case("The clerk scans the card.")]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &[use_case("The clerk scans the card.")])
+        .unwrap();
 
     let page = get(root, "/domains/billing/pay-invoice/pay-by-card").await;
 
@@ -337,7 +340,7 @@ async fn the_form_saves_only_the_fields_it_changes_trimmed() {
     );
 
     // A generated text with a CR LF line end comes back from the browser with a line feed alone.
-    retrodoc_pipeline::save_use_cases(
+    retrodoc_core::artifacts::save_use_cases(
         root,
         &[use_case("The clerk takes the card.\r\nThen he pays.")],
     )
@@ -351,7 +354,8 @@ async fn the_form_saves_only_the_fields_it_changes_trimmed() {
         Vec::new(),
         "the narrative sent back as generated"
     );
-    retrodoc_pipeline::save_use_cases(root, &[use_case("The clerk takes the card.")]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &[use_case("The clerk takes the card.")])
+        .unwrap();
     let unchanged = "name=Pay+by+card&description=&narrative=The+clerk+takes+the+card.";
     post(root, &format!("/edit{USE_CASE}"), unchanged, false).await;
     assert_eq!(saved(root), Vec::new(), "every field left out: no edit");
@@ -572,7 +576,7 @@ async fn the_generated_text_is_folded_under_an_edit_that_is_not_outdated() {
 
     let mut rewritten = feature("pay-invoice");
     rewritten.name = "Pay the invoice".into();
-    retrodoc_pipeline::save_features(root, &[rewritten, feature("refund")]).unwrap();
+    retrodoc_core::artifacts::save_features(root, &[rewritten, feature("refund")]).unwrap();
     let page = get(root, FEATURE).await;
     let block = edit_block(&page).unwrap_or_else(|| panic!("no edit block in {page}"));
     assert!(
@@ -833,7 +837,7 @@ async fn a_relative_link_of_a_narrative_leads_to_the_collected_doc_it_resolves_t
     let root = repo.path();
     let mut generated = use_case(narrative);
     generated.narrative = Some(format!("Generated. {narrative}"));
-    retrodoc_pipeline::save_use_cases(root, &[generated]).unwrap();
+    retrodoc_core::artifacts::save_use_cases(root, &[generated]).unwrap();
     edit(
         root,
         &Section::use_case("pay-invoice", "pay-by-card"),

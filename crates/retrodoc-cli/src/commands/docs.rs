@@ -12,7 +12,7 @@ use retrodoc_render::RunMetadata;
 /// is a no-op.
 pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Result<()> {
     retrodoc_core::cache::format::check(repo_root)?;
-    if retrodoc_pipeline::load_use_cases(repo_root).is_none() {
+    if retrodoc_core::artifacts::load_use_cases(repo_root).is_none() {
         anyhow::bail!(NO_DOCS);
     }
     // Before anything is written: docs without the team's corrections would overwrite theirs.

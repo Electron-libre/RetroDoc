@@ -19,8 +19,8 @@ use retrodoc_core::model::Feature;
 
 use crate::artifact::Artifact;
 use crate::error::PipelineError;
-use crate::features::load_features;
 use crate::naming::normalize;
+use retrodoc_core::artifacts::load_features;
 use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 
 /// The version of the scoring rules, saved in each [`super::RunReport`]: bump it when [`score`] or the
@@ -450,7 +450,7 @@ mod tests {
     #[test]
     fn compares_the_saved_domains_and_features_with_the_reference() {
         use crate::artifact::{save_yaml, Artifact};
-        use crate::features::save_features;
+        use retrodoc_core::artifacts::save_features;
         use retrodoc_core::artifacts::DomainCluster;
         use retrodoc_core::model::Feature;
 
