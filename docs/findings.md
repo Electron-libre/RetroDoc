@@ -824,12 +824,12 @@ store, its own Node runtime, telemetry on by default) indexed the checkouts of t
 - **Its framework routes add little to the entry points**: HTTP only, every Lobsters route file already found by
   the LLM, two real route files more on linkding, one route bound to the wrong file.
 - Decision (user, 2026-11-23): port the resolution into `structure.rs` rather than depend on codegraph (one binary,
-  no Node, no telemetry); `issues/resolved_references_in_structure.md`.
+  no Node, no telemetry); `issues/done/resolved_references_in_structure.md`.
 
 ## 14. Resolved references ported: the mix, then RetroDoc's own resolution (2026-11-23)
 
 `parsed_slices --codegraph`, on the three saved runs of §13, no LLM, depth 2 and 8 files
-(`issues/resolved_references_in_structure.md`):
+(`issues/done/resolved_references_in_structure.md`):
 
 | Run | Mean slice, lexical / mix / resolved | Lexical vs resolved | Mix vs resolved | Pairs: both / codegraph only / resolved only |
 |---|---|---|---|---|

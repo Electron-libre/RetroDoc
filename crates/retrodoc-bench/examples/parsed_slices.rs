@@ -29,7 +29,7 @@
 //! The resolved slice (`Follow::ResolvedThenLexical`, `specs/resolved-references.md`) is compared with the lexical
 //! one; with `--codegraph`, also with the mix, and its references with codegraph's edges, pair of files by pair.
 //!
-//! A fifth slice, the mix (`issues/resolved_references_in_structure.md`), follows codegraph's edges from a file
+//! A fifth slice, the mix (`issues/done/resolved_references_in_structure.md`), follows codegraph's edges from a file
 //! they link to other source files and the lexical follow from any other file.
 //!
 //! The schema of that index is codegraph's own: this example reads only these exports. Their paths are relative

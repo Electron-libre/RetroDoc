@@ -94,7 +94,7 @@ RetroDoc's pipeline depending on codegraph; the choice among the follow-ups, lef
   session's scratch directory, telemetry off (user, 2026-11-23).
 - Repositories: linkding, lobsters, delivery_router only; not the confidential Rails one (user, 2026-11-23).
 - After the measure: port the resolution into `structure.rs`, mixed with the lexical fallback and measured first
-  (option a, user, 2026-11-23): `issues/resolved_references_in_structure.md`; no dependency on codegraph.
+  (option a, user, 2026-11-23): `issues/done/resolved_references_in_structure.md`; no dependency on codegraph.
 
 ## Results of deliverable 1
 
@@ -154,7 +154,7 @@ stop below.
 ## Summary of deliverable 2
 
 done: `docs/findings.md` §13 (the measure and the decision) and the follow-up issue
-`issues/resolved_references_in_structure.md` (low, after this one).
+`issues/done/resolved_references_in_structure.md` (low, after this one).
 
 | check | result |
 |---|---|
