@@ -98,6 +98,8 @@ no external tool; what the resolution cannot see keeps today's lexical follow.
 - Type inference: the class of a local, a parameter or a returned value is not inferred (RES-8).
 - Dynamic dispatch (`send`, `getattr`, `method_missing`, metaprogrammed methods), monkey patching beyond reopened
   classes (RES-6).
+- Telling a library class or module the repository reopens (`class String` in `lib/core_ext/string.rb`, `module
+  Rails` in an initializer) from one it defines: its references resolve to the reopening file (RES-6).
 - The ranking of files by importance (`ranking.rs`) and the placement of contexts and routes, which keep their
   lexical counts.
 - The same slices as codegraph: its edges are a reference to compare with, not a target.

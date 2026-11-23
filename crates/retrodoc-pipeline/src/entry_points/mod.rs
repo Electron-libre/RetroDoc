@@ -213,9 +213,10 @@ impl EntryPoints {
     /// entry point or is in its slice (`REACH_DEPTH` hops of references, see
     /// [`CodeIndex::slice`]). A library keeps all its entries. Returns it with the ids
     /// (`<file>#<name>`) of the entries left out; the saved inventory is not touched, so the
-    /// choice is made again at each run, from the current code. Limits: the reach is by file and
-    /// by the names the code mentions (a call through a callback or dynamic dispatch is missed),
-    /// and a `generate` by contexts decides on the entry points read so far.
+    /// choice is made again at each run, from the current code. Limits: the reach is by file, along
+    /// the references resolved through imports, parent classes and known receivers, else the names
+    /// the code mentions (a call through a callback, dynamic dispatch or a receiver of unknown type
+    /// is missed), and a `generate` by contexts decides on the entry points read so far.
     #[must_use]
     pub fn without_unreached_public_api<'a>(
         mut self,

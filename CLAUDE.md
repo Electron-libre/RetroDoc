@@ -64,7 +64,7 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
 - **retrodoc-core**: domain model (`model.rs`), `retrodoc.toml` config (`config.rs`), the layout of the cache (`cache/`),
   the artifacts the readers load, the run history included (`artifacts/`), and the computations the readers make at read time (BM25, the reconciliation's matching, the debt report). → `docs/crates/core-ingest.md`
 - **retrodoc-ingest**: file walker, git history (one revwalk), existing Markdown docs, signals of the product
-  brief, tree-sitter `structure.rs`. → `docs/crates/core-ingest.md`
+  brief, tree-sitter `structure.rs`, the references resolved per language (`resolve/`). → `docs/crates/core-ingest.md`
 - **retrodoc-llm**: `LlmProvider` trait, `OpenRouterProvider` (also serves DeepSeek), retry, structured output,
   token usage. → `docs/crates/llm.md`
 - **retrodoc-pipeline**: the multi-pass generation pipeline, one module per pass (the `//!` doc of each module is

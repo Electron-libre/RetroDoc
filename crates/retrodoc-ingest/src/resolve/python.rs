@@ -28,30 +28,35 @@ impl Modules {
             .filter_map(|f| f.parent())
             .collect();
         let mut modules = Self::default();
+        // Module name → the files that would be imported by it.
+        let mut claimed: BTreeMap<String, BTreeSet<&PathBuf>> = BTreeMap::new();
         for file in files {
-            // The package root: the first directory up that is not a package.
-            let mut root = file.parent().unwrap_or(Path::new(""));
-            while packages.contains(root) {
-                match root.parent() {
-                    Some(parent) => root = parent,
-                    None => break,
-                }
-            }
-            let Some(own) = module_name(file.strip_prefix(root).unwrap_or(file)) else {
+            let Some(from_root) = module_name(file) else {
                 continue;
             };
-            modules
-                .by_name
-                .entry(own.clone())
-                .or_insert_with(|| file.clone());
-            if let Some(from_root) = module_name(file) {
-                modules
-                    .by_name
-                    .entry(from_root)
-                    .or_insert_with(|| file.clone());
-            }
+            // Under a package, its name starts at the parent of its highest package (a directory between with no
+            // `__init__.py` is a namespace package); else at the repository root.
+            let dir = file.parent().unwrap_or(Path::new(""));
+            let own = match dir.ancestors().filter(|d| packages.contains(d)).last() {
+                Some(top) => {
+                    let root = top.parent().unwrap_or(Path::new(""));
+                    module_name(file.strip_prefix(root).unwrap_or(file))
+                        .unwrap_or_else(|| from_root.clone())
+                }
+                None => from_root.clone(),
+            };
+            claimed.entry(own.clone()).or_default().insert(file);
+            claimed.entry(from_root).or_default().insert(file);
             modules.own_name.insert(file.clone(), own);
         }
+        // A name two files claim names neither: no guess.
+        modules.by_name = claimed
+            .into_iter()
+            .filter_map(|(name, files)| match Vec::from_iter(files)[..] {
+                [file] => Some((name, file.clone())),
+                _ => None,
+            })
+            .collect();
         modules
     }
 
@@ -124,6 +129,8 @@ struct File {
     bindings: BTreeMap<String, Binding>,
     /// The modules its imports name, one per imported name.
     imported: Vec<String>,
+    /// The modules it imports every name of (`from m import *`).
+    wildcards: Vec<String>,
     classes: BTreeMap<String, Class>,
     uses: Vec<Use>,
 }
@@ -209,6 +216,14 @@ impl<'a> Reader<'a> {
             return;
         };
         let mut cursor = node.walk();
+        if node
+            .named_children(&mut cursor)
+            .any(|c| c.kind() == "wildcard_import")
+        {
+            self.file.imported.push(module.clone());
+            self.file.wildcards.push(module);
+            return;
+        }
         let names: Vec<Node> = node.children_by_field_name("name", &mut cursor).collect();
         for name in names {
             let (imported, alias) = if name.kind() == "aliased_import" {
@@ -364,11 +379,25 @@ impl Program<'_> {
                 let found = self.class(&class).map(|_| (class, rest));
                 return Some((target, found));
             }
-            None if parsed.classes.contains_key(head) => {
-                let class = (file.to_path_buf(), head.clone());
-                return Some((file.to_path_buf(), Some((class, rest))));
+            None => {
+                // A class of its own, else of a module it imports every name of.
+                let own = parsed
+                    .classes
+                    .contains_key(head)
+                    .then(|| file.to_path_buf());
+                let target = own.or_else(|| {
+                    parsed.wildcards.iter().find_map(|module| {
+                        let target = self.module_file(module)?;
+                        self.files
+                            .get(target)?
+                            .classes
+                            .contains_key(head)
+                            .then(|| target.clone())
+                    })
+                })?;
+                let class = (target.clone(), head.clone());
+                return Some((target, Some((class, rest))));
             }
-            None => return None,
         };
         let class = rest.split_first().and_then(|(name, after)| {
             let class = (target.clone(), name.clone());

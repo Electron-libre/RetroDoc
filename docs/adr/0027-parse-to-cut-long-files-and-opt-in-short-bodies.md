@@ -69,3 +69,9 @@ are not built-in source extensions of the walker, so they have no file to check 
 unchecked, or their long files are cut at blank lines. `chunk_check` only measures and fixes the regexes of the
 walker's own unparsed languages (Go, Java, Kotlin, PHP, C, C++, C#, Swift, Scala, SQL), which none of these
 repositories holds. Removing it would cut those languages at blank lines with nothing measured to compare.
+
+## Follow-up (2026-11-23)
+
+The slices follow references resolved through imports, parent classes and known receivers for Python and Ruby,
+with the lexical follow as fallback (ADR 0055); the bare-name resolution measured above stays a measure of the
+`parsed_slices` example. `ranking.rs` keeps its lexical counts.

@@ -217,3 +217,69 @@ fn a_repository_with_an_init_at_its_root_still_resolves() {
     ]);
     assert_eq!(targets(&resolved, "views.py"), set(&["models.py"]));
 }
+
+// spec: RES-9
+#[test]
+fn a_file_of_a_directory_that_is_no_package_is_not_imported_by_its_bare_name() {
+    let (_dir, resolved) = repo(&[
+        ("scripts/logging.py", "def log():\n    pass\n"),
+        ("worker/models.py", "class Job:\n    pass\n"),
+        ("app/models.py", "class Order:\n    pass\n"),
+        (
+            "worker/tasks.py",
+            "import logging\nimport models\n\nlogging.info('x')\nmodels.Job()\n",
+        ),
+        (
+            "worker/report.py",
+            "import scripts.logging\n\nscripts.logging.log()\n",
+        ),
+    ]);
+    // `logging` is the standard library, `models` no module of a package: neither names a file of a directory
+    // that is no package.
+    assert_eq!(targets(&resolved, "worker/tasks.py"), set(&[]));
+    // By its path from the root, it is one.
+    assert_eq!(
+        targets(&resolved, "worker/report.py"),
+        set(&["scripts/logging.py"])
+    );
+}
+
+// spec: RES-3, RES-4
+#[test]
+fn a_wildcard_import_resolves_to_its_module_and_the_classes_it_brings() {
+    let (_dir, resolved) = repo(&[
+        ("shop/__init__.py", ""),
+        ("shop/models.py", "class Order:\n    pass\n"),
+        ("shop/queries.py", "def one():\n    pass\n"),
+        (
+            "shop/views.py",
+            "from .models import *\nfrom shop import queries\n\nqueries.one()\nOrder.objects.all()\n",
+        ),
+    ]);
+    assert_eq!(
+        targets(&resolved, "shop/views.py"),
+        set(&["shop/models.py", "shop/queries.py"])
+    );
+}
+
+// spec: RES-3
+#[test]
+fn a_module_of_a_namespace_subpackage_keeps_the_name_of_its_top_level_package() {
+    let (_dir, resolved) = repo(&[
+        ("src/shop/__init__.py", ""),
+        ("src/shop/models.py", "class Order:\n    pass\n"),
+        (
+            "src/shop/api/views.py",
+            "from ..models import Order\n\nOrder()\n",
+        ),
+        ("src/cli.py", "import shop.api.views\n"),
+    ]);
+    assert_eq!(
+        targets(&resolved, "src/shop/api/views.py"),
+        set(&["src/shop/models.py"])
+    );
+    assert_eq!(
+        targets(&resolved, "src/cli.py"),
+        set(&["src/shop/api/views.py"])
+    );
+}

@@ -51,6 +51,8 @@ struct Reader<'a> {
     src: &'a str,
     path: &'a Path,
     files: &'a BTreeSet<PathBuf>,
+    /// Where a `require` of a path looks: `lib/`, the root, each `app/` directory.
+    load_roots: &'a [PathBuf],
     file: File,
     /// Qualified names of the enclosing classes and modules, innermost last.
     nesting: Vec<String>,
@@ -145,6 +147,10 @@ impl<'a> Reader<'a> {
     fn parameters(&mut self, parameters: Node) {
         let mut cursor = parameters.walk();
         for parameter in parameters.named_children(&mut cursor) {
+            if parameter.kind() == "destructured_parameter" {
+                self.parameters(parameter);
+                continue;
+            }
             let name = if parameter.kind() == "identifier" {
                 Some(parameter)
             } else {
@@ -179,25 +185,10 @@ impl<'a> Reader<'a> {
             let dir = self.path.parent().unwrap_or(Path::new(""));
             normalize(&dir.join(&name)).into_iter().collect()
         } else {
-            // The load roots: `lib/`, an `app/` directory, the root.
-            let mut roots: Vec<PathBuf> = vec![PathBuf::from("lib"), PathBuf::new()];
-            roots.extend(
-                self.files
-                    .iter()
-                    .filter_map(|f| {
-                        let mut parts = f.components();
-                        match (parts.next(), parts.next()) {
-                            (Some(Component::Normal(app)), Some(Component::Normal(dir)))
-                                if app == "app" =>
-                            {
-                                Some(Path::new("app").join(dir))
-                            }
-                            _ => None,
-                        }
-                    })
-                    .collect::<BTreeSet<_>>(),
-            );
-            roots.into_iter().map(|root| root.join(&name)).collect()
+            self.load_roots
+                .iter()
+                .filter_map(|root| normalize(&root.join(&name)))
+                .collect()
         };
         if let Some(found) = candidates.into_iter().find(|c| self.files.contains(c)) {
             self.file.uses.push(Use::Require(found));
@@ -262,6 +253,23 @@ impl<'a> Reader<'a> {
             "method" | "singleton_method" => self.method(node),
             "call" => self.call(node),
             "block_parameters" | "lambda_parameters" => self.parameters(node),
+            "exception_variable" => {
+                let mut cursor = node.walk();
+                let names: Vec<Node> = node.named_children(&mut cursor).collect();
+                for name in names {
+                    self.declare(name);
+                }
+            }
+            "for" => {
+                if let Some(pattern) = node.child_by_field_name("pattern") {
+                    self.declare(pattern);
+                }
+                for field in ["value", "body"] {
+                    if let Some(part) = node.child_by_field_name(field) {
+                        self.collect(part);
+                    }
+                }
+            }
             // Its parameters and new locals end with it.
             "block" | "do_block" | "lambda" => {
                 let outer_locals = self.locals.clone();
@@ -450,6 +458,22 @@ pub(super) fn resolve(repo_root: &Path, files: &[PathBuf], references: &mut Coun
     {
         return;
     }
+    let mut load_roots: Vec<PathBuf> = vec![PathBuf::from("lib"), PathBuf::new()];
+    load_roots.extend(
+        ruby.iter()
+            .filter_map(|f| {
+                let mut parts = f.components();
+                match (parts.next(), parts.next()) {
+                    (Some(Component::Normal(app)), Some(Component::Normal(dir)))
+                        if app == "app" =>
+                    {
+                        Some(Path::new("app").join(dir))
+                    }
+                    _ => None,
+                }
+            })
+            .collect::<BTreeSet<_>>(),
+    );
     let mut parsed = BTreeMap::new();
     for path in &ruby {
         let Some(src) = read(repo_root, path) else {
@@ -462,6 +486,7 @@ pub(super) fn resolve(repo_root: &Path, files: &[PathBuf], references: &mut Coun
             src: &src,
             path,
             files: &ruby,
+            load_roots: &load_roots,
             file: File::default(),
             nesting: Vec::new(),
             locals: BTreeSet::new(),

@@ -825,3 +825,28 @@ store, its own Node runtime, telemetry on by default) indexed the checkouts of t
   the LLM, two real route files more on linkding, one route bound to the wrong file.
 - Decision (user, 2026-11-23): port the resolution into `structure.rs` rather than depend on codegraph (one binary,
   no Node, no telemetry); `issues/resolved_references_in_structure.md`.
+
+## 14. Resolved references ported: the mix, then RetroDoc's own resolution (2026-11-23)
+
+`parsed_slices --codegraph`, on the three saved runs of §13, no LLM, depth 2 and 8 files
+(`issues/resolved_references_in_structure.md`):
+
+| Run | Mean slice, lexical / mix / resolved | Lexical vs resolved | Mix vs resolved | Pairs: both / codegraph only / resolved only |
+|---|---|---|---|---|
+| linkding | 7.6 / 7.4 / 7.5 | 106 / 62 / 58 | 142 / 21 / 22 | 170 / 51 / 1 |
+| Lobsters | 7.7 / 7.1 / 6.9 | 325 / 404 / 326 | 563 / 110 / 88 | 523 / 82 / 115 |
+| delivery_router | 8.0 / 7.0 / 7.5 | 15 / 1 / 0 | 14 / 0 / 1 | 10 / 1 / 0 |
+
+- **The mix beats the lexical slice.** The mix follows codegraph's edges from a file they link and the lexical
+  follow from any other. On six slices read, the files on one side only were noise 12 times on the lexical side and
+  once on the mix's; the mix added 13 files the code imports, inherits from or calls on a known receiver, and kept
+  the lexical slice of the files codegraph does not link (a `.rake` task).
+- **RetroDoc's resolution holds that gain.** Python and Ruby resolvers in `retrodoc-ingest` (imports and requires,
+  constants by namespace, `self`, implicit and class-constant calls looked up in the class and its ancestors, nothing
+  for another receiver) find most pairs codegraph finds; on the same six slices, 16 used files added, one noise
+  file, and where they differ from the mix the budget picks other used files. Under a second per run.
+- **What both lose**: the models a job reaches only through a parameter's name (`comment.story`), which the lexical
+  follow found by the word; no type inference recovers them. **Noise left**: a library module reopened in the
+  repository (`module Rails` in an initializer) is resolved to that file.
+- Decision: the passes cut their slices along the resolved references (ADR 0055).
+

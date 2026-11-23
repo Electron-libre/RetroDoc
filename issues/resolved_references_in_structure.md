@@ -271,3 +271,39 @@ Code review: no findings
 
 not verified: a paid run (decision: none before the switch); the saved use cases are derived again once on the next
 `generate` of an application whose slices change; decisions needed: none.
+
+## Summary of deliverable 6
+
+done: the docs of the whole issue (ADR 0055, a follow-up of ADR 0027, `docs/findings.md` §14, `docs/ARCHITECTURE.md`,
+`CLAUDE.md`) and the fixes of the `high` review; the measure rerun after them: slices unchanged, linkding pairs
+170 / 51 / 1 (wildcard imports now resolved).
+
+| check | result |
+|---|---|
+| tests | `resolve_python` 13 pass (3 new), `resolve_ruby` 9 pass (2 new), the workspace's pass |
+| lint | clippy pedantic clean |
+| specs | a non-goal added to RES (a reopened library class); `check-specs` clean |
+| docs | ADR 0055, ADR 0027, `docs/findings.md`, `docs/ARCHITECTURE.md`, `CLAUDE.md`, doc of `without_unreached_public_api` |
+| code review | see below |
+
+red: RES-3, RES-4, RES-5, RES-8, RES-9: the 5 new tests failed before the fixes (`left: {"scripts/logging.py",
+"worker/models.py"} right: {}`, `left: {"shop/queries.py"}`, `left: {}` for the namespace subpackage and for
+`require "./lib/pricing"`, `left: {…, "app/models/concerns/errors.rb"}` for the locals).
+
+Code review: 8 findings (of the `high` review of the issue)
+* important: a file of a directory that is no package was importable by its bare stem (`import logging` gave
+  `scripts/logging.py`), the first file keeping a shared name; fixed (a name from the repository root, or from the
+  parent of the highest package; a name two files claim names none).
+* important: `from m import *` gave no reference; fixed (the module, and the classes it defines when used).
+* important: a module of a namespace subpackage (`src/shop/api/` with no `__init__.py` under `src/shop/`) got its
+  bare stem, its relative imports unresolved; fixed (named from the highest package above it).
+* nit: a `generate` resolves the files once per index (four); not fixed: under half a second per resolution on
+  Lobsters (the whole `parsed_slices` run, two resolutions and every slice, takes under a second), and sharing it
+  takes plumbing through four passes; the Ruby load roots are now computed once per resolution (fixed).
+* nit: `rescue => e`, `for x in`, destructured parameters read as calls; fixed (locals).
+* nit: a library class reopened in the repository resolves to the reopening file; not fixed: stated as a non-goal
+  of RES (no way to tell a library class from a class of the repository without reading the gems).
+* nit: `require "./lib/pricing"` resolved to nothing; fixed (paths normalized).
+* nit: the doc of `without_unreached_public_api` still described a reach by name; fixed.
+
+not verified: a paid run; decisions needed: none.

@@ -210,3 +210,37 @@ fn locals_of_a_multiple_assignment_are_not_calls_and_block_parameters_end_with_t
         set(&["app/models/base.rb", "app/models/concerns/paging.rb"])
     );
 }
+
+// spec: RES-8
+#[test]
+fn rescued_errors_loop_variables_and_destructured_parameters_are_locals() {
+    let (_dir, resolved) = repo(&[
+        ("app/models/base.rb", "class Base\n  include Errors\nend\n"),
+        (
+            "app/models/concerns/errors.rb",
+            "module Errors\n  def error\n  end\n  def order\n  end\n  def item\n  end\nend\n",
+        ),
+        (
+            "app/models/sync.rb",
+            "class Sync < Base\n  def run(pairs)\n    pairs.each { |(id, order)| order }\n    \
+             for item in pairs\n      item\n    end\n  rescue => error\n    error\n  end\nend\n",
+        ),
+    ]);
+    assert_eq!(
+        targets(&resolved, "app/models/sync.rb"),
+        set(&["app/models/base.rb"])
+    );
+}
+
+// spec: RES-5
+#[test]
+fn a_require_of_a_path_from_the_current_directory_resolves() {
+    let (_dir, resolved) = repo(&[
+        ("lib/pricing.rb", "module Pricing\nend\n"),
+        ("script/run.rb", "require \"./lib/pricing\"\n"),
+    ]);
+    assert_eq!(
+        targets(&resolved, "script/run.rb"),
+        set(&["lib/pricing.rb"])
+    );
+}
