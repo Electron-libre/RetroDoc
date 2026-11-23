@@ -263,3 +263,39 @@ fn a_command_of_a_single_pass_records_the_format_of_what_it_writes() {
         serde_json::from_str(&std::fs::read_to_string(format_file(dir.path())).unwrap()).unwrap();
     assert_eq!(saved, serde_json::json!({ "version": CURRENT }));
 }
+
+// spec: CFV-13
+#[test]
+fn generate_force_moves_an_older_cache_aside_with_its_hand_edits() {
+    let (dir, _llm) = shop();
+    std::fs::write(format_file(dir.path()), r#"{"version": 0}"#).unwrap();
+    let roles = dir.path().join(".retrodoc/cache/roles.yaml");
+    let edited = format!(
+        "{}# edited by hand\n",
+        std::fs::read_to_string(&roles).unwrap()
+    );
+    std::fs::write(&roles, &edited).unwrap();
+    let history = dir.path().join(".retrodoc/cache/history");
+    let snapshots = std::fs::read_dir(&history).unwrap().count();
+
+    let estimate = support::run(dir.path(), &["generate", "--force", "--estimate"]);
+    assert!(estimate.status.success(), "{}", all_of(&estimate));
+    assert!(!dir.path().join(".retrodoc/cache-format-0").exists());
+
+    let output = support::run(dir.path(), &["generate", "--force"]);
+    let all = all_of(&output);
+    assert!(output.status.success(), "{all}");
+    let aside = dir.path().join(".retrodoc/cache-format-0");
+    assert_eq!(
+        std::fs::read_to_string(aside.join("roles.yaml")).unwrap(),
+        edited
+    );
+    assert!(all.contains(".retrodoc/cache-format-0"), "{all}");
+    assert!(all.contains("roles.yaml"), "{all}");
+    assert_ne!(std::fs::read_to_string(&roles).unwrap(), edited);
+    assert!(!aside.join("history").exists());
+    assert!(std::fs::read_dir(&history).unwrap().count() >= snapshots);
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(format_file(dir.path())).unwrap()).unwrap();
+    assert_eq!(saved, serde_json::json!({ "version": CURRENT }));
+}

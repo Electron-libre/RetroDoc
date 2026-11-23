@@ -52,10 +52,10 @@ the benchmark replays, an upgrade in place. `surface` writes nothing: it only ch
 1. [x] Single-pass commands: one helper of `workspace.rs` checks the format (CFV-11) and records it before the first
    write (CFV-12), called by the nine commands; verified by tests through the binary in `tests/cache_format.rs`
    (format 0 and 99 caches, a fresh repo); makes true CFV-11, CFV-12. (autonomous)
-2. [ ] `generate --force` on an older cache moves it to `.retrodoc/cache-format-<found>/` (a function of
+2. [x] `generate --force` on an older cache moves its artifacts to `.retrodoc/cache-format-<found>/` (a function of
    `retrodoc_core::cache::format`, one call in `generate`, none under `--estimate`) and prints the directory and the
    hand-editable files moved; verified by a test through the binary (format 0 cache with an edited `roles.yaml`) and
-   one with `--estimate`; makes true CFV-13; ADR 0052 accepted.
+   one with `--estimate`; makes true CFV-13; ADR 0052 accepted. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -68,4 +68,16 @@ the benchmark replays, an upgrade in place. `surface` writes nothing: it only ch
 - red: CFV-11, CFV-12: `["roles", "--force"] did not fail` on a format 0 cache; `format.json` missing after `roles`
   on a fresh repo.
 - Code review: no findings
+- not verified: none. decisions needed: none.
+- The artifacts are moved one by one, not the directory: the run history lives in `.retrodoc/cache/history/`,
+  carries its own version and is kept by `--force` (ADR 0043).
+
+## Summary of deliverable 2
+- done: `generate --force` on an older cache moves its artifacts to `.retrodoc/cache-format-<found>/` (a previous
+  one replaced), the run history left in place, and prints the directory and the hand-editable files moved; nothing
+  moves under `--estimate`. Spec CFV and ADR 0052 accepted.
+- red: CFV-13: `.retrodoc/cache-format-0/roles.yaml` not found after `generate --force` on a format 0 cache.
+- Code review: no findings (its one doubt, two artifacts of the same name in subfolders, cannot happen: the names are
+  flat and distinct, `artifacts_have_distinct_names_under_the_cache_dir`).
+- `clear_caches` and the new `set_aside_older` moved to `generate/force.rs`: `generate/mod.rs` was over 800 lines.
 - not verified: none. decisions needed: none.

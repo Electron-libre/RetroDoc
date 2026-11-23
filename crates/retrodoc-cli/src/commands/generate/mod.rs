@@ -17,6 +17,7 @@ use retrodoc_pipeline::{
 
 mod contexts;
 mod estimate;
+mod force;
 mod print;
 
 use super::passes;
@@ -337,7 +338,8 @@ fn open_workspace(
         checked => checked.context("nothing was run")?,
     }
     if force && !estimate {
-        clear_caches(&workspace.repo_root)?;
+        force::set_aside_older(&workspace.repo_root)?;
+        force::clear_caches(&workspace.repo_root)?;
     }
     let mut ingest = workspace.ingest()?;
     ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &workspace.config);
@@ -759,25 +761,6 @@ fn apply_scope(
             scope.analysed,
             scope.skipped.len()
         );
-    }
-    Ok(())
-}
-
-/// Removes the cached results of the LLM passes (see
-/// [`Artifact::cleared_by_force`] for what is kept and why).
-fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
-    for artifact in Artifact::ALL {
-        if !artifact.cleared_by_force() {
-            continue;
-        }
-        let file = artifact.path(repo_root);
-        match std::fs::remove_file(&file) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => {
-                return Err(e).with_context(|| format!("could not remove {}", file.display()))
-            }
-        }
     }
     Ok(())
 }

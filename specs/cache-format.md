@@ -1,6 +1,6 @@
 ---
 id: CFV
-status: draft
+status: accepted
 adrs: [0003, 0005, 0037, 0043, 0050, 0052]
 ---
 
@@ -46,8 +46,9 @@ another version of RetroDoc is refused with the command to run rather than read 
 - **CFV-12** (deterministic) A command of a single pass that writes an artifact must record the format version as
   `generate` does (CFV-6), before its first artifact.
 - **CFV-13** (deterministic) `generate --force` on a cache of an older format must keep no file of that format in
-  `.retrodoc/cache/`: before its first artifact it moves the cache to `.retrodoc/cache-format-<found>/`, replacing a
-  directory of that name, and prints that directory and the hand-editable files it holds.
+  `.retrodoc/cache/`: before its first artifact it moves the artifacts of the cache to
+  `.retrodoc/cache-format-<found>/`, replacing a directory of that name, and prints that directory and the
+  hand-editable files it holds; the run history stays where it is.
 
 ## Scenarios
 
