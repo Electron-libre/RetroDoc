@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo/retrodoc-wordmark.svg" alt="RetroDoc, catch up on your documentation debt" width="480"></p>
+
 # RetroDoc
 
 Catch up on a software project's documentation debt with LLM agents.
