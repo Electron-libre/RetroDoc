@@ -1,5 +1,5 @@
 //! The human corrections guide the next run (`specs/human-corrections.md`): `generate` gives the
-//! use cases pass the edits and the reviews of the use cases each feature's call writes.
+//! features and use cases passes the edits and the reviews of the sections each call writes.
 
 mod support;
 
@@ -235,5 +235,41 @@ fn an_unreadable_file_of_reviews_is_warned_of_and_asks_nothing_again() {
         warnings.iter().any(|w| w.contains("reviews.json")),
         "{warnings:?}"
     );
+    assert_eq!(llm.calls().len(), calls);
+}
+
+// spec: HCR-2, HCR-4, HCR-6
+#[test]
+fn a_feature_marked_wrong_asks_its_domain_again_once_with_the_comment() {
+    let llm = fake_llm();
+    let dir = shop(&llm);
+    succeeds(&generate(dir.path()));
+    let [domains, features, use_cases] = writing_calls(&llm);
+    let reviews = serde_json::json!({
+        "version": 1,
+        "reviews": [{
+            "kind": "feature", "id": "list-orders", "status": "wrong",
+            "comment": "Only the orders of the customer.", "author": "A",
+            "reviewed_at": "2026-11-24T10:00:00Z", "fingerprint": "0f",
+        }],
+    });
+    std::fs::write(
+        dir.path().join(".retrodoc/reviews.json"),
+        serde_json::to_string_pretty(&reviews).unwrap(),
+    )
+    .unwrap();
+
+    succeeds(&generate(dir.path()));
+
+    // The same answer: the use cases of the feature are reused.
+    assert_eq!(writing_calls(&llm), [domains, features + 1, use_cases]);
+    let asked = llm.calls_of("features").pop().unwrap().user;
+    assert!(asked.contains("feature `list-orders`"), "{asked}");
+    assert!(
+        asked.contains("Only the orders of the customer."),
+        "{asked}"
+    );
+    let calls = llm.calls().len();
+    succeeds(&generate(dir.path()));
     assert_eq!(llm.calls().len(), calls);
 }

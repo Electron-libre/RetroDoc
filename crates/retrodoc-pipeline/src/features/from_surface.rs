@@ -25,12 +25,14 @@ use retrodoc_core::model::Feature;
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
+use self::corrections::SliceCorrections;
 use self::repair::place_unclaimed;
 use super::{load_surface_features, save_surface_features, unique_slug};
 use crate::artifact::warn_on_error;
 use crate::artifact::Retention;
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
 use crate::brief::{Evidence, ProductBrief};
+use crate::corrections::Corrections;
 use crate::domains::{DomainCluster, DomainMap};
 use crate::entry_points::EntryFile;
 use crate::entry_points::{EntryPoint, EntryPoints};
@@ -147,6 +149,7 @@ pub async fn build_features_from_surface(
     evidence: &Evidence,
     llm: &dyn LlmProvider,
     keep: Retention,
+    corrections: &Corrections,
 ) -> Result<Vec<Feature>, PipelineError> {
     let previous = load_surface_features(repo_root).unwrap_or_default();
     let mut prints = Fingerprints::load(repo_root);
@@ -173,6 +176,7 @@ pub async fn build_features_from_surface(
         brief,
         evidence,
         llm,
+        corrections,
     };
     for (domain, entries) in &units {
         let of_domain = run
@@ -566,6 +570,8 @@ struct SurfaceRun<'a> {
     brief: &'a ProductBrief,
     evidence: &'a Evidence,
     llm: &'a dyn LlmProvider,
+    /// The human corrections of the features, shown to the slices that write them.
+    corrections: &'a Corrections,
 }
 
 impl SurfaceRun<'_> {
@@ -596,7 +602,14 @@ impl SurfaceRun<'_> {
                 &close,
                 self.llm,
             );
-            if self.known_units.get(&key) == Some(&print) {
+            let fixes = SliceCorrections::of(
+                self.corrections,
+                self.previous,
+                (&domain.slug, &key),
+                slice,
+                entries,
+            );
+            if self.known_units.get(&key) == Some(&print) && !fixes.pending(prints) {
                 if let Some(kept) =
                     reusable_slice(self.previous, features, &domain.slug, slice, entries)
                 {
@@ -610,7 +623,7 @@ impl SurfaceRun<'_> {
                 progress.begin(&domain.slug);
                 started = true;
             }
-            let prompt = surface_features_prompt(
+            let mut prompt = surface_features_prompt(
                 domain,
                 slice,
                 self.surface,
@@ -618,6 +631,7 @@ impl SurfaceRun<'_> {
                 &close,
                 &domain_features,
             );
+            prompt.push_str(fixes.shown.as_deref().unwrap_or_default());
             let what = format!("features of {key}");
             // An answer with no usable feature (ids copied wrongly) is asked once more.
             let mut produced: Vec<Feature> = Vec::new();
@@ -646,6 +660,7 @@ impl SurfaceRun<'_> {
             }
             if !produced.is_empty() {
                 prints.features.insert(key, print);
+                fixes.answered(prints);
             }
             merge_features(&mut domain_features, produced);
             // After each slice: a run killed later loses the call in flight, nothing more.
@@ -1015,6 +1030,9 @@ fn save_partial(
     warn_on_error(save_surface_features(repo_root, &features));
 }
 
+mod corrections;
+#[cfg(test)]
+mod corrections_tests;
 mod repair;
 #[cfg(test)]
 mod tests;

@@ -436,6 +436,7 @@ async fn features_from_surface(
                 &signals.evidence,
                 llm.get(passes::FEATURES)?.as_ref(),
                 retrodoc_pipeline::Retention::OnlyRead,
+                run.corrections,
             ),
         )
         .await

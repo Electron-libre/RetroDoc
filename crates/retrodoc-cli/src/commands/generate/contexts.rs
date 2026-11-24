@@ -162,6 +162,7 @@ async fn document(
                 &signals.evidence,
                 llm.get(passes::FEATURES)?.as_ref(),
                 Retention::Others,
+                run.corrections,
             ),
         )
         .await

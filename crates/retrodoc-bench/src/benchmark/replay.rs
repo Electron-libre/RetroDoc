@@ -148,6 +148,7 @@ pub async fn replay_features(
                 &frame.evidence,
                 llm,
                 Retention::OnlyRead,
+                &retrodoc_pipeline::Corrections::default(),
             ),
         )
         .await?;

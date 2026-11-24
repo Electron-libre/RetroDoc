@@ -5,8 +5,8 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_core::model::UseCase;
 use retrodoc_docs::edits::{self, Edit};
+use retrodoc_docs::history::SectionKind;
 use retrodoc_docs::reviews::{self, Review, Status};
 use retrodoc_docs::store::Section;
 use retrodoc_pipeline::{Correction, Corrections, Verdict};
@@ -34,37 +34,62 @@ pub(super) fn load(repo_root: &Path) -> anyhow::Result<Corrections> {
         );
         reviews::Reviews::default()
     });
+    let of = |section: Section, slug: &str, (name, description): (&str, &str)| {
+        correction(
+            slug,
+            (name, description),
+            edits.edits().iter().find(|e| e.section == section),
+            reviews.reviews().iter().find(|r| r.section == section),
+        )
+    };
     let mut corrections = Corrections::default();
+    for feature in retrodoc_core::artifacts::load_features(repo_root).unwrap_or_default() {
+        let section = Section::new(SectionKind::Feature, feature.slug.clone());
+        corrections.add_feature(
+            &feature.domain_slug,
+            of(
+                section,
+                &feature.slug,
+                (&feature.name, &feature.description),
+            ),
+        );
+    }
     for use_case in retrodoc_core::artifacts::load_use_cases(repo_root).unwrap_or_default() {
         let section = Section::use_case(&use_case.feature_slug, &use_case.slug);
         corrections.add_use_case(
             &use_case.feature_slug,
-            of_use_case(
-                &use_case,
-                edits.edits().iter().find(|e| e.section == section),
-                reviews.reviews().iter().find(|r| r.section == section),
+            of(
+                section,
+                &use_case.slug,
+                (&use_case.name, &use_case.description),
             ),
         );
     }
     Ok(corrections)
 }
 
-/// The correction of `use_case` from its edit and its review.
-fn of_use_case(use_case: &UseCase, edit: Option<&Edit>, review: Option<&Review>) -> Correction {
+/// The correction of the section `slug`, generated with `name` and `description`, from its edit
+/// and its review.
+fn correction(
+    slug: &str,
+    (name, description): (&str, &str),
+    edit: Option<&Edit>,
+    review: Option<&Review>,
+) -> Correction {
     let field = |get: fn(&edits::Fields) -> &Option<String>| {
         edit.and_then(|e| get(&e.fields).clone())
             .filter(|text| !text.trim().is_empty())
     };
-    let name = field(|f| &f.name);
-    let description = field(|f| &f.description);
+    let edited_name = field(|f| &f.name);
+    let edited_description = field(|f| &f.description);
     Correction {
-        slug: use_case.slug.clone(),
-        shown_name: name.clone().unwrap_or_else(|| use_case.name.clone()),
-        shown_description: description
+        slug: slug.to_string(),
+        shown_name: edited_name.clone().unwrap_or_else(|| name.to_string()),
+        shown_description: edited_description
             .clone()
-            .unwrap_or_else(|| use_case.description.clone()),
-        name,
-        description,
+            .unwrap_or_else(|| description.to_string()),
+        name: edited_name,
+        description: edited_description,
         narrative: field(|f| &f.narrative),
         verdict: review.and_then(verdict),
     }

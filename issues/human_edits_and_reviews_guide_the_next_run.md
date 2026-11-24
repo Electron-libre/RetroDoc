@@ -65,9 +65,9 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
    (fails before any call on a bad file), given to the use cases pass; README answers "are my edits kept, do they
    guide the next run"; verified by pipeline tests with a fake LLM and a CLI test for the bad file; makes true HCR-1
    to HCR-5, HCR-7 to HCR-12 for use cases, HCR-6 (use case), HCR-H1 (~900 lines). (autonomous)
-2. [ ] Features: the corrections of the features of a domain in its call (the slice holding them), new code in
+2. [x] Features: the corrections of the features of a domain in its call (the slice holding them), new code in
    `features/from_surface/corrections.rs` (`from_surface.rs` is over the file size limit); verified by pipeline
-   tests; makes true HCR-6 (feature), HCR-H2, the slice scenario (~450 lines).
+   tests; makes true HCR-6 (feature), HCR-H2, the slice scenario (~450 lines). (autonomous)
 3. [ ] Domains: the corrections of the domains in the domains call; verified by pipeline tests; makes true HCR-6
    (domain), HCR-9 scenario; spec `accepted` (~300 lines).
 4. [ ] Measure: on a saved run of the default smoke repository, a few edits and `wrong` reviews, then `generate`:
@@ -94,4 +94,15 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
   passed before the code (nothing guided the run yet).
 - Code review: 1 finding. Not fixed: `load_use_cases` gives `None` both for no saved use case (a first run, the
   usual case) and for an unreadable file, so a warning would fire on every first run.
+- not verified: the corrections on a real model (deliverable 4).
+
+### 2. Features
+- done: each slice of a domain's features call is given the corrections of the features the previous run saved with one
+  of its entry points; a feature marked wrong asks that slice again once.
+- red: HCR-H2, HCR-1, HCR-5, HCR-6: the request of `orders` lacked "Order goods"; HCR-4, HCR-6 (slice): `left: 0,
+  right: 1` calls after the review `wrong` (tests written after the code, red shown by emptying the corrections); the
+  binary test of a feature `wrong` added with them.
+- Code review: no findings.
+- File size: `features/from_surface.rs` (+18 lines of wiring, the logic in `from_surface/corrections.rs`) and
+  `generate/mod.rs` (801, +1 argument) not split here: a split by responsibility is a refactor of its own.
 - not verified: the corrections on a real model (deliverable 4).

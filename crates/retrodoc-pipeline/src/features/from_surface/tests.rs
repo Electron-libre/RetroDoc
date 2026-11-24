@@ -10,7 +10,7 @@ use crate::entry_points::{EntryFile, EntryKind};
 use crate::testing::{killed, FakeLlm};
 use retrodoc_llm::{CompletionRequest, LlmError};
 
-fn entry(name: &str, resource: &str) -> EntryPoint {
+pub(super) fn entry(name: &str, resource: &str) -> EntryPoint {
     EntryPoint {
         kind: EntryKind::HttpRoute,
         name: name.to_string(),
@@ -21,7 +21,7 @@ fn entry(name: &str, resource: &str) -> EntryPoint {
     }
 }
 
-fn entry_points(files: &[(&str, Vec<EntryPoint>)]) -> EntryPoints {
+pub(super) fn entry_points(files: &[(&str, Vec<EntryPoint>)]) -> EntryPoints {
     EntryPoints {
         files: files
             .iter()
@@ -49,7 +49,7 @@ fn domain(slug: &str, resources: &[&str]) -> DomainCluster {
 }
 
 /// `orders.rb` serves two resources of two domains; `GET /ping` is a resource of no domain.
-fn fixture() -> (DomainMap, EntryPoints) {
+pub(super) fn fixture() -> (DomainMap, EntryPoints) {
     let domains = DomainMap {
         domains: vec![domain("orders", &["order"]), domain("routing", &["route"])],
     };
@@ -82,6 +82,7 @@ async fn run(
         &Evidence::default(),
         llm,
         Retention::OnlyRead,
+        &crate::corrections::Corrections::default(),
     )
     .await
     .unwrap()
@@ -518,6 +519,7 @@ async fn a_killed_run_keeps_the_domains_done_and_the_rerun_resumes() {
             &Evidence::default(),
             &stuck,
             Retention::OnlyRead,
+            &crate::corrections::Corrections::default(),
         ),
         &stuck,
     )
@@ -570,6 +572,7 @@ async fn a_killed_run_does_not_bring_back_the_features_of_the_removed_files_path
             &Evidence::default(),
             &stuck,
             Retention::OnlyRead,
+            &crate::corrections::Corrections::default(),
         ),
         &stuck,
     )
@@ -637,6 +640,7 @@ async fn run_keeping(
         &Evidence::default(),
         llm,
         Retention::Others,
+        &crate::corrections::Corrections::default(),
     )
     .await
     .unwrap()
@@ -923,7 +927,7 @@ async fn a_route_that_changes_context_redoes_the_features_of_the_one_that_gains_
 }
 
 /// A domain of two files, 100 and 60 entry points: over the limit of one prompt, so two slices.
-fn big_domain() -> (DomainMap, EntryPoints) {
+pub(super) fn big_domain() -> (DomainMap, EntryPoints) {
     let routes = |prefix: &str, n: usize| -> Vec<EntryPoint> {
         (0..n)
             .map(|i| entry(&format!("GET /{prefix}{i}"), prefix))
@@ -946,7 +950,7 @@ fn big_domain() -> (DomainMap, EntryPoints) {
 }
 
 /// Each slice claims its first entry point in the feature `all`; the second one also in `later`.
-fn answers_per_slice(prompt: &str) -> String {
+pub(super) fn answers_per_slice(prompt: &str) -> String {
     if prompt.contains("Entry points to place") {
         return r#"{"placements":[]}"#.to_string();
     }
@@ -1026,6 +1030,7 @@ async fn a_run_killed_between_two_slices_keeps_the_first_and_the_rerun_asks_the_
             &Evidence::default(),
             &stuck,
             Retention::OnlyRead,
+            &crate::corrections::Corrections::default(),
         ),
         &stuck,
     )
@@ -1181,6 +1186,7 @@ async fn a_stop_in_the_first_slice_keeps_the_features_the_other_slices_had() {
             &Evidence::default(),
             &stuck,
             Retention::OnlyRead,
+            &crate::corrections::Corrections::default(),
         ),
         &stuck,
     )
@@ -1219,6 +1225,7 @@ async fn a_failed_slice_keeps_the_features_it_had() {
         &Evidence::default(),
         &failing,
         Retention::OnlyRead,
+        &crate::corrections::Corrections::default(),
     )
     .await;
 
@@ -1379,6 +1386,7 @@ async fn the_print_of_a_domain_stays_the_same() {
         &Evidence::default(),
         &llm,
         Retention::OnlyRead,
+        &crate::corrections::Corrections::default(),
     )
     .await
     .unwrap();
