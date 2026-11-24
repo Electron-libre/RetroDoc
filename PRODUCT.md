@@ -36,8 +36,9 @@ debt nobody has time to pay.
 - **Cost follows the business surface**: the work grows with the entry points and entities, not with the file count
   (ADR 0020), so a large application is in reach, one bounded context at a time if needed.
 - **Safe to rerun**: an unchanged repository costs no LLM call and changes no file; an interrupted run resumes.
-- **Read-only on the analysed repository**: RetroDoc writes only its docs and its cache; the consumers of the docs
-  (MCP server, search) call no LLM of their own.
+- **Read-only on the analysed repository**: RetroDoc writes only its docs, its cache and what its readers save in
+  `.retrodoc/` (reviews, edits, run history); the MCP server and the search call no LLM of their own, `ask` calls
+  the configured one.
 - **Model choice is the user's**: one provider interface, any OpenAI-compatible endpoint, hosted or local, a model per
   pass if wanted.
 
@@ -52,11 +53,11 @@ debt nobody has time to pay.
 | Large applications documented one bounded context at a time | yes | |
 | Read-only MCP server and lexical search over the generated docs, for agents | yes | |
 | Generated docs written in a chosen language (`[output] language`), headings and web interface in English or French | yes | fixed text in other languages, coverage report, CLI and MCP text |
-| Ask the documentation from RetroDoc itself (`ask` / `chat`, the ask page of `ui --ask`) | | yes |
+| Ask the documentation from RetroDoc itself (`ask` / `chat`, the ask page of `ui --ask`) | yes | |
 | Technical documentation: components, C4 diagrams, deployment, APIs, linked to the domains and use cases | | yes |
 | Inputs from GitHub, GitLab and Jira (issues, tickets, pull requests) | | yes |
 | Automatic pull request with the generated docs | | yes |
-| Web interface: browse the docs (done), explore the debt, audit dashboard, run history, review (planned) | yes | edit the docs, hosted for a team |
+| Web interface: browse the docs, explore the debt, audit dashboard, run history, review and edit the docs | yes | hosted for a team |
 
 ## User journeys
 
@@ -70,6 +71,10 @@ debt nobody has time to pay.
    sections to review by hand.
 5. **Give the docs to an agent**: `retrodoc mcp` serves the domains, features, use cases and the code they cite; the
    answers warn when a cited file changed since the docs were generated.
+6. **Ask the docs**: `retrodoc ask "…"`, `retrodoc chat` or the ask page of `retrodoc ui --ask` answer a question
+   from the docs, citing the domains, features, use cases and files behind the answer.
+7. **Own the docs**: `retrodoc ui` marks a section validated, wrong or to review, and corrects its text; the next
+   `generate` keeps the human changes and flags those whose code changed.
 
 ## Ask the documentation (vision)
 
@@ -86,7 +91,10 @@ about how the application works ("what happens when a contract is signed?", "who
 - Admit when something is not documented, and feed those gaps back into the documentation debt report.
 
 The first form is the MCP server: the calling agent does the reasoning. A static index for agents (`llms.txt`) is
-generated next to the docs for tools that do not run the server.
+generated next to the docs for tools that do not run the server. The second form is RetroDoc's own agent, for a
+user without one: `ask` and `chat` in the terminal, the ask page of `ui --ask` in the web interface, a bounded loop
+over the same read-only tools (ADR 0047) whose answers cite their sources and warn of low confidence and stale code.
+Feeding the gaps an answer meets back into the debt report is not done yet.
 
 ## Scope of v1
 
@@ -94,8 +102,13 @@ In: functional documentation, from a local Git repository (code, commit history,
 OpenRouter or the DeepSeek API (or any compatible endpoint, such as a local server) as the LLM, written as Markdown
 and Mermaid into `docs/` of the analysed repository.
 
+v1 is complete in features: on top of the generation, it reads the docs back through the MCP server, the search,
+`ask` / `chat` and the web interface (debt, audit, run history, review, edits, ask page). The open milestones of
+`ROADMAP.md` ("A local model, measured", "Read by someone taking an application over") validate v1; a new feature
+comes after it.
+
 Out of v1 (see "Later" above): technical and C4 documentation, GitHub/GitLab/Jira connectors, automatic pull
-requests, several provider wire formats, editing the docs in the web interface and hosting it.
+requests, several provider wire formats, hosting the web interface for a team.
 
 Non-goals: generating or changing code; a hosted service in v1 (RetroDoc is a local CLI, its web interface served on
 the machine; hosting it for a team is for later); a general retrieval layer (embeddings) inside the generation

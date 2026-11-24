@@ -26,3 +26,34 @@ what is released, what is still later, and where v1 ends.
 # Resources
 * `PRODUCT.md`, `ROADMAP-done.md`, `CHANGELOG.md`.
 * Skill `update-docs`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-24
+
+## Understanding
+Make `PRODUCT.md` say what v1 holds as released: ask/chat and the ask page, editing the docs, and the web interface's
+debt, audit, run history and review no longer "planned"; the vision section names the `ask` agent after the MCP
+server. Out of scope: any code change. No spec (docs only).
+
+## Plan
+1. [x] Scope of v1 in line with the releases: capabilities table (ask row and web row moved to v1, "Later" keeps
+   hosting for a team), a user journey "Ask the docs", the vision section naming `ask` / `chat` / `ui --ask` as the
+   second form, "Out of v1" without editing, the boundary of v1 written from the user's answer; `README.md` status
+   and `docs/ARCHITECTURE.md` checked (`skill:update-docs`); verified by `cardinal run project-check` and a reread
+   against `ROADMAP-done.md`; makes true the Goal of the issue. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 051cf2b153673e04fbfb51f61359a557a8920778
+- Boundary of v1 (answer 1 a): v1 is complete in features; the open milestones ("A local model, measured", "Read by
+  someone taking an application over") validate it; any new feature comes after v1.
+
+## Deliverable 1 summary
+- done: `PRODUCT.md` capabilities table, principle "read-only", user journeys 6 and 7, vision (second form: `ask`),
+  boundary of v1 and "Out of v1" aligned with v0.7.0 to v0.12.0.
+- checks: project-check, deliverable-size, code review low.
+- red: none (docs only, no test).
+- update-docs: `README.md` status and `docs/ARCHITECTURE.md` already true, ADRs historical: n/a.
+- Code review: no findings
+- not verified: nothing.
