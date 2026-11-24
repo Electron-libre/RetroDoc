@@ -11,7 +11,7 @@ said outdated, and the reader is never told they may be wrong. Expected: a field
 telling that the generated text changed under it.
 
 # Findings
-* Found by the `high` review of `issues/one_form_to_review_and_edit_a_section.md` (2026-11-24); the former edit form
+* Found by the `high` review of `issues/done/one_form_to_review_and_edit_a_section.md` (2026-11-24); the former edit form
   behaved the same.
 * Example: a use case whose description is edited "OldD"; a later run rewrites its generated description, so the
   edit is outdated (SED-34). The reader corrects only the name and saves: the edit `{name, description: OldD}` is

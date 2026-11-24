@@ -31,7 +31,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [benchmark_on_an_application_the_user_knows](issues/done/benchmark_on_an_application_the_user_knows.md)
   - [hide_the_root_markdown_of_the_benchmark_baselines](issues/hide_the_root_markdown_of_the_benchmark_baselines.md)
   - [repeat_the_narratives_rating_of_the_judge](issues/repeat_the_narratives_rating_of_the_judge.md)
-  - [one_form_to_review_and_edit_a_section](issues/one_form_to_review_and_edit_a_section.md)
+  - [one_form_to_review_and_edit_a_section](issues/done/one_form_to_review_and_edit_a_section.md)
   - [debt_lists_fixed_items_apart](issues/done/debt_lists_fixed_items_apart.md)
   - [human_edits_and_reviews_guide_the_next_run](issues/done/human_edits_and_reviews_guide_the_next_run.md)
   - [agent_helps_settle_a_disputed_section](issues/agent_helps_settle_a_disputed_section.md)
