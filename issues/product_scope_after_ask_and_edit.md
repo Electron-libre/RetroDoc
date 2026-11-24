@@ -57,3 +57,15 @@ server. Out of scope: any code change. No spec (docs only).
 - update-docs: `README.md` status and `docs/ARCHITECTURE.md` already true, ADRs historical: n/a.
 - Code review: no findings
 - not verified: nothing.
+2. [x] Fixes of the `high` review: principle "read-only" (config, run history in the cache, `chat` and `ui --ask`
+   call the LLM), journey 7 and the web row (what an edit covers, who flags an outdated change); verified by
+   project-check and a reread against `specs/section-edit.md` and `specs/section-review.md`. (autonomous)
+
+## Deliverable 2 summary
+- done: the 5 nits of the `high` review fixed in `PRODUCT.md`.
+- checks: project-check, code review low.
+- red: none (docs only, no test).
+- Code review: no findings
+- not verified: nothing.
+
+Done: PRODUCT.md says what v1 holds and where it ends; nothing left.

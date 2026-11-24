@@ -36,9 +36,9 @@ debt nobody has time to pay.
 - **Cost follows the business surface**: the work grows with the entry points and entities, not with the file count
   (ADR 0020), so a large application is in reach, one bounded context at a time if needed.
 - **Safe to rerun**: an unchanged repository costs no LLM call and changes no file; an interrupted run resumes.
-- **Read-only on the analysed repository**: RetroDoc writes only its docs, its cache and what its readers save in
-  `.retrodoc/` (reviews, edits, run history); the MCP server and the search call no LLM of their own, `ask` calls
-  the configured one.
+- **Read-only on the analysed repository**: RetroDoc writes only its config (`retrodoc.toml`), its docs, its cache
+  (the run history included) and the reviews and edits its readers save in `.retrodoc/`; the MCP server and the
+  search call no LLM of their own, `ask`, `chat` and `ui --ask` call the configured one.
 - **Model choice is the user's**: one provider interface, any OpenAI-compatible endpoint, hosted or local, a model per
   pass if wanted.
 
@@ -57,7 +57,7 @@ debt nobody has time to pay.
 | Technical documentation: components, C4 diagrams, deployment, APIs, linked to the domains and use cases | | yes |
 | Inputs from GitHub, GitLab and Jira (issues, tickets, pull requests) | | yes |
 | Automatic pull request with the generated docs | | yes |
-| Web interface: browse the docs, explore the debt, audit dashboard, run history, review and edit the docs | yes | hosted for a team |
+| Web interface: browse the docs, explore the debt, audit dashboard, run history, review the docs and edit their names, descriptions and narratives | yes | hosted for a team |
 
 ## User journeys
 
@@ -73,8 +73,9 @@ debt nobody has time to pay.
    answers warn when a cited file changed since the docs were generated.
 6. **Ask the docs**: `retrodoc ask "…"`, `retrodoc chat` or the ask page of `retrodoc ui --ask` answer a question
    from the docs, citing the domains, features, use cases and files behind the answer.
-7. **Own the docs**: `retrodoc ui` marks a section validated, wrong or to review, and corrects its text; the next
-   `generate` keeps the human changes and flags those whose code changed.
+7. **Own the docs**: `retrodoc ui` marks a section validated, wrong or to review, and corrects its name, description
+   and narrative; `generate` keeps the human changes, and the readers flag those whose section was rewritten or whose
+   code changed since.
 
 ## Ask the documentation (vision)
 
