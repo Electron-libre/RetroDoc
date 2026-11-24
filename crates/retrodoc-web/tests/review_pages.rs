@@ -327,10 +327,9 @@ async fn the_review_is_worded_in_french() {
     assert!(review_block(&page).contains("Non relu"), "{page}");
 }
 
-/// What a `POST` got: its status, its `Location` and its body.
+/// What a `POST` got: its status and its body.
 struct Answer {
     status: StatusCode,
-    location: Option<String>,
     body: String,
 }
 
@@ -360,188 +359,13 @@ async fn post_with(
         .await
         .unwrap();
     let status = response.status();
-    let location = response
-        .headers()
-        .get("location")
-        .map(|v| v.to_str().unwrap().to_string());
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     Answer {
         status,
-        location,
         body: String::from_utf8(body.to_vec()).unwrap(),
     }
-}
-
-fn saved(root: &Path) -> Vec<(SectionKind, String, Status, String)> {
-    reviews::load(root)
-        .unwrap()
-        .reviews()
-        .iter()
-        .map(|r| {
-            (
-                r.section.kind,
-                r.section.id.clone(),
-                r.status,
-                r.comment.clone(),
-            )
-        })
-        .collect()
-}
-
-// spec: WEB-81
-#[tokio::test]
-async fn every_section_page_holds_a_form_posting_to_its_own_url() {
-    let dir = generated_repo();
-    for path in [
-        "/domains/billing",
-        "/domains/billing/pay-invoice",
-        "/domains/billing/pay-invoice/pay-by-card",
-    ] {
-        let (_, page) = get(dir.path(), path).await;
-        let block = review_block(&page);
-        assert!(
-            block.contains(&format!(
-                "method=\"post\" action=\"{path}\" hx-post=\"{path}\""
-            )),
-            "{block}"
-        );
-        for field in ["<select name=\"status\"", "<textarea name=\"comment\""] {
-            assert!(block.contains(field), "{block}");
-        }
-        for value in ["", "validated", "wrong", "to_review"] {
-            assert!(
-                block.contains(&format!("<option value=\"{value}\"")),
-                "{block}"
-            );
-        }
-    }
-}
-
-// spec: WEB-81
-#[tokio::test]
-async fn the_form_shows_the_review_it_changes() {
-    let dir = generated_repo();
-    let root = dir.path();
-    record(
-        root,
-        SectionKind::Feature,
-        "pay-invoice",
-        Status::Wrong,
-        "Misses refunds",
-    );
-
-    let (_, page) = get(root, "/domains/billing/pay-invoice").await;
-
-    let block = review_block(&page);
-    assert!(
-        block.contains("<option value=\"wrong\" selected>"),
-        "{block}"
-    );
-    assert!(block.contains(">Misses refunds</textarea>"), "{block}");
-}
-
-// spec: WEB-81
-#[tokio::test]
-async fn the_form_records_a_review_that_replaces_the_former_one() {
-    let dir = generated_repo();
-    let root = dir.path();
-    record(
-        root,
-        SectionKind::Feature,
-        "pay-invoice",
-        Status::Validated,
-        "",
-    );
-
-    let answer = post(
-        root,
-        "/domains/billing/pay-invoice",
-        "status=wrong&comment=misses+the+refunds",
-        false,
-    )
-    .await;
-
-    assert_eq!(answer.status, StatusCode::SEE_OTHER, "{}", answer.body);
-    assert_eq!(
-        saved(root),
-        [(
-            SectionKind::Feature,
-            "pay-invoice".to_string(),
-            Status::Wrong,
-            "misses the refunds".to_string()
-        )]
-    );
-}
-
-// spec: WEB-81
-#[tokio::test]
-async fn no_status_removes_the_review_and_keeps_the_others() {
-    let dir = generated_repo();
-    let root = dir.path();
-    record(root, SectionKind::Domain, "billing", Status::Validated, "");
-    record(
-        root,
-        SectionKind::UseCase,
-        "pay-invoice/pay-by-card",
-        Status::Wrong,
-        "",
-    );
-
-    let answer = post(
-        root,
-        "/domains/billing/pay-invoice/pay-by-card",
-        "status=&comment=",
-        false,
-    )
-    .await;
-
-    assert_eq!(answer.status, StatusCode::SEE_OTHER, "{}", answer.body);
-    assert_eq!(
-        saved(root),
-        [(
-            SectionKind::Domain,
-            "billing".to_string(),
-            Status::Validated,
-            String::new()
-        )]
-    );
-}
-
-// spec: WEB-83
-#[tokio::test]
-async fn an_htmx_post_gets_the_review_alone_and_another_a_redirect_to_the_page() {
-    let dir = generated_repo();
-    let root = dir.path();
-
-    let swapped = post(
-        root,
-        "/domains/billing",
-        "status=to_review&comment=Check",
-        true,
-    )
-    .await;
-    assert_eq!(swapped.status, StatusCode::OK);
-    assert!(
-        swapped.body.starts_with("<section class=\"review\""),
-        "{}",
-        swapped.body
-    );
-    assert!(!swapped.body.contains("<html"), "{}", swapped.body);
-    assert!(
-        swapped.body.contains(">To review</span>"),
-        "{}",
-        swapped.body
-    );
-    assert!(swapped.body.contains("<form"), "{}", swapped.body);
-
-    let redirected = post(root, "/domains/billing", "status=validated&comment=", false).await;
-    assert_eq!(redirected.status, StatusCode::SEE_OTHER);
-    assert_eq!(
-        redirected.location.as_deref(),
-        Some("/domains/billing?saved=review")
-    );
 }
 
 // spec: WEB-84
@@ -577,92 +401,6 @@ async fn a_post_from_another_site_is_refused_and_saves_nothing() {
     )
     .await;
     assert_eq!(answer.status, StatusCode::SEE_OTHER, "{}", answer.body);
-}
-
-// spec: WEB-85
-#[tokio::test]
-async fn a_post_to_a_section_the_run_does_not_have_is_not_found() {
-    let dir = generated_repo();
-    let root = dir.path();
-    for path in [
-        "/domains/shipping",
-        "/domains/billing/unknown",
-        "/domains/shipping/pay-invoice",
-        "/domains/billing/pay-invoice/unknown",
-        "/domains/billing/refund/pay-by-card",
-    ] {
-        let answer = post(root, path, "status=wrong", false).await;
-        assert_eq!(answer.status, StatusCode::NOT_FOUND, "{path}");
-    }
-    let origin = [("origin", "http://127.0.0.1:8730")];
-    let no_run = post_with(None, "/domains/billing", "status=wrong", &origin).await;
-    assert_eq!(no_run.status, StatusCode::NOT_FOUND);
-    assert!(!reviews::reviews_path(root).exists());
-}
-
-// spec: WEB-86
-#[tokio::test]
-async fn a_status_outside_the_four_is_refused_and_saves_nothing() {
-    let dir = generated_repo();
-    let root = dir.path();
-
-    let answer = post(root, "/domains/billing", "status=approved&comment=", false).await;
-
-    assert_eq!(answer.status, StatusCode::BAD_REQUEST);
-    assert!(!reviews::reviews_path(root).exists());
-}
-
-// spec: WEB-88
-#[tokio::test]
-async fn a_post_over_an_unreadable_file_fails_and_leaves_it_as_it_was() {
-    let dir = generated_repo();
-    let root = dir.path();
-    std::fs::write(reviews::reviews_path(root), "{ not json").unwrap();
-
-    for htmx in [false, true] {
-        let answer = post(root, "/domains/billing", "status=wrong", htmx).await;
-        assert_eq!(answer.status, StatusCode::INTERNAL_SERVER_ERROR);
-        assert!(answer.body.contains("cannot be read"), "{}", answer.body);
-    }
-    assert_eq!(
-        std::fs::read_to_string(reviews::reviews_path(root)).unwrap(),
-        "{ not json"
-    );
-}
-
-// spec: WEB-83, WEB-85, WEB-86
-#[tokio::test]
-async fn a_failed_htmx_post_gets_the_error_and_the_form_with_its_comment() {
-    let dir = generated_repo();
-    let root = dir.path();
-    for (path, form, code) in [
-        (
-            "/domains/billing",
-            "status=approved&comment=Kept",
-            StatusCode::BAD_REQUEST,
-        ),
-        (
-            "/domains/billing/unknown",
-            "status=wrong&comment=Kept",
-            StatusCode::NOT_FOUND,
-        ),
-    ] {
-        let answer = post(root, path, form, true).await;
-        assert_eq!(answer.status, code, "{path}");
-        assert!(
-            answer.body.starts_with("<section class=\"review\""),
-            "{}",
-            answer.body
-        );
-        assert!(answer.body.contains(">Kept</textarea>"), "{}", answer.body);
-    }
-    // The status sent stays selected, so saving again doesn't remove a review.
-    let answer = post(root, "/domains/billing/unknown", "status=wrong", true).await;
-    assert!(
-        answer.body.contains("<option value=\"wrong\" selected>"),
-        "{}",
-        answer.body
-    );
 }
 
 // spec: WEB-84

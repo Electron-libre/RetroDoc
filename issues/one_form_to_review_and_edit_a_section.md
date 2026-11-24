@@ -59,17 +59,16 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
 1. [x] Store of one save: `retrodoc_docs::corrections::save` (new module) checks both files readable, writes or
    removes the edit, then records or removes the review on the docs with that edit applied; the spec split
    committed with it; verified by internal tests of the docs crate; makes true SFM-4, SFM-14 (store side). (autonomous)
-2. [ ] One form, one `POST`: `section_form.rs` (new, replacing the saves of `review_form.rs` and `edit_form.rs`, the
-   preview kept) and `section_form.html` (replacing the form of `review.html` and `edit_form.html`), the routes under
-   `/edit` removed; new tests in `tests/section_form.rs`, the obsolete `POST` tests of `review_pages.rs`,
-   `edit_pages.rs` and `form_states.rs` (both over 800 lines) removed or moved to the new path; verified by tests
-   through the router; makes true SFM-1, SFM-3, SFM-4, SFM-5 (save), SFM-9 to SFM-15.
-3. [ ] The page around it: the radio chips of the status, the fields unfolded on "wrong" (`forms.js`) and on an
-   error, one "Review" action under the heading and per debt item, the notice of `?saved=1`, the indicator, the
-   confirmation of the revert; `texts.rs` (over the limit) only swaps its texts of the two forms, no new block;
-   verified by page tests and before/after `just screenshots`; makes true SFM-2, SFM-5 (confirm), SFM-6, SFM-7,
-   SFM-8, SFM-16.
-4. [ ] Docs of the whole issue and fixes of the `high` review (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`,
+2. [x] Drop the tests of the withdrawn requirements (WEB-81, 83, 85, 86, 88, 93 to 99, 103 to 105, 114) from
+   `review_pages.rs`, `edit_pages.rs` and `form_states.rs`, deletions only, the code unchanged; verified by the
+   project check. (autonomous)
+3. [ ] One form, one `POST`: `section_form.rs` (new, replacing `review_form.rs` and the saves of `edit_form.rs`, the
+   preview kept) and `section_form.html` (replacing `review.html` and `edit_form.html`), the routes under `/edit`
+   removed, `?saved=1`, one "Review" action, the remaining tests moved to the new form; the core tests in
+   `tests/section_form.rs`; makes true SFM-1, SFM-3, SFM-6, SFM-7, SFM-9, SFM-12 to SFM-16.
+4. [ ] The remaining tests of `tests/section_form.rs` (SFM-2, SFM-4, SFM-5, SFM-8, SFM-10, SFM-11), the unfolding
+   on "wrong" in `forms.js`, the style of the form, before/after `just screenshots`.
+5. [ ] Docs of the whole issue and fixes of the `high` review (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`,
    `docs/crates/docs.md`); spec set `accepted`.
 
 ## Decisions
@@ -79,6 +78,8 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
 - A save rewrites the review as the form sends it, the status kept included: its author becomes whoever saved, and it
   is fingerprinted on the edited section (user, 2026-11-24).
 - The status is a group of radio chips, not a select (user, 2026-11-24).
+- Deliverable 2 of the plan cut in three (2336 changed lines, over 1000): the deletions of the withdrawn tests, the
+  form with its core tests, the remaining tests and the look (user, 2026-11-24).
 - Spec: the section forms moved out of `specs/web-ui.md` into `specs/section-form.md` (SFM), the former ids
   withdrawn (user, 2026-11-24).
 
@@ -96,4 +97,18 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
   fingerprinted on the docs as shown before the edit.
 - Code review: no findings
 - not verified: nothing through the router yet (deliverable 2).
+- decisions needed: none.
+
+## Deliverable 2
+- done: the tests of the withdrawn requirements removed, with the helpers they alone used; the code unchanged.
+- | check | result |
+  |---|---|
+  | tests | `cargo test -p retrodoc-web`: pass |
+  | lint | clippy pedantic: clean |
+  | specs | `check-specs`: pass |
+  | docs | n/a: no behaviour changed |
+  | code review | low: no findings |
+- red: none (deletions only).
+- Code review: no findings
+- not verified: nothing.
 - decisions needed: none.

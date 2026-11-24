@@ -239,36 +239,6 @@ fn assert_error_above_buttons(form: &str, text: &str) {
     assert!(at < form.find("<button").unwrap(), "{form}");
 }
 
-// spec: WEB-105
-#[tokio::test]
-async fn a_refused_review_shows_its_error_in_the_form_with_the_fields_as_sent() {
-    let dir = generated_repo();
-    let root = dir.path();
-    for (path, form_sent, code, error) in [
-        (
-            "/domains/billing",
-            "status=approved&comment=Kept",
-            StatusCode::BAD_REQUEST,
-            "Unknown review status.",
-        ),
-        (
-            "/domains/billing/unknown",
-            "status=wrong&comment=Kept",
-            StatusCode::NOT_FOUND,
-            "The last run has no such section.",
-        ),
-    ] {
-        let (status, headers, body) =
-            post_htmx_with_headers(root, path, form_sent, Some("en")).await;
-        assert_eq!(status, code, "{body}");
-        assert_eq!(headers["hx-reswap"], "outerHTML");
-        assert!(body.starts_with("<section class=\"review\""), "{body}");
-        let form = form(&body, "<form");
-        assert_error_above_buttons(form, error);
-        assert!(form.contains(">Kept</textarea>"), "{form}");
-    }
-}
-
 // spec: WEB-77, WEB-105
 #[tokio::test]
 async fn the_errors_of_the_forms_are_worded_in_french() {
@@ -284,37 +254,6 @@ async fn the_errors_of_the_forms_are_worded_in_french() {
     )
     .await;
     assert_error_above_buttons(form(&body, "<form"), "Seul un cas d&#39;usage a un récit.");
-}
-
-// spec: WEB-105
-#[tokio::test]
-async fn a_refused_edit_shows_its_error_in_the_form_with_the_fields_as_sent() {
-    let dir = generated_repo();
-    let root = dir.path();
-    for (path, form_sent, code, error) in [
-        (
-            "/edit/domains/billing",
-            "name=Changed+name&description=Changed+text&narrative=X",
-            StatusCode::BAD_REQUEST,
-            "Only a use case has a narrative.",
-        ),
-        (
-            "/edit/domains/billing/unknown",
-            "name=Changed+name&description=Changed+text",
-            StatusCode::NOT_FOUND,
-            "The last run has no such section.",
-        ),
-    ] {
-        let (status, headers, body) =
-            post_htmx_with_headers(root, path, form_sent, Some("en")).await;
-        assert_eq!(status, code, "{body}");
-        assert_eq!(headers["hx-reswap"], "outerHTML");
-        assert!(body.starts_with("<section class=\"edit-form\""), "{body}");
-        let form = form(&body, "<form");
-        assert_error_above_buttons(form, error);
-        assert!(form.contains("value=\"Changed name\""), "{form}");
-        assert!(form.contains(">Changed text</textarea>"), "{form}");
-    }
 }
 
 // spec: WEB-106
@@ -348,72 +287,8 @@ async fn every_page_swaps_an_html_error_and_shows_any_other_in_a_notice() {
     }
 }
 
-/// The section of `page` whose opening tag starts with `opening`, up to its end.
-fn section<'a>(page: &'a str, opening: &str) -> &'a str {
-    let start = page
-        .find(opening)
-        .unwrap_or_else(|| panic!("no {opening} in {page}"));
-    let end = start + page[start..].find("</section>").unwrap();
-    &page[start..end]
-}
-
-const REVIEW: &str = "<section class=\"review\"";
-const EDIT: &str = "<section class=\"edit-form\"";
-
 fn notice(text: &str) -> String {
     format!("<p class=\"notice\" role=\"status\">{text}</p>")
-}
-
-// spec: WEB-103
-#[tokio::test]
-async fn a_saved_review_says_so_in_its_form() {
-    let dir = generated_repo();
-    let root = dir.path();
-
-    let (status, body) = post_htmx(root, "/domains/billing", "status=wrong", Some("en")).await;
-
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert!(
-        form(&body, "<form").contains(&notice("Review saved.")),
-        "{body}"
-    );
-    let page = get(root, "/domains/billing").await;
-    assert!(!page.contains("class=\"notice\""), "{page}");
-}
-
-// spec: WEB-104
-#[tokio::test]
-async fn a_page_asked_after_a_save_says_what_was_saved() {
-    let dir = generated_repo();
-    let root = dir.path();
-    for path in [
-        "/domains/billing",
-        "/domains/billing/pay-invoice",
-        "/domains/billing/pay-invoice/pay-by-card",
-    ] {
-        let page = get(root, &format!("{path}?saved=review")).await;
-        assert!(
-            section(&page, REVIEW).contains(&notice("Review saved.")),
-            "{page}"
-        );
-        assert!(!section(&page, EDIT).contains("class=\"notice\""), "{page}");
-
-        let page = get(root, &format!("{path}?saved=edit")).await;
-        let edit = section(&page, EDIT);
-        assert!(
-            form(edit, "<form").contains(&notice("Edit saved.")),
-            "{edit}"
-        );
-        // Folded, the form would hide the notice.
-        assert!(edit.contains("<details open>"), "{edit}");
-        assert!(
-            !section(&page, REVIEW).contains("class=\"notice\""),
-            "{page}"
-        );
-
-        let page = get(root, &format!("{path}?saved=other")).await;
-        assert!(!page.contains("class=\"notice\""), "{page}");
-    }
 }
 
 // spec: WEB-77, WEB-104
@@ -425,47 +300,6 @@ async fn the_saved_notices_are_worded_in_french() {
     assert!(page.contains(&notice("Relecture enregistrée.")), "{page}");
     let (_, page) = get_in(root, "/domains/billing?saved=edit", Some("fr")).await;
     assert!(page.contains(&notice("Correction enregistrée.")), "{page}");
-}
-
-// spec: WEB-105
-#[tokio::test]
-async fn a_refused_review_keeps_the_review_saved_above_its_form() {
-    let dir = generated_repo();
-    let root = dir.path();
-    post_htmx(
-        root,
-        "/domains/billing",
-        "status=wrong&comment=Misses+refunds",
-        Some("en"),
-    )
-    .await;
-
-    let (status, body) = post_htmx(
-        root,
-        "/domains/billing",
-        "status=approved&comment=Other",
-        Some("en"),
-    )
-    .await;
-
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    let above = &body[..body.find("<form").unwrap()];
-    assert!(above.contains(">Wrong</span>"), "{body}");
-    assert!(above.contains("Misses refunds"), "{body}");
-    assert!(form(&body, "<form").contains(">Other</textarea>"), "{body}");
-}
-
-// spec: WEB-104
-#[tokio::test]
-async fn no_saved_notice_shows_over_reviews_that_cannot_be_read() {
-    let dir = generated_repo();
-    let root = dir.path();
-    std::fs::write(retrodoc_docs::reviews::reviews_path(root), "{ not json").unwrap();
-
-    let page = get(root, "/domains/billing?saved=review").await;
-
-    assert!(section(&page, REVIEW).contains("cannot be read"), "{page}");
-    assert!(!page.contains("class=\"notice\""), "{page}");
 }
 
 /// What follows the heading of `page`, up to the end of the page.
@@ -511,26 +345,4 @@ async fn the_actions_of_a_section_are_worded_in_french() {
     let actions = after_heading(&page);
     assert!(actions.contains(">Relire</a>"), "{actions}");
     assert!(actions.contains(">Corriger</a>"), "{actions}");
-}
-
-// spec: WEB-114
-#[tokio::test]
-async fn a_section_page_asked_to_edit_unfolds_its_edit_form() {
-    let dir = generated_repo();
-    let root = dir.path();
-    for path in [
-        "/domains/billing",
-        "/domains/billing/pay-invoice",
-        "/domains/billing/pay-invoice/pay-by-card",
-    ] {
-        let page = get(root, &format!("{path}?edit=1")).await;
-        assert!(section(&page, EDIT).contains("<details open>"), "{page}");
-        for folded in [String::new(), "?edit=0".to_owned(), "?edit=".to_owned()] {
-            let page = get(root, &format!("{path}{folded}")).await;
-            assert!(
-                section(&page, EDIT).contains("<details>"),
-                "{folded}: {page}"
-            );
-        }
-    }
 }
