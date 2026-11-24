@@ -1,8 +1,8 @@
 //! The slugs a unit asked again gives back (`specs/rerun.md`, RER-13 to RER-16): an edit or a
 //! review names its section by slug, and a model asked again for a whole unit renames sections it
 //! writes the same. A section of the answer that holds the entry points (the resources, for a
-//! domain) of a saved section of its unit takes back the saved slug, one to one: the match renames,
-//! it never merges two sections the model split on purpose.
+//! domain, or its entities when it has none) of a saved section of its unit takes back the saved
+//! slug, one to one: the match renames, it never merges two sections the model split on purpose.
 
 use std::collections::BTreeSet;
 
@@ -50,8 +50,16 @@ impl Section for DomainCluster {
     fn set_slug(&mut self, slug: String) {
         self.slug = slug;
     }
+    /// Its resources, or its entities when it has no resource.
     fn held(&self) -> BTreeSet<String> {
-        self.resources.iter().map(|r| normalize(r)).collect()
+        if self.resources.is_empty() {
+            self.entities
+                .iter()
+                .map(|e| format!("entity:{}", normalize(e)))
+                .collect()
+        } else {
+            self.resources.iter().map(|r| normalize(r)).collect()
+        }
     }
 }
 

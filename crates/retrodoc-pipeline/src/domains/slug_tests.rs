@@ -96,3 +96,17 @@ async fn the_uncategorized_domain_neither_takes_nor_gives_a_saved_slug() {
     .await;
     assert_eq!(slugs, ["ordering", "billing", "hooks", UNCATEGORIZED_SLUG]);
 }
+
+// spec: RER-13 (internal: a surface the fake application of the binary tests can't give)
+#[tokio::test]
+async fn a_domain_of_entities_alone_written_again_keeps_its_saved_slug() {
+    let entities = |slug: &str| {
+        format!(
+            r#"{{"domains":[{{"slug":"ordering","name":"N","description":"d","resources":["order","invoice","webhook"]}},
+            {{"slug":"{slug}","name":"N","description":"d","entities":["Customer"]}}]}}"#
+        )
+    };
+    let slugs = slugs_after(&entities("people"), &entities("customers")).await;
+
+    assert_eq!(slugs, ["ordering", "people", UNCATEGORIZED_SLUG]);
+}

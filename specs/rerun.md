@@ -25,8 +25,8 @@ repository makes no LLM call and rewrites no file.
 - **RER-12** (deterministic) A feature reused from the saved result must keep the place it had among the
   features of its domain, so that the rendered domain page and index list it at the same place.
 - **RER-13** (deterministic) A unit asked again must give a section it writes the slug of the saved section of that
-  unit that has the same entry points (the same resources, for a domain), so that the edits and the reviews of the
-  section still name it (SED-1, REV-1).
+  unit that has the same entry points (for a domain, its resources, or its entities when it has no resource; for a
+  feature, those its answer claims), so that the edits and the reviews of the section still name it (SED-1, REV-1).
 
 ### Contract
 
@@ -50,24 +50,31 @@ repository makes no LLM call and rewrites no file.
   judgement print changed must be judged again from its saved stated rules, with no statement call.
 - **RER-14** (deterministic) A section whose entry points are not those of a saved section of its unit, or that has
   none, must keep the slug its answer gives it: the match renames a section, it never merges two.
-- **RER-15** (deterministic) A saved slug must not be given back when a section already holds it (in the answer or, for
-  a feature, another domain), when the matching section of the answer holds a saved
-  slug of its unit, or when another section, of the answer or saved, has the same entry points: each section then
-  keeps the slug its answer gives it.
+- **RER-15** (deterministic) A saved slug must not be given back when a section already holds it (in the answer, a
+  feature of another domain, or one of an earlier slice of its domain that holds an entry point the saved feature did
+  not), when the matching section of the answer holds a saved slug of its unit, or when another section, of the answer
+  or saved, has the same entry points: each section then keeps the slug its answer gives it.
 - **RER-16** (deterministic) The domain the code gathers what no domain claimed in (`uncategorized`) must keep its
   slug and give it to no other domain.
 
 ## Scenarios
 
-- **RER-H1** (happy; RER-13) Given a feature whose use cases `compute-order-time` (entry point E1) and `compute-rider-time` (E2) were
-  generated, and a sibling use case marked wrong, when `generate` asks the feature again and the model answers
-  `estimate-order-time` for E1, then the use case is saved as `compute-order-time` and the edit of it still shows.
+- **RER-H1** (happy; RER-13) Given a use case `list-orders` (entry point E1) marked wrong, when `generate` asks its
+  feature again and the model answers it as `browse-orders` for E1, then it is saved as `list-orders`, the slug its
+  review and edits name.
+- (RER-13) Given a feature whose use cases `compute-order-time` (E1) and `compute-rider-time` (E2) were generated and
+  a sibling marked wrong, when the model answers `estimate-order-time` for E1, then it is saved as
+  `compute-order-time`.
 - (RER-13) Given a domain asked again whose answer renames a feature that groups the same entry points, then the
   feature keeps its saved slug and its use cases are reused.
 - (RER-13) Given a feature over two slices of its domain, when the second slice is asked again and renames its part,
   then the part takes the saved slug back and merges with the part of the first slice.
-- (RER-13) Given the domains asked again and a domain answered under a new slug with the same resources, then it
-  keeps its saved slug.
+- (RER-13) Given the domains asked again and a domain answered under a new slug with the same resources, or the same
+  entities for a domain with no resource, then it keeps its saved slug.
+- (RER-13) Given a saved feature the placement had given an entry point the answer leaves free, when its slice is
+  asked again and answers it under a new slug, then it keeps its saved slug.
+- (RER-15) Given a feature `x` over two slices, when both are asked again, the first gives `x` to a feature holding
+  an entry point `x` did not hold and the second renames the part of `x`, then that part keeps its new slug.
 - (RER-14) Given a saved feature grouping E1 and E2, when the answer splits them into two features, then both keep
   the slugs of the answer.
 - (RER-15) Given saved use cases `a` (E1) and `b` (E2), when the answer gives `b` to E1 and `c` to E2, then they stay

@@ -652,7 +652,7 @@ impl SurfaceRun<'_> {
                     &mut produced,
                     self.previous,
                     (&domain.slug, slice),
-                    features,
+                    (features, &domain_features),
                 );
                 if !produced.is_empty() {
                     break;

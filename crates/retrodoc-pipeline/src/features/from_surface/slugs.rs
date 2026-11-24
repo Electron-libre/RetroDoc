@@ -11,18 +11,32 @@ use super::Entry;
 use crate::saved_slugs::keep_saved_slugs;
 
 /// Gives the features `produced` by a slice of the domain `domain_slug` the slugs of the saved
-/// features of `previous` with the same entry points in `slice`, unless a feature of another
-/// domain (`others`) holds the slug.
+/// features of `previous` with the same entry points in `slice`: those the answer leaves free (an
+/// entry point the placement had put into a feature) left out. A slug stays taken when a feature
+/// of another domain (`others`) holds it, or a feature of an earlier slice (`earlier`) that is not
+/// a part of the saved feature: one holding an entry point the saved feature did not.
 pub(super) fn keep_saved(
     produced: &mut [Feature],
     previous: &[Feature],
     (domain_slug, slice): (&str, &[Entry<'_>]),
-    others: &[Feature],
+    (others, earlier): (&[Feature], &[Feature]),
 ) {
-    let in_slice: BTreeSet<&str> = slice.iter().map(|e| e.id.as_str()).collect();
-    let saved: Vec<Feature> = previous
+    let claimed: BTreeSet<&str> = produced
+        .iter()
+        .flat_map(|f| &f.entry_points)
+        .map(String::as_str)
+        .collect();
+    let in_slice: BTreeSet<&str> = slice
+        .iter()
+        .map(|e| e.id.as_str())
+        .filter(|id| claimed.contains(id))
+        .collect();
+    let of_domain: Vec<&Feature> = previous
         .iter()
         .filter(|f| f.domain_slug == domain_slug)
+        .collect();
+    let saved: Vec<Feature> = of_domain
+        .iter()
         .filter_map(|f| {
             let entry_points: Vec<String> = f
                 .entry_points
@@ -32,11 +46,21 @@ pub(super) fn keep_saved(
                 .collect();
             (!entry_points.is_empty()).then(|| Feature {
                 entry_points,
-                ..f.clone()
+                ..(*f).clone()
             })
         })
         .collect();
+    let part_of_saved = |holder: &Feature| {
+        of_domain.iter().any(|f| {
+            f.slug == holder.slug
+                && holder
+                    .entry_points
+                    .iter()
+                    .all(|id| f.entry_points.contains(id))
+        })
+    };
     keep_saved_slugs(produced, &saved, |slug| {
         others.iter().any(|f| f.slug == slug)
+            || earlier.iter().any(|f| f.slug == slug && !part_of_saved(f))
     });
 }

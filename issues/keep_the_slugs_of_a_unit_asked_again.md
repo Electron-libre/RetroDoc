@@ -56,6 +56,9 @@ Out of scope: listing the saved slugs in the prompt (HCR-8 unchanged, non-goal o
    call lines only there); makes true RER-13, RER-14, RER-15 for the features. (autonomous)
 3. [x] Saved slugs kept by the domains call: matched on their resources, `uncategorized` never matched; tests in
    `domains/tests.rs`; makes true RER-13, RER-16; the spec set `accepted`. (autonomous)
+4. [x] Docs of the whole issue and fixes of its `high` review: a feature of an earlier slice that is not a part of the
+   saved one holds its slug; the entry points the answer leaves free (placed ones) out of the match; a domain of
+   entities alone matched on them; RER-H1 reworded to what its test drives. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -115,6 +118,29 @@ done: the domains call gives back the saved slug of a domain written again with 
 | code review | see below |
 
 red: RER-13, RER-16: `["order-taking", "invoicing", "hooks", "uncategorized"]` instead of `ordering`, `billing`; with `uncategorized` in the match, it took the saved slug `hooks`.
+Code review: no findings
+
+not verified: no paid run.
+decisions needed: none
+
+## Deliverable 4: summary
+done: the fixes of the `high` review of the issue and the docs of the whole issue.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (RER-13, RER-15 and RER-H1 reworded, three scenarios added) |
+| docs | `docs/crates/pipeline.md` (Saved slugs) |
+| code review | see below |
+
+High review of the issue: 4 findings
+- important, an earlier slice's feature holding a saved slug merged with the renamed part of another: fixed (`earlier` in `keep_saved`).
+- a feature the placement completed never matched: fixed, the entry points the answer leaves free are out of the match.
+- RER-H1 named a sibling and an edit its test does not drive: the scenario reworded to the test, the sibling case kept as a plain scenario (proven by the unit tests of `saved_slugs.rs`).
+- a domain of entities alone never matched: fixed, matched on its entities.
+
+red: RER-13, RER-14, RER-15: `x` held `["a.rb#GET /a1", "b.rb#GET /b0"]` (the part of another feature merged in); the placed feature came back as `order-goods`; the domain of entities came back as `customers`.
 Code review: no findings
 
 not verified: no paid run.

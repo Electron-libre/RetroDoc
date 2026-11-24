@@ -110,13 +110,16 @@ async fn a_feature_written_again_under_a_new_slug_keeps_its_saved_one() {
 async fn a_saved_slug_another_domain_took_is_not_given_back() {
     let dir = tempfile::tempdir().unwrap();
     let (domains, entries) = fixture();
-    // Asked again, `orders` gives the slug `routing` had to a part of its feature, and `routing`
-    // answers another one.
+    // Asked again, `orders` splits its feature and gives the slug `routing` had to a part, and
+    // `routing` answers another one.
     let llm = FakeLlm::replying(|_, request| {
         let prompt = &request.messages[1].content;
         let answer = answers(prompt, &["list-routes", "routes"]);
         Ok(if prompt.contains("Human corrections") {
-            answer.replace(r#"["E1","E2"]"#, r#"["E1"]"#)
+            answer.replace(
+                r#"["E1","E2"]}"#,
+                r#"["E1"]},{"slug":"extra","name":"E","description":"d","entry_points":["E2"]}"#,
+            )
         } else {
             answer
         })
@@ -150,7 +153,11 @@ async fn a_saved_slug_another_domain_took_is_not_given_back() {
 
     assert_eq!(
         slugs(&features),
-        [("orders", "list-routes"), ("routing", "routes")]
+        [
+            ("orders", "list-routes"),
+            ("orders", "extra"),
+            ("routing", "routes")
+        ]
     );
 }
 
@@ -197,4 +204,100 @@ async fn the_part_of_a_feature_a_slice_writes_again_merges_back_under_its_slug()
         ["a.rb#GET /a0", "b.rb#GET /b0"],
         "the part of the second slice merged back"
     );
+}
+
+/// Run 1 (`again` false): the first slice gives `x` (a0) and `z` (a1), the second `x` (b0). Run 2:
+/// the first slice gives `w` to a0 and `x` to a1, the second answers `v` for b0, the part of the
+/// saved `x` that `w` continues.
+fn answers_of_a_moved_slug(prompt: &str, again: bool) -> String {
+    if prompt.contains("Entry points to place") {
+        return r#"{"placements":[]}"#.to_string();
+    }
+    let features = match (prompt.contains("already found"), again) {
+        (false, false) => {
+            r#"[{"slug":"x","name":"X","description":"d","entry_points":["E1"]},
+            {"slug":"z","name":"Z","description":"d","entry_points":["E2"]}]"#
+        }
+        (false, true) => {
+            r#"[{"slug":"w","name":"W","description":"d","entry_points":["E1"]},
+            {"slug":"x","name":"X2","description":"d","entry_points":["E2"]}]"#
+        }
+        (true, false) => r#"[{"slug":"x","name":"X","description":"d","entry_points":["E1"]}]"#,
+        (true, true) => r#"[{"slug":"v","name":"V","description":"d","entry_points":["E1"]}]"#,
+    };
+    format!(r#"{{"features":{features}}}"#)
+}
+
+// spec: RER-14, RER-15 (internal: a domain over the prompt limit takes 100 entry points, too many for the fake application of the binary tests)
+#[tokio::test]
+async fn the_part_of_a_feature_whose_slug_an_earlier_slice_gave_another_feature_keeps_its_own() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, mut entries) = big_domain();
+    let llm = FakeLlm::replying(|_, request| {
+        Ok(answers_of_a_moved_slug(&request.messages[1].content, false))
+    });
+    run(
+        dir.path(),
+        (&domains, &entries),
+        &llm,
+        &Corrections::default(),
+    )
+    .await;
+    // A change in the first slice asks both slices again.
+    entries
+        .files
+        .get_mut(&std::path::PathBuf::from("a.rb"))
+        .unwrap()
+        .entry_points
+        .push(super::tests::entry("GET /a100", "a"));
+    let llm = FakeLlm::replying(|_, request| {
+        Ok(answers_of_a_moved_slug(&request.messages[1].content, true))
+    });
+
+    let features = run(
+        dir.path(),
+        (&domains, &entries),
+        &llm,
+        &Corrections::default(),
+    )
+    .await;
+
+    let x = features.iter().find(|f| f.slug == "x").unwrap();
+    assert_eq!(x.entry_points, ["a.rb#GET /a1"], "{features:?}");
+    assert!(features.iter().any(|f| f.slug == "v"), "{features:?}");
+}
+
+// spec: RER-13 (internal: the placement call, which the fake application of the binary tests never needs)
+#[tokio::test]
+async fn a_feature_an_entry_point_was_placed_into_keeps_its_slug_when_the_answer_leaves_it_free() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    // `orders` claims E1 only; the placement puts `POST /orders` into `place-order`. Asked again,
+    // it answers `order-goods` for E1 and leaves `POST /orders` free again.
+    let llm = FakeLlm::replying(|_, request| {
+        let prompt = &request.messages[1].content;
+        Ok(if prompt.contains("Entry points to place") {
+            if prompt.contains("POST /orders") {
+                r#"{"placements":[{"entry_point":"orders.rb#POST /orders","feature":"place-order"}]}"#
+                    .to_string()
+            } else {
+                r#"{"placements":[]}"#.to_string()
+            }
+        } else {
+            answers(prompt, &["order-goods", "list-routes"]).replace(r#"["E1","E2"]"#, r#"["E1"]"#)
+        })
+    });
+    let first = run(
+        dir.path(),
+        (&domains, &entries),
+        &llm,
+        &Corrections::default(),
+    )
+    .await;
+    assert_eq!(first[0].entry_points.len(), 2, "placed: {first:?}");
+
+    let corrections = wrong("orders", "place-order", &["orders.rb#GET /orders"]);
+    let features = run(dir.path(), (&domains, &entries), &llm, &corrections).await;
+
+    assert_eq!(features[0].slug, "place-order", "{features:?}");
 }
