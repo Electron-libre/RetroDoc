@@ -11,7 +11,7 @@ use axum::response::Response;
 use crate::actors::{ActorSection, ActorsPage};
 use crate::pages::{no_run_page, not_found, render};
 use crate::texts::WebTexts;
-use crate::view::{Shell, Site};
+use crate::view::{Link, Shell, Site};
 
 #[derive(Template)]
 #[template(path = "actors.html")]
@@ -28,6 +28,8 @@ struct ActorTemplate<'a> {
     shell: &'a Shell,
     kind: &'static str,
     actor: &'a ActorSection,
+    /// The actors page, above the actor.
+    crumbs: Vec<Link>,
 }
 
 pub async fn actors(State(site): State<Arc<Site>>) -> Response {
@@ -58,6 +60,10 @@ pub async fn actor(State(site): State<Arc<Site>>, Path(id): Path<String>) -> Res
             shell: site.shell(),
             kind,
             actor,
+            crumbs: vec![Link {
+                href: "/actors".to_string(),
+                name: site.texts().page_name("/actors").to_string(),
+            }],
         },
     )
 }

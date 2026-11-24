@@ -311,25 +311,25 @@ async fn each_actor_of_the_index_has_a_page_headed_by_its_kind_and_counts() {
         (
             "actor-clerk",
             "Clerk",
-            "People",
+            "Person",
             "starts 1 · takes part in 2",
         ),
         (
             "actor-clerk-2",
             "clerk",
-            "People",
+            "Person",
             "starts 0 · takes part in 1",
         ),
         (
             "actor-manager",
             "Manager",
-            "People",
+            "Person",
             "starts 1 · takes part in 0",
         ),
         (
             "system-bank",
             "Bank",
-            "Systems",
+            "System",
             "starts 0 · takes part in 1",
         ),
     ] {
@@ -382,6 +382,11 @@ async fn the_use_cases_are_folded_under_their_feature_those_started_first() {
     let clerk = actor(repo.path(), "actor-clerk").await;
     let pay = until(&clerk, "<details", "</details>");
     assert!(!pay.contains(" open"), "{pay}");
+    // The summary only folds: the link of the feature stays outside it.
+    assert!(
+        !until(pay, "<summary", "</summary>").contains("<a "),
+        "{pay}"
+    );
     let (summary, card, refund) = (
         position(pay, "</summary>"),
         position(pay, PAY_BY_CARD),

@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% import "macros.html" as m %}
 {% block title %}{{ actor.name }} · {{ t.page_name("/actors") }}{% endblock %}
 {% block content %}
-<p class="back"><a href="/actors">{{ t.all_actors }}</a></p>
+{% call m::crumbs(crumbs, actor.name) %}{% endcall %}
 <h1>{{ actor.name }} <span class="kind">{{ kind }}</span></h1>
 <p class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</p>
 {% for domain in actor.domains %}
@@ -9,7 +10,8 @@
   <h2>{% if let Some(href) = domain.href %}<a href="{{ href }}">{{ domain.name }}</a>{% else %}{{ domain.name }}{% endif %} <span class="counts">{{ t.features(domain.features.len()) }} · {{ t.use_cases(*domain.use_case_count) }}</span></h2>
   <ul class="actor-features">
     {% for feature in domain.features %}
-    <li><details><summary><a href="{{ feature.link.href }}">{{ feature.link.name }}</a> <span class="counts">{{ t.starts }} {{ feature.starts }} · {{ t.takes_part_in }} {{ feature.takes_part }}</span></summary>
+    <li><a href="{{ feature.link.href }}">{{ feature.link.name }}</a>
+      <details><summary class="counts">{{ t.starts }} {{ feature.starts }} · {{ t.takes_part_in }} {{ feature.takes_part }}</summary>
       <ul>
         {% for use_case in feature.use_cases %}
         <li><a href="{{ use_case.link.href }}">{{ use_case.link.name }}</a>{% if use_case.starts %} <span class="badge">{{ t.starts }}</span>{% endif %}</li>

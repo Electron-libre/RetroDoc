@@ -12,7 +12,7 @@
 <h2>{{ group.heading }}</h2>
 <ul id="{{ group.id }}">
   {% for actor in group.actors %}
-  <li id="{{ actor.id }}"><a href="/actors/{{ actor.id }}">{{ actor.name }}</a> <span class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</span></li>
+  <li id="{{ actor.id }}"><a href="{{ actor.href }}">{{ actor.name }}</a> <span class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</span></li>
   {% endfor %}
 </ul>
 </div>

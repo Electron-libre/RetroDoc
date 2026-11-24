@@ -42,7 +42,7 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   with an `rmcp` client over an in-memory pipe, on the fixtures `retrodoc-docs` gives under its `testing` feature.
   What the tools answer lives in `retrodoc-docs` (`docs/crates/docs.md`).
 - **retrodoc-web** (`lib.rs` the router and `serve`, `view.rs` what the pages show as plain data, `pages.rs` the
-  handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx`, `mermaid`, the stylesheet and the logos of
+  handlers and their `askama` templates under `templates/` (those of `/actors` and `/actors/{id}` in `actor_pages.rs`), `assets.rs` the vendored `htmx`, `mermaid`, the stylesheet and the logos of
   `assets/`, embedded in the binary and served under `/assets/`, cached an hour; `mermaid` is stored gzipped,
   `mermaid-<version>.min.js.gz` (5.5 MB plain), served with `Content-Encoding: gzip` (406 to a client whose `Accept-Encoding` does not name gzip) and
   cached as immutable under its versioned name; `base.html` turns off the indicator styles `htmx` would inject, the

@@ -70,6 +70,9 @@ issue, the folding of option 1 applied per feature; options 4 and 5 left out. Me
    and French beside the others in `texts.rs`, the `.actor` styles; verified by `tests/actors_page.rs` and
    `tests/map_page.rs` on the WAC ids, the height of `/actors` and of the page of the largest actors measured on the
    linkding baseline before/after (`just screenshots` plus a chromedriver measure); makes true WAC-1 to WAC-10. (autonomous)
+2. [x] Fixes of the high review: the feature link out of the `<summary>` (the counts fold), a grid instead of CSS
+   columns, the singular kind of the actor, the breadcrumb, the href of an actor kept on the model, `actor_pages.rs`
+   and WEB-73 in the docs; verified by `tests/actors_page.rs` and the shots. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -86,7 +89,8 @@ issue, the folding of option 1 applied per feature; options 4 and 5 left out. Me
   columns with what it starts and takes part in, the use cases folded under each feature, then its permission rules;
   unknown id 404; the map links to the actor page; `just screenshots` also shoots an actor page. Measured on the
   linkding baseline (chromedriver, `scrollHeight`): `/actors` 10,374 → 757 px at 1440 px (one screen), 11,846 → 930 px
-  at 500 px; Administrator 831 px, Bookmark owner 1,290 px, System 1,822 px at 1440 px (no horizontal scroll). Shots:
+  at 500 px; Administrator 831 px, Bookmark owner 1,290 px, System 1,822 px at 1440 px (no horizontal scroll); these three
+  were measured with the stylesheet of the base cached by the browser, see deliverable 2 for the right figures. Shots:
   `~/retrodoc-runs/screenshots/before-actors-practical-1f904893`, `after-actors-practical`.
 
 | check | result |
@@ -103,4 +107,28 @@ issue, the folding of option 1 applied per feature; options 4 and 5 left out. Me
 - Code review: no findings
 - not verified: the opening of a fold by keyboard and screen reader (native `<details>`, not tested); Firefox and
   Safari not shot.
+- decisions needed: none.
+
+## Deliverable 2: fixes of the high review
+- done: the six nits of the `high` review: the feature is a link followed by a `<details>` whose summary is its
+  counts (a click on the name no longer leaves the page by surprise, no link nested in a summary); a grid of columns
+  (opening a fold moves no sibling); the kind is singular (`Person`, `System`); the breadcrumb `Home › Actors › <name>`
+  replaces the ad hoc back link; `ActorSection::href` set once, used by the index and the map; `actor_pages.rs` named
+  in `docs/crates/render-mcp-cli.md` and `docs/ARCHITECTURE.md`; WEB-73 says its actors link to their page (WAC-5).
+  Measured again on the linkding baseline with a fresh browser (bottom of the content / window 757 px): `/actors`
+  398 px at 1440 px, 862 px at 500 px; Administrator 719 px, Bookmark owner 1,000 px, System 1,371 px at 1440 px;
+  2,066 and 3,096 px at 500 px; no horizontal scroll.
+
+| check | result |
+|---|---|
+| tests | pass (`tests/actors_page.rs` 19, `tests/map_page.rs` 21) |
+| lint | pass |
+| specs | pass; WEB-73 reworded, still traced |
+| docs | `docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` |
+| code review | see below |
+
+- red: WAC-2: the kind was asserted `Person` after the code changed (not run red first); WAC-10: the assertion that
+  the summary holds no link was added after the fix (not run red first).
+- Code review: no findings
+- not verified: Firefox and Safari not shot; keyboard and screen reader use of the folds not tested.
 - decisions needed: none.

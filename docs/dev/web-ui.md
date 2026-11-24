@@ -49,7 +49,7 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | wide table | `<div class="wide">` around a table with more columns than a screen holds (heatmap, trends) | scrolls in its own frame (at most 80 % of the viewport high), never the page; its header and its row headers (`th[scope="row"]`) stay in sight |
 | brand | `a.brand` in the header | the logo (`assets/retrodoc.svg`, a copy of `docs/logo/retrodoc.svg`), "Retro" in silver and "Doc" in gold, then the name of the application after a rule |
 | actor index | `nav.actor-index`, the actors page, a `ul` per kind | the kinds side by side when the window holds them, a name per line with its counts (`.counts`, muted) at its right, the entry an old anchor targets underlined gold |
-| actor domain | `section.actor-domain` on the page of an actor | a panel on the surface per domain, its counts muted beside its name, its features in columns (`ul.actor-features`, three at most), each a `<details>` whose summary is the link and its counts, the use cases folded under it with the `starts` badge |
+| actor domain | `section.actor-domain` on the page of an actor | a panel on the surface per domain, its counts muted beside its name, its features in a grid of columns (`ul.actor-features`), each its link then a `<details>` whose summary is its counts, the use cases folded under it with the `starts` badge; the breadcrumb above leads back to the actors page |
 | badge | `.badge` (`low`, `stale`, `review …`, `edited`) | pill, the label carries the meaning |
 | card | `.card`, `.start-links li` | surface, border lit on hover |
 | empty state | `<p class="empty">` | a dashed frame, muted text; says why it is empty and what to run or open |

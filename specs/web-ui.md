@@ -171,7 +171,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   cases with an edge to each feature it starts a use case of (solid) or only takes part in (dotted), and a node per
   concept their use cases use with an edge to each feature that uses it.
 - **WEB-73** (deterministic) The map of a domain must list each of its features as a link to its page, with its human
-  actors, each a link to the actors page, and its concepts, each a link to `/glossary#<anchor of its name>`.
+  actors, each a link to its page (WAC-5), and its concepts, each a link to `/glossary#<anchor of its name>`.
 - **WEB-74** (deterministic) Each node of a map graph must have an id in its source that the link of its item in the
   list of the page carries as `data-node`, so the drawn node opens the page of that link.
 - **WEB-75** (deterministic) Each label of a map graph must be written between double quotes, with a `#` of the docs

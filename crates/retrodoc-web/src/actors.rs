@@ -22,6 +22,8 @@ pub struct ActorGroup {
     /// The `id` of its list in the index.
     pub id: &'static str,
     pub heading: &'static str,
+    /// The kind of one of its actors, singular.
+    pub kind: &'static str,
     /// Sorted by name, ignoring case.
     pub actors: Vec<ActorSection>,
 }
@@ -31,6 +33,8 @@ pub struct ActorSection {
     /// The `id` of its entry in the index and the last segment of the path
     /// of its page (WAC-7).
     pub id: String,
+    /// Its page.
+    pub href: String,
     pub name: String,
     /// The use cases it starts (its primary actor).
     pub starts: usize,
@@ -77,22 +81,16 @@ impl ActorsPage {
             .filter(|g| g.id == "human-actors")
             .flat_map(|g| &g.actors)
             .find(|a| a.name == name)
-            .map_or_else(|| "/actors".to_string(), |a| actor_href(&a.id))
+            .map_or_else(|| "/actors".to_string(), |a| a.href.clone())
     }
 
-    /// The actor whose id is `id` (WAC-7), with the heading of its kind.
+    /// The actor whose id is `id` (WAC-7), with its kind.
     #[must_use]
     pub fn actor(&self, id: &str) -> Option<(&'static str, &ActorSection)> {
         self.groups
             .iter()
-            .find_map(|g| g.actors.iter().find(|a| a.id == id).map(|a| (g.heading, a)))
+            .find_map(|g| g.actors.iter().find(|a| a.id == id).map(|a| (g.kind, a)))
     }
-}
-
-/// The page of the actor whose id is `id`.
-#[must_use]
-pub fn actor_href(id: &str) -> String {
-    format!("/actors/{id}")
 }
 
 /// The actors page of `docs`.
@@ -133,18 +131,31 @@ pub fn actors_page(docs: &GeneratedDocs, texts: &WebTexts) -> ActorsPage {
         sections
     };
     let mut groups: Vec<ActorGroup> = [
-        ("human-actors", texts.people, "actor", sorted(human)),
-        ("system-actors", texts.systems, "system", sorted(system)),
+        (
+            "human-actors",
+            texts.people,
+            texts.person,
+            "actor",
+            sorted(human),
+        ),
+        (
+            "system-actors",
+            texts.systems,
+            texts.system,
+            "system",
+            sorted(system),
+        ),
     ]
     .into_iter()
-    .filter(|(_, _, _, actors)| !actors.is_empty())
-    .map(|(id, heading, prefix, mut actors)| {
+    .filter(|(.., actors)| !actors.is_empty())
+    .map(|(id, heading, kind, prefix, mut actors)| {
         for actor in &mut actors {
             actor.id = format!("{prefix}-{}", slug(&actor.name));
         }
         ActorGroup {
             id,
             heading,
+            kind,
             actors,
         }
     })
@@ -153,6 +164,7 @@ pub fn actors_page(docs: &GeneratedDocs, texts: &WebTexts) -> ActorsPage {
     let mut taken: HashSet<String> = groups.iter().map(|g| g.id.to_string()).collect();
     for actor in groups.iter_mut().flat_map(|g| &mut g.actors) {
         actor.id = unique(&actor.id, &mut taken);
+        actor.href = format!("/actors/{}", actor.id);
     }
     ActorsPage { groups }
 }
@@ -313,6 +325,7 @@ fn actor_section(
     }
     ActorSection {
         id: String::new(),
+        href: String::new(),
         name: name.to_string(),
         starts,
         takes_part,
