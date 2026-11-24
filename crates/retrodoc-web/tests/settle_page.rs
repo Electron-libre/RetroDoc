@@ -342,3 +342,176 @@ async fn a_settling_is_refused_for_an_unknown_section_or_kind_and_while_a_questi
     let response = settle(&plain, FEATURE, None).await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+fn propose(arguments: &str) -> FakeTurn {
+    FakeTurn::Calls {
+        text: String::new(),
+        calls: vec![retrodoc_llm::ToolCall {
+            id: "p1".into(),
+            name: "propose_verdict".into(),
+            arguments: arguments.into(),
+        }],
+    }
+}
+
+/// The form of the review of a section page.
+fn review_form(page: &str) -> &str {
+    let from = page.find("<form class=\"section-form\"").expect(page);
+    &page[from..from + page[from..].find("</form>").unwrap()]
+}
+
+// spec: STL-7, STL-8, STL-9, STL-H1
+#[tokio::test]
+async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_the_reader() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::scripted(vec![
+        FakeTurn::Text("Who sees the orders, the clerk or the customer?".into()),
+        propose(
+            r#"{"status":"wrong","comment":"The customer sees them, `app/order.rb`.","description":"The customer sees their orders"}"#,
+        ),
+    ]));
+    let router = router(dir.path(), Some(llm));
+    let response = settle(&router, FEATURE, None).await;
+    let cookie = session_cookie(&response).unwrap();
+    send(&router, get_request("/ask/questions/1", Some(&cookie))).await;
+    let response = send(
+        &router,
+        post_request("/ask", "question=The+customer.", Some(&cookie), true),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let exchange = body(send(&router, get_request("/ask/questions/2", Some(&cookie))).await).await;
+    let proposal = &exchange[exchange.find("class=\"proposal\"").expect(&exchange)..];
+    assert!(proposal.contains("Wrong"), "{proposal}");
+    assert!(
+        proposal.contains("The customer sees them, `app/order.rb`."),
+        "{proposal}"
+    );
+    assert!(
+        proposal.contains("The customer sees their orders"),
+        "{proposal}"
+    );
+    assert!(
+        proposal.contains("href=\"/domains/orders/list-orders?proposal=2#review\""),
+        "{proposal}"
+    );
+    let reviews = dir.path().join(".retrodoc/reviews.json");
+    let edits = dir.path().join(".retrodoc/edits.json");
+    assert!(!reviews.exists() && !edits.exists());
+
+    let page = body(
+        send(
+            &router,
+            get_request("/domains/orders/list-orders?proposal=2", Some(&cookie)),
+        )
+        .await,
+    )
+    .await;
+    let form = review_form(&page);
+    assert!(form.contains("value=\"wrong\" checked"), "{form}");
+    assert!(
+        form.contains(">The customer sees them, `app/order.rb`.</textarea>"),
+        "{form}"
+    );
+    assert!(
+        form.contains(">The customer sees their orders</textarea>"),
+        "{form}"
+    );
+    assert!(
+        form.contains("value=\"List orders\""),
+        "the name is as shown: {form}"
+    );
+    assert!(
+        form.contains("<details class=\"text-fields\" open"),
+        "{form}"
+    );
+    assert!(form.contains("class=\"proposed\""), "{form}");
+    assert!(!reviews.exists() && !edits.exists());
+
+    let save = "status=wrong&comment=The+customer+sees+them.&name=List+orders\
+                &description=The+customer+sees+their+orders\
+                &shown_name=List+orders&shown_description=The+clerk+sees+the+orders";
+    let response = send(
+        &router,
+        post_request("/domains/orders/list-orders", save, Some(&cookie), true),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(reviews.exists() && edits.exists());
+}
+
+// spec: STL-16
+#[tokio::test]
+async fn a_proposal_parameter_naming_no_proposal_of_the_section_is_left_out() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::scripted(vec![
+        propose(r#"{"status":"validated","comment":"Right."}"#),
+        FakeTurn::Text("No proposal.".into()),
+    ]));
+    let router = router(dir.path(), Some(llm));
+    let response = settle(&router, FEATURE, None).await;
+    let cookie = session_cookie(&response).unwrap();
+    send(&router, get_request("/ask/questions/1", Some(&cookie))).await;
+    ask(&router, Some(&cookie)).await;
+    let page = body(
+        send(
+            &router,
+            get_request("/domains/orders/list-orders?proposal=1", Some(&cookie)),
+        )
+        .await,
+    )
+    .await;
+    assert!(
+        review_form(&page).contains("class=\"proposed\""),
+        "the case that fills"
+    );
+    for (path, cookie) in [
+        ("/domains/orders/list-orders?proposal=1", None),
+        (
+            "/domains/orders/list-orders?proposal=9",
+            Some(cookie.as_str()),
+        ),
+        (
+            "/domains/orders/list-orders?proposal=2",
+            Some(cookie.as_str()),
+        ),
+        (
+            "/domains/orders/list-orders?proposal=x",
+            Some(cookie.as_str()),
+        ),
+        ("/domains/orders?proposal=1", Some(cookie.as_str())),
+    ] {
+        let page = body(send(&router, get_request(path, cookie)).await).await;
+        let form = review_form(&page);
+        assert!(!form.contains("class=\"proposed\""), "{path}: {form}");
+        assert!(form.contains("value=\"\" checked"), "{path}: {form}");
+    }
+}
+
+// spec: STL-H2, STL-4, STL-6, STL-14
+#[tokio::test]
+async fn a_contradicted_section_settled_from_the_code_alone_ends_on_a_proposal_at_once() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::scripted(vec![
+        FakeTurn::Calls {
+            text: String::new(),
+            calls: vec![retrodoc_llm::ToolCall {
+                id: "r1".into(),
+                name: "read_source".into(),
+                arguments: r#"{"path":"app/order.rb"}"#.into(),
+            }],
+        },
+        propose(r#"{"status":"validated","comment":"`app/order.rb` lists them for the clerk."}"#),
+    ]));
+    let router = router(dir.path(), Some(llm.clone()));
+    let cookie = session_cookie(&settle(&router, FEATURE, None).await).unwrap();
+    let exchange = body(send(&router, get_request("/ask/questions/1", Some(&cookie))).await).await;
+    assert!(llm.messages()[0][1]
+        .content
+        .contains("`README.md#Orders` states"));
+    assert!(llm.tools()[0].iter().any(|tool| tool == "propose_verdict"));
+    assert_eq!(llm.calls(), 2, "no question to the reader");
+    let proposal = &exchange[exchange.find("class=\"proposal\"").expect(&exchange)..];
+    assert!(proposal.contains("Validated"), "{proposal}");
+    assert!(proposal.contains("lists them for the clerk"), "{proposal}");
+}

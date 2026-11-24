@@ -289,10 +289,7 @@ async fn save(
         Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,
         Ok(Saved::Refused(code, form)) => {
             let (review, edit_form) = *form;
-            let review = ReviewView {
-                settle: probe.settle_button(headers, &place.section()),
-                ..review
-            };
+            let (review, edit_form) = probe.form(headers, None, &place, review, edit_form);
             refused(code, review, edit_form)
         }
         Err(err) => read_failed(&err),

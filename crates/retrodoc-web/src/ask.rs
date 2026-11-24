@@ -30,7 +30,7 @@ use crate::LiveSite;
 
 mod settle;
 pub(crate) use settle::Probe;
-pub use settle::{SettleButton, SettledView};
+pub use settle::{ProposalView, SettleButton, SettledView};
 
 /// The sessions kept in memory; a new one past them drops the one used least recently (WAK-20).
 pub const MAX_SESSIONS: usize = 32;
@@ -54,6 +54,8 @@ struct Exchange {
     question: String,
     steps: Vec<Step>,
     outcome: Result<Answer, String>,
+    /// The form filled with the proposal of its answer, if any (STL-7).
+    proposal_href: Option<String>,
     /// The calls of the question and of its session up to it (WAK-36).
     cost: CallTotals,
     session_cost: CallTotals,
@@ -294,13 +296,16 @@ pub struct ExchangeView {
     pub error: Option<String>,
     pub sources: Vec<SourceLink>,
     pub warnings: Vec<String>,
+    /// The verdict the answer proposes, if any (STL-7).
+    pub proposal: Option<ProposalView>,
     /// The cost of the question, then of the session up to it.
     pub cost: String,
     pub session_cost: String,
 }
 
 impl ExchangeView {
-    fn of(exchange: &Exchange, texts: &AskTexts) -> Self {
+    fn of(exchange: &Exchange, all: &WebTexts) -> Self {
+        let texts = &all.ask;
         let question = exchange.question.clone();
         let steps = exchange.steps.clone();
         let cost = format!("{} {}", texts.question_cost, (texts.cost)(&exchange.cost));
@@ -336,6 +341,9 @@ impl ExchangeView {
                         .iter()
                         .map(|warning| (texts.warning)(warning, texts))
                         .collect(),
+                    proposal: answer.proposal.as_ref().map(|proposal| {
+                        ProposalView::of(proposal, exchange.proposal_href.as_deref(), all)
+                    }),
                     cost,
                     session_cost,
                 }
@@ -437,7 +445,7 @@ async fn page(State(state): State<AskState>, headers: HeaderMap) -> Response {
             let exchanges: Vec<ExchangeView> = session
                 .exchanges
                 .iter()
-                .map(|exchange| ExchangeView::of(exchange, &texts.ask))
+                .map(|exchange| ExchangeView::of(exchange, texts))
                 .collect();
             let running = session.running.as_deref().map(RunningView::of);
             (exchanges, running, SettledView::of(&site, session))
@@ -581,7 +589,14 @@ async fn run(
         .ask_observed(&llm, docs, &running.message, state.asking.max_rounds, &tell)
         .await
         .map_err(|error| error.to_string());
-    free.keep(outcome, Some(conversation));
+    let proposal_href = outcome
+        .as_ref()
+        .ok()
+        .and_then(|answer| answer.proposal.as_ref())
+        .and_then(|proposal| {
+            settle::proposal_href(&state.site.0.current(), proposal, running.number)
+        });
+    free.keep(outcome, Some(conversation), proposal_href);
 }
 
 /// The question of a session running until its task ends: dropped before [`Free::keep`] (a panic,
@@ -602,7 +617,12 @@ impl Free {
     /// when given, the session started again under its id when it was dropped meanwhile (WAK-35);
     /// a session reset meanwhile runs it no longer and keeps neither. Then the followers get the
     /// exchange.
-    fn keep(&mut self, outcome: Result<Answer, String>, conversation: Option<Conversation>) {
+    fn keep(
+        &mut self,
+        outcome: Result<Answer, String>,
+        conversation: Option<Conversation>,
+        proposal_href: Option<String>,
+    ) {
         let running = &self.running;
         let cost = self.counted.report().total();
         let mut exchange = Exchange {
@@ -610,6 +630,7 @@ impl Free {
             question: running.question.clone(),
             steps: running.progress.borrow().steps.clone(),
             outcome,
+            proposal_href,
             cost,
             session_cost: cost,
         };
@@ -647,7 +668,7 @@ impl Free {
 impl Drop for Free {
     fn drop(&mut self) {
         if self.running.progress.borrow().ended.is_none() {
-            self.keep(Err(STOPPED.to_string()), None);
+            self.keep(Err(STOPPED.to_string()), None, None);
         }
     }
 }
@@ -677,7 +698,7 @@ async fn ended(
         StatusCode::OK,
         &ExchangeFragment {
             t: texts,
-            exchange: ExchangeView::of(&exchange, &texts.ask),
+            exchange: ExchangeView::of(&exchange, texts),
         },
     )
 }
@@ -711,7 +732,7 @@ async fn events(
                         drop(now);
                         let exchange = ExchangeFragment {
                             t: texts,
-                            exchange: ExchangeView::of(&exchange, &texts.ask),
+                            exchange: ExchangeView::of(&exchange, texts),
                         };
                         let event = Ok(event("answer", &exchange));
                         return Some((event, (progress, sent, true)));

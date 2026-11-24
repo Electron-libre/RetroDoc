@@ -193,7 +193,13 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   reconciliation of the docs by the kind and the label of the item), empties the session, gives it
   `Conversation::settling` and runs the question as any (`launch`; `Running::message` is sent, `Running::question`,
   "Help me settle “name”.", shown), answering at once with `HX-Redirect` or a `303` to `/ask`, which names the section
-  (`SettledView`) while the conversation of the session settles it. `assets/ask.js`, loaded by `ask.html`, makes the form a composer: Enter sends (through
+  (`SettledView`) while the conversation of the session settles it. An answer that ends on a proposal keeps, with its
+  exchange, the link to the form of its section (`settle::proposal_href`, `<page>?proposal=<n>#review`), and
+  `exchange.html` shows it (`ProposalView`: the status, the comment, the corrected fields, "Fill the form"); the page
+  of a section asked with `?proposal=<n>` goes through `Probe::form`, which also gives the button: an exchange `<n>` of
+  the session of the cookie proposing for that section fills the form (`ReviewView::selected`, `draft`, `proposed`
+  for its notice; the fields of `EditFormView` it gives, unfolded by `sent`), anything else leaves the form as it
+  is; nothing is written until the form is saved. `assets/ask.js`, loaded by `ask.html`, makes the form a composer: Enter sends (through
   `requestSubmit`, so `htmx` sends it), Shift+Enter, a running input method composition or a touch device
   (`pointer: coarse`, whose keyboard has no Shift+Enter) does not; the field grows
   with its text (`field-sizing: content` in `style.css`, the script's fallback elsewhere, capped at 12 lines); once a

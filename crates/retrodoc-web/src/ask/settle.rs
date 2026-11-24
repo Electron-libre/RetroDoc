@@ -8,7 +8,7 @@ use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
-use retrodoc_agent::{Conversation, Disagreement, Disputed};
+use retrodoc_agent::{Conversation, Disagreement, Disputed, Proposal};
 use retrodoc_core::reconcile::ItemKind;
 use retrodoc_docs::reviews::{Section, SectionKind};
 use retrodoc_docs::GeneratedDocs;
@@ -16,7 +16,10 @@ use serde::Deserialize;
 use tokio::sync::watch;
 
 use super::{cookie, refused, with_cookie, AskState, Progress, Running, Session, Sessions};
+use crate::edit_form::EditFormView;
 use crate::pages::read_failed;
+use crate::review::{Place, ReviewView};
+use crate::texts::WebTexts;
 use crate::view::{domain_href, feature_href, use_case_href, Site};
 
 /// The sessions of the ask page as the pages of the sections see them: `None` without `--ask`.
@@ -48,6 +51,113 @@ impl Probe {
             confirm,
         })
     }
+
+    /// The review and the form of the section at `place` as its page shows them for the session
+    /// of `headers`: with the button of a settling (STL-1), and filled with the proposal of the
+    /// exchange `number` the query `proposal` names when it proposes for that section (STL-8,
+    /// STL-16), its fields of the text unfolded and nothing saved.
+    pub(crate) fn form(
+        &self,
+        headers: &HeaderMap,
+        number: Option<&str>,
+        place: &Place,
+        review: ReviewView,
+        edit_form: EditFormView,
+    ) -> (ReviewView, EditFormView) {
+        let section = place.section();
+        let review = ReviewView {
+            settle: self.settle_button(headers, &section),
+            ..review
+        };
+        let Some(proposal) = self.proposal(headers, number, &section) else {
+            return (review, edit_form);
+        };
+        let review = ReviewView {
+            selected: Some(proposal.status),
+            draft: Some(proposal.comment),
+            proposed: true,
+            ..review
+        };
+        let narrative = match edit_form.narrative {
+            Some(shown) => Some(proposal.narrative.unwrap_or(shown)),
+            None => None,
+        };
+        let edit_form = EditFormView {
+            name: proposal.name.unwrap_or(edit_form.name),
+            description: proposal.description.unwrap_or(edit_form.description),
+            narrative,
+            sent: true,
+            ..edit_form
+        };
+        (review, edit_form)
+    }
+
+    /// The proposal for `section` of the exchange `number` of the session of `headers`; none for
+    /// any other (STL-16).
+    fn proposal(
+        &self,
+        headers: &HeaderMap,
+        number: Option<&str>,
+        section: &Section,
+    ) -> Option<Proposal> {
+        let number: u64 = number?.parse().ok()?;
+        let mut sessions = self
+            .0
+            .as_ref()?
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let session = sessions.get(cookie(headers).as_deref())?;
+        let exchange = session.exchanges.iter().find(|e| e.number == number)?;
+        let proposal = exchange.outcome.as_ref().ok()?.proposal.as_ref()?;
+        (proposal.section == *section).then(|| proposal.clone())
+    }
+}
+
+/// A field of the text a proposal corrects, as its exchange shows it.
+pub struct ProposedField {
+    pub label: &'static str,
+    pub value: String,
+}
+
+/// The proposal of an exchange, as the ask page shows it (STL-7).
+pub struct ProposalView {
+    pub status: &'static str,
+    pub comment: String,
+    pub fields: Vec<ProposedField>,
+    /// The form of the section filled with it, `None` when the run no longer has the section.
+    pub href: Option<String>,
+}
+
+impl ProposalView {
+    pub(super) fn of(proposal: &Proposal, href: Option<&str>, texts: &WebTexts) -> Self {
+        let labels = texts.edit.labels;
+        let fields = [
+            (labels[0], &proposal.name),
+            (labels[1], &proposal.description),
+            (labels[2], &proposal.narrative),
+        ]
+        .into_iter()
+        .filter_map(|(label, value)| {
+            value.as_ref().map(|value| ProposedField {
+                label,
+                value: value.clone(),
+            })
+        })
+        .collect();
+        Self {
+            status: texts.review.status(proposal.status),
+            comment: proposal.comment.clone(),
+            fields,
+            href: href.map(str::to_string),
+        }
+    }
+}
+
+/// The form of the section of `proposal` filled with it, as the link of its exchange `number`
+/// names it; `None` when the run of `site` no longer has the section.
+pub(super) fn proposal_href(site: &Site, proposal: &Proposal, number: u64) -> Option<String> {
+    let found = find(site.docs()?, &proposal.section)?;
+    Some(format!("{}?proposal={number}#review", found.href))
 }
 
 /// The button of the form of a section that starts its settling.

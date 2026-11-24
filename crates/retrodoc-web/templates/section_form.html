@@ -28,6 +28,7 @@
   <input type="hidden" name="shown_name" value="{{ edit_form.shown.name.as_deref().unwrap_or_default() }}">
   <input type="hidden" name="shown_description" value="{{ edit_form.shown.description.as_deref().unwrap_or_default() }}">
   {% if let Some(narrative) = edit_form.shown.narrative %}<input type="hidden" name="shown_narrative" value="{{ narrative }}">{% endif %}
+  {% if review.proposed %}<p class="proposed" role="status">{{ t.settle.filled }}</p>{% endif %}
   {% call m::form_error(review.form_error) %}{% endcall %}
   {% call m::notice(review.saved, t.review.saved) %}{% endcall %}
   <div class="actions">

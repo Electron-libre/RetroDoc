@@ -14,6 +14,12 @@ pub struct SettleTexts {
     pub question: fn(&str) -> String,
     /// Why a start of a settling naming another kind of section is refused (STL-11).
     pub unknown_kind: &'static str,
+    /// The heading of the proposal of an exchange (STL-7).
+    pub proposed: &'static str,
+    /// The link of a proposal to the form of its section, filled with it.
+    pub fill: &'static str,
+    /// The notice of a form filled with a proposal (STL-8).
+    pub filled: &'static str,
 }
 
 impl SettleTexts {
@@ -24,6 +30,10 @@ impl SettleTexts {
         settling: "Settling",
         question: |name| format!("Help me settle “{name}”."),
         unknown_kind: "Only a domain, a feature or a use case can be settled.",
+        proposed: "Proposed verdict",
+        fill: "Fill the form",
+        filled:
+            "Filled with the verdict the agent proposed: nothing is saved until you save the form.",
     };
 
     pub const FRENCH: Self = Self {
@@ -32,5 +42,8 @@ impl SettleTexts {
         settling: "Section à trancher :",
         question: |name| format!("Aide-moi à trancher « {name} »."),
         unknown_kind: "Seuls un domaine, une fonctionnalité ou un cas d’usage peuvent être tranchés.",
+        proposed: "Verdict proposé",
+        fill: "Remplir le formulaire",
+        filled: "Rempli avec le verdict proposé par l’agent : rien n’est enregistré avant que vous enregistriez le formulaire.",
     };
 }

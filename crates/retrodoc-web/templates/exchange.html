@@ -7,6 +7,15 @@
   <p class="badge low">{{ t.ask.failed }} {{ error }}</p>
   {% else if let Some(html) = exchange.html %}
   <div class="answer">{{ html|safe }}</div>
+  {% if let Some(proposal) = exchange.proposal %}
+  <section class="proposal">
+    <h3>{{ t.settle.proposed }}</h3>
+    <p><span class="badge review">{{ proposal.status }}</span></p>
+    <p class="comment">{{ proposal.comment }}</p>
+    {% if !proposal.fields.is_empty() %}<dl>{% for field in proposal.fields %}<dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>{% endfor %}</dl>{% endif %}
+    {% if let Some(href) = proposal.href %}<p><a class="button" href="{{ href }}">{{ t.settle.fill }}</a></p>{% endif %}
+  </section>
+  {% endif %}
   {% if exchange.sources.is_empty() %}
   <p class="sources muted">{{ t.ask.no_source }}</p>
   {% else %}

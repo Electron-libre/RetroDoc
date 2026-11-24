@@ -64,9 +64,9 @@ Out of scope: transcript kept with the review, choice buttons, settling from `ch
    (refusals 400/404/409, reset then first question streamed as WAK-30), the settled section named on `/ask`; code in a new
    `crates/retrodoc-web/src/settle.rs` (texts in `settle_texts.rs`, `texts.rs` being over the file size limit), tests in a
    new `crates/retrodoc-web/tests/settle_page.rs` (~700 lines); makes true STL-1, STL-2, STL-3, STL-10, STL-11, STL-12. (autonomous)
-3. [ ] Web proposal: the proposal shown in its exchange with "Fill the form", the section page filled from
+3. [x] Web proposal: the proposal shown in its exchange with "Fill the form", the section page filled from
    `?proposal=<n>` with its notice, nothing written before the save (~500 lines); makes true STL-7, STL-8, STL-9, STL-16;
-   sets the spec `accepted`.
+   sets the spec `accepted`. (autonomous)
 4. [ ] Measure on 3 disputed sections of the default smoke repository with DeepSeek (paid: asked before the run, ledger
    read and appended): turns, calls, tokens, whether the proposal matches the reader's verdict; a dated entry in
    `docs/findings.md` (~40 lines).
@@ -122,5 +122,28 @@ Code review: 1 findings
 - nit, `ask/settle.rs`: a panic building the first message sent an empty message to the model: fixed, answered 500 (`read_failed`) before the session is touched.
 
 not verified: the look of `form.settle` and `p.settling` (no screenshots shot, the CSS is two rules).
+
+decisions needed: none
+
+## Deliverable 3: web proposal
+
+done: an exchange with a proposal shows it (`section.proposal`, "Fill the form" to `<page>?proposal=<n>#review`); the
+section page fills its form from the proposal of that exchange of the session (`Probe::form`, notice `p.proposed`, the
+fields unfolded), anything else ignored; nothing written before the save; spec `accepted`.
+
+| check | result |
+|---|---|
+| tests | `project-check` green; `tests/settle_page.rs`: 3 new (STL-7, 8, 9, 16, H1, H2) |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean, STL `accepted` |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md` |
+| code review | low, see below |
+
+red: STL-7, STL-8, STL-9, STL-16: no `class="proposal"` in the exchange; the page with `?proposal=1` had no `class="proposed"`.
+
+Code review: 1 findings
+- nit, `ask/settle.rs`: a proposed narrative dropped when the form has no narrative field: not fixed, it cannot happen: only the form of a use case has none missing (`EditFormView::new`), and `propose_verdict` refuses a narrative for a domain or a feature (STL-13), the proposal filling only the form of its own section (STL-16).
+
+not verified: the preview of a narrative filled from a proposal shows the former narrative until the field is typed in (its `hx-trigger` is `input`); the look of `section.proposal` and `p.proposed` (no screenshots).
 
 decisions needed: none

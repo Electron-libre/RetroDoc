@@ -289,17 +289,20 @@ pub async fn domain(
     RawQuery(query): RawQuery,
 ) -> Response {
     let after = AfterSave::of(query.as_deref());
+    let proposal = query_value(query.as_deref(), "proposal");
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
             let place = Place::Domain(slug.clone());
             let (reviews, review) = reviews_of(docs, &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let review = ReviewView {
-                settle: probe.settle_button(&headers, &place.section()),
-                ..after.shown(review)
-            };
-            let edit_form = EditFormView::of(docs, &place, &links);
+            let (review, edit_form) = probe.form(
+                &headers,
+                proposal.as_deref(),
+                &place,
+                after.shown(review),
+                EditFormView::of(docs, &place, &links),
+            );
             domain_page(docs, site.links(), &reviews, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -360,6 +363,7 @@ pub async fn feature(
     RawQuery(query): RawQuery,
 ) -> Response {
     let after = AfterSave::of(query.as_deref());
+    let proposal = query_value(query.as_deref(), "proposal");
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
             let place = Place::Feature {
@@ -369,11 +373,13 @@ pub async fn feature(
             let (reviews, review) = reviews_of(docs, &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let review = ReviewView {
-                settle: probe.settle_button(&headers, &place.section()),
-                ..after.shown(review)
-            };
-            let edit_form = EditFormView::of(docs, &place, &links);
+            let (review, edit_form) = probe.form(
+                &headers,
+                proposal.as_deref(),
+                &place,
+                after.shown(review),
+                EditFormView::of(docs, &place, &links),
+            );
             feature_page(docs, site.links(), &reviews, &domain, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -404,6 +410,7 @@ pub async fn use_case(
     RawQuery(query): RawQuery,
 ) -> Response {
     let after = AfterSave::of(query.as_deref());
+    let proposal = query_value(query.as_deref(), "proposal");
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
             let place = Place::UseCase {
@@ -414,11 +421,13 @@ pub async fn use_case(
             let review = ReviewView::of(docs, &review::load(docs), &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let review = ReviewView {
-                settle: probe.settle_button(&headers, &place.section()),
-                ..after.shown(review)
-            };
-            let edit_form = EditFormView::of(docs, &place, &links);
+            let (review, edit_form) = probe.form(
+                &headers,
+                proposal.as_deref(),
+                &place,
+                after.shown(review),
+                EditFormView::of(docs, &place, &links),
+            );
             use_case_page(docs, site.links(), &domain, &feature, &slug, &links)
                 .map(|page| (page, edit, review, edit_form))
         })
