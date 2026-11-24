@@ -1,4 +1,5 @@
-//! The actors page and the link of every page to it, asked of the router
+//! The actors page, the page of each actor and the link of every page to
+//! them, asked of the router
 //! without a socket over the artifacts a run leaves in `.retrodoc/cache/`.
 
 use std::path::Path;
@@ -176,6 +177,14 @@ async fn actors(root: &Path) -> String {
     page
 }
 
+/// The `<main>` of the page of the actor whose id is `id`.
+async fn actor(root: &Path, id: &str) -> String {
+    let (status, page) = get(root, &format!("/actors/{id}")).await;
+    assert_eq!(status, StatusCode::OK, "{id}: {page}");
+    let start = position(&page, "<main");
+    page[start..position(&page, "</main>")].to_string()
+}
+
 /// The list of the index under the id `id`.
 fn index<'a>(page: &'a str, id: &str) -> &'a str {
     let start = page
@@ -185,22 +194,19 @@ fn index<'a>(page: &'a str, id: &str) -> &'a str {
     &rest[..rest.find("</ul>").expect(rest)]
 }
 
-/// The item of the index that links to the section `id`.
+/// The item of the index of the actor `id`, which links to its page.
 fn entry<'a>(index: &'a str, id: &str) -> &'a str {
     let start = index
-        .find(&format!("href=\"#{id}\""))
-        .unwrap_or_else(|| panic!("no entry #{id} in {index}"));
+        .find(&format!("<li id=\"{id}\"><a href=\"/actors/{id}\">"))
+        .unwrap_or_else(|| panic!("no entry {id} in {index}"));
     let rest = &index[start..];
     &rest[..rest.find("</li>").expect(rest)]
 }
 
-/// The section of the actor whose id is `id`.
-fn actor<'a>(page: &'a str, id: &str) -> &'a str {
-    let start = page
-        .find(&format!("<section class=\"actor\" id=\"{id}\""))
-        .unwrap_or_else(|| panic!("no section {id} in {page}"));
-    let rest = &page[start..];
-    &rest[..rest.find("</section>").expect(rest)]
+/// The part of `html` from `start` to the first `end` after it.
+fn until<'a>(html: &'a str, start: &str, end: &str) -> &'a str {
+    let from = position(html, start);
+    &html[from..from + position(&html[from..], end)]
 }
 
 /// The text of `html`, its tags removed and its spaces collapsed.
@@ -227,6 +233,10 @@ fn position(haystack: &str, needle: &str) -> usize {
 const PAY_BY_CARD: &str = "href=\"/domains/billing/pay-invoice/pay-by-card\"";
 const REFUND: &str = "href=\"/domains/billing/pay-invoice/refund\"";
 const SHIP: &str = "href=\"/domains/shipping/ship-order/ship\"";
+const BILLING: &str = "<a href=\"/domains/billing\">Billing</a>";
+const PAY_AN_INVOICE: &str = "<a href=\"/domains/billing/pay-invoice\">Pay an invoice</a>";
+const SHIPPING: &str = "<a href=\"/domains/shipping\">Shipping</a>";
+const SHIP_AN_ORDER: &str = "<a href=\"/domains/shipping/ship-order\">Ship an order</a>";
 const PERMISSION: &str =
     "<a href=\"/domains/billing/pay-invoice#rule-pay-invoice-1\">Only a manager refunds</a>";
 
@@ -234,7 +244,7 @@ const PERMISSION: &str =
 #[tokio::test]
 async fn every_page_links_to_the_actors_page() {
     let repo = generated_repo();
-    for path in ["/", "/rules", "/actors", "/unknown"] {
+    for path in ["/", "/rules", "/actors", "/actors/actor-clerk", "/unknown"] {
         let (_, page) = get(repo.path(), path).await;
         let header = &page[page.find("<header").unwrap()..page.find("</header>").unwrap()];
         assert!(header.contains("href=\"/actors\""), "{path}: {header}");
@@ -249,7 +259,7 @@ async fn the_index_lists_the_people_then_the_systems_by_name_with_their_counts()
     let people = index(&page, "human-actors");
     let positions: Vec<usize> = ["actor-clerk", "actor-clerk-2", "actor-manager"]
         .iter()
-        .map(|id| position(people, &format!("href=\"#{id}\"")))
+        .map(|id| position(people, &format!("href=\"/actors/{id}\"")))
         .collect();
     assert!(positions.is_sorted(), "{positions:?} in {people}");
     for (id, name, counts) in [
@@ -273,65 +283,126 @@ async fn the_index_lists_the_people_then_the_systems_by_name_with_their_counts()
     );
 }
 
-// spec: WAC-2
+// spec: WAC-1
 #[tokio::test]
-async fn a_section_per_actor_in_the_order_of_the_index_headed_by_its_counts() {
+async fn the_index_lists_no_use_case() {
     let repo = generated_repo();
     let page = actors(repo.path()).await;
-    let index_end = position(&page, "id=\"system-actors\"");
-    let positions: Vec<usize> = [
-        "actor-clerk",
-        "actor-clerk-2",
-        "actor-manager",
-        "system-bank",
-    ]
-    .iter()
-    .map(|id| position(&page, &format!("<section class=\"actor\" id=\"{id}\"")))
-    .collect();
-    assert!(positions.is_sorted(), "{positions:?}");
-    assert!(index_end < positions[0], "{page}");
-    let clerk = actor(&page, "actor-clerk");
-    let heading = &clerk[..position(clerk, "</h2>")];
-    assert!(text(heading).contains("Clerk"), "{heading}");
-    let head = &clerk[..position(clerk, "<h3")];
-    assert!(text(head).contains("starts 1 · takes part in 2"), "{head}");
+    // The tree of the sidebar lists the use cases on every page.
+    let page = &page[position(&page, "<main")..position(&page, "</main>")];
+    for link in [
+        PAY_BY_CARD,
+        REFUND,
+        SHIP,
+        BILLING,
+        PAY_AN_INVOICE,
+        PERMISSION,
+    ] {
+        assert!(!page.contains(link), "{link} in {page}");
+    }
+    assert!(!page.contains("<section class=\"actor\""), "{page}");
+}
+
+// spec: WAC-2
+#[tokio::test]
+async fn each_actor_of_the_index_has_a_page_headed_by_its_kind_and_counts() {
+    let repo = generated_repo();
+    for (id, name, kind, counts) in [
+        (
+            "actor-clerk",
+            "Clerk",
+            "People",
+            "starts 1 · takes part in 2",
+        ),
+        (
+            "actor-clerk-2",
+            "clerk",
+            "People",
+            "starts 0 · takes part in 1",
+        ),
+        (
+            "actor-manager",
+            "Manager",
+            "People",
+            "starts 1 · takes part in 0",
+        ),
+        (
+            "system-bank",
+            "Bank",
+            "Systems",
+            "starts 0 · takes part in 1",
+        ),
+    ] {
+        let page = actor(repo.path(), id).await;
+        let heading = until(&page, "<h1", "</h1>");
+        assert!(text(heading).starts_with(name), "{heading}");
+        assert!(text(heading).contains(kind), "{heading}");
+        let head = &page[..position(&page, "<h2")];
+        assert!(text(head).contains(counts), "{id}: {head}");
+        assert!(head.contains("href=\"/actors\""), "{head}");
+    }
 }
 
 // spec: WAC-3
 #[tokio::test]
-async fn a_section_lists_the_use_cases_by_domain_and_feature_those_started_first() {
+async fn the_page_of_an_actor_lists_its_domains_and_features_with_their_counts() {
     let repo = generated_repo();
-    let page = actors(repo.path()).await;
-    let clerk = actor(&page, "actor-clerk");
-    let billing = position(clerk, "<a href=\"/domains/billing\">Billing</a>");
-    let pay = position(
-        clerk,
-        "<a href=\"/domains/billing/pay-invoice\">Pay an invoice</a>",
-    );
-    let shipping = position(clerk, "<a href=\"/domains/shipping\">Shipping</a>");
-    let ship_order = position(
-        clerk,
-        "<a href=\"/domains/shipping/ship-order\">Ship an order</a>",
-    );
-    let (card, refund, ship) = (
-        position(clerk, PAY_BY_CARD),
-        position(clerk, REFUND),
-        position(clerk, SHIP),
+    let clerk = actor(repo.path(), "actor-clerk").await;
+    let order = [
+        position(&clerk, BILLING),
+        position(&clerk, PAY_AN_INVOICE),
+        position(&clerk, SHIPPING),
+        position(&clerk, SHIP_AN_ORDER),
+    ];
+    assert!(order.is_sorted(), "{order:?} in {clerk}");
+    for (start, counts) in [
+        (BILLING, "1 feature · 2 use cases"),
+        (SHIPPING, "1 feature · 1 use case"),
+    ] {
+        let heading = until(&clerk, start, "</h2>");
+        assert!(text(heading).contains(counts), "{heading}");
+    }
+    for (start, counts) in [
+        (PAY_AN_INVOICE, "starts 1 · takes part in 1"),
+        (SHIP_AN_ORDER, "starts 0 · takes part in 1"),
+    ] {
+        let summary = until(&clerk, start, "</summary>");
+        assert!(text(summary).contains(counts), "{summary}");
+    }
+    assert!(!clerk.contains("Audit"), "{clerk}");
+    let manager = actor(repo.path(), "actor-manager").await;
+    assert!(manager.contains(PAY_AN_INVOICE), "{manager}");
+    assert!(!manager.contains("Shipping"), "{manager}");
+}
+
+// spec: WAC-10
+#[tokio::test]
+async fn the_use_cases_are_folded_under_their_feature_those_started_first() {
+    let repo = generated_repo();
+    let clerk = actor(repo.path(), "actor-clerk").await;
+    let pay = until(&clerk, "<details", "</details>");
+    assert!(!pay.contains(" open"), "{pay}");
+    let (summary, card, refund) = (
+        position(pay, "</summary>"),
+        position(pay, PAY_BY_CARD),
+        position(pay, REFUND),
     );
     // `refund` comes first in the run, but `Clerk` starts `pay-by-card`.
-    let order = [billing, pay, card, refund, shipping, ship_order, ship];
-    assert!(order.is_sorted(), "{order:?} in {clerk}");
+    assert!(summary < card && card < refund, "{pay}");
+    assert!(
+        until(pay, PAY_BY_CARD, "</li>").contains("class=\"badge\""),
+        "{pay}"
+    );
+    assert!(!until(pay, REFUND, "</li>").contains("badge"), "{pay}");
     assert_eq!(clerk.matches(PAY_BY_CARD).count(), 1, "{clerk}");
-    let card_item = &clerk[card..card + position(&clerk[card..], "</li>")];
-    assert!(card_item.contains("class=\"badge\""), "{card_item}");
-    let refund_item = &clerk[refund..refund + position(&clerk[refund..], "</li>")];
-    assert!(!refund_item.contains("badge"), "{refund_item}");
-    assert!(!clerk.contains("Audit"), "{clerk}");
-    let manager = actor(&page, "actor-manager");
+    assert!(
+        until(&clerk, SHIP_AN_ORDER, "</details>").contains(SHIP),
+        "{clerk}"
+    );
+    let manager = actor(repo.path(), "actor-manager").await;
     assert!(manager.contains(REFUND), "{manager}");
-    assert!(!manager.contains("Shipping"), "{manager}");
     assert!(!manager.contains(PAY_BY_CARD), "{manager}");
-    let bank = actor(&page, "system-bank");
+    let bank = actor(repo.path(), "system-bank").await;
     assert!(
         bank.contains(PAY_BY_CARD) && !bank.contains("badge"),
         "{bank}"
@@ -340,25 +411,24 @@ async fn a_section_lists_the_use_cases_by_domain_and_feature_those_started_first
 
 // spec: WAC-4
 #[tokio::test]
-async fn a_section_lists_the_permission_rules_of_its_use_cases_after_them() {
+async fn the_page_of_an_actor_lists_the_permission_rules_of_its_use_cases_after_them() {
     let repo = generated_repo();
-    let page = actors(repo.path()).await;
     for id in ["actor-clerk", "actor-clerk-2", "actor-manager"] {
-        let section = actor(&page, id);
-        assert!(section.contains(PERMISSION), "{id}: {section}");
+        let page = actor(repo.path(), id).await;
+        assert!(page.contains(PERMISSION), "{id}: {page}");
         assert!(
-            position(section, REFUND) < position(section, PERMISSION),
-            "{section}"
+            position(&page, REFUND) < position(&page, PERMISSION),
+            "{page}"
         );
+        assert!(!page.contains("A card pays up to a ceiling"), "{page}");
     }
-    let bank = actor(&page, "system-bank");
+    let bank = actor(repo.path(), "system-bank").await;
     assert!(!bank.contains("rule-"), "{bank}");
-    assert!(!page.contains("A card pays up to a ceiling"), "{page}");
 }
 
 // spec: WAC-H1
 #[tokio::test]
-async fn the_reader_sees_what_one_actor_starts_and_takes_part_in() {
+async fn the_reader_picks_an_actor_and_sees_what_it_starts_and_takes_part_in() {
     let repo = generated_repo();
     let page = actors(repo.path()).await;
     let entry = entry(index(&page, "human-actors"), "actor-clerk");
@@ -366,15 +436,23 @@ async fn the_reader_sees_what_one_actor_starts_and_takes_part_in() {
         text(entry).contains("starts 1 · takes part in 2"),
         "{entry}"
     );
-    let clerk = actor(&page, "actor-clerk");
+    let clerk = actor(repo.path(), "actor-clerk").await;
+    assert!(
+        text(until(&clerk, BILLING, "</h2>")).contains("1 feature · 2 use cases"),
+        "{clerk}"
+    );
+    assert!(
+        text(until(&clerk, PAY_AN_INVOICE, "</summary>")).contains("starts 1 · takes part in 1"),
+        "{clerk}"
+    );
     let order = [
-        position(clerk, "Billing"),
-        position(clerk, "Pay an invoice"),
-        position(clerk, PAY_BY_CARD),
-        position(clerk, REFUND),
-        position(clerk, "Shipping"),
-        position(clerk, SHIP),
-        position(clerk, PERMISSION),
+        position(&clerk, BILLING),
+        position(&clerk, PAY_AN_INVOICE),
+        position(&clerk, PAY_BY_CARD),
+        position(&clerk, REFUND),
+        position(&clerk, SHIPPING),
+        position(&clerk, SHIP),
+        position(&clerk, PERMISSION),
     ];
     assert!(order.is_sorted(), "{order:?} in {clerk}");
 }
@@ -401,21 +479,17 @@ async fn a_name_the_steps_give_both_kinds_is_an_actor_of_each_kind() {
         ],
     )
     .unwrap();
-    let page = actors(repo.path()).await;
-    let human = actor(&page, "actor-gateway");
+    let human = actor(repo.path(), "actor-gateway").await;
     assert!(human.contains(PAY_BY_CARD), "{human}");
-    // As a primary actor, it starts `ship` in the human section only.
-    let ship = position(human, SHIP);
-    assert!(
-        human[ship..ship + position(&human[ship..], "</li>")].contains("badge"),
-        "{human}"
-    );
-    let system = actor(&page, "system-gateway");
+    // As a primary actor, it starts `ship` in the human group only.
+    assert!(until(&human, SHIP, "</li>").contains("badge"), "{human}");
+    let system = actor(repo.path(), "system-gateway").await;
     assert!(
         !system.contains(PAY_BY_CARD) && system.contains(SHIP),
         "{system}"
     );
     assert!(!system.contains("badge"), "{system}");
+    let page = actors(repo.path()).await;
     assert!(
         text(entry(index(&page, "system-actors"), "system-gateway"))
             .contains("starts 0 · takes part in 1"),
@@ -425,7 +499,7 @@ async fn a_name_the_steps_give_both_kinds_is_an_actor_of_each_kind() {
 
 // spec: WAC-7
 #[tokio::test]
-async fn the_id_of_a_section_is_the_slug_of_the_name_after_its_kind() {
+async fn the_id_of_an_actor_is_the_slug_of_the_name_after_its_kind() {
     let repo = generated_repo();
     retrodoc_core::artifacts::save_use_cases(
         repo.path(),
@@ -438,8 +512,13 @@ async fn the_id_of_a_section_is_the_slug_of_the_name_after_its_kind() {
     )
     .unwrap();
     let page = actors(repo.path()).await;
-    actor(&page, "system-payment-gateway-stripe");
-    actor(&page, "actor-actor");
+    entry(
+        index(&page, "system-actors"),
+        "system-payment-gateway-stripe",
+    );
+    entry(index(&page, "human-actors"), "actor-actor");
+    actor(repo.path(), "system-payment-gateway-stripe").await;
+    actor(repo.path(), "actor-actor").await;
 }
 
 // spec: WAC-7
@@ -457,7 +536,8 @@ async fn the_slug_keeps_the_letters_of_any_script() {
     )
     .unwrap();
     let page = actors(repo.path()).await;
-    actor(&page, "actor-équipe-support");
+    entry(index(&page, "human-actors"), "actor-équipe-support");
+    actor(repo.path(), "actor-%C3%A9quipe-support").await;
 }
 
 // spec: WAC-6
@@ -473,8 +553,10 @@ async fn an_actor_of_a_use_case_whose_feature_is_not_in_the_run_is_left_out() {
     )
     .unwrap();
     let page = actors(repo.path()).await;
-    actor(&page, "actor-clerk");
+    entry(index(&page, "human-actors"), "actor-clerk");
     assert!(!page.contains("Auditor"), "{page}");
+    let (status, _) = get(repo.path(), "/actors/actor-auditor").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 // spec: WAC-3
@@ -490,9 +572,11 @@ async fn a_domain_the_run_does_not_list_is_named_without_a_link() {
     }
     .save(repo.path())
     .unwrap();
-    let page = actors(repo.path()).await;
-    let clerk = actor(&page, "actor-clerk");
-    assert!(clerk.contains("<h3>shipping</h3>"), "{clerk}");
+    let clerk = actor(repo.path(), "actor-clerk").await;
+    assert!(
+        text(&clerk).contains("shipping 1 feature · 1 use case"),
+        "{clerk}"
+    );
     assert!(!clerk.contains("href=\"/domains/shipping\""), "{clerk}");
     assert!(clerk.contains(SHIP), "{clerk}");
 }
@@ -513,15 +597,38 @@ async fn an_actor_takes_no_id_of_a_list_of_the_index() {
     .unwrap();
     let page = actors(repo.path()).await;
     assert_eq!(page.matches("id=\"system-actors\"").count(), 1, "{page}");
-    actor(&page, "system-actors-2");
+    entry(index(&page, "system-actors"), "system-actors-2");
+    actor(repo.path(), "system-actors-2").await;
 }
 
 // spec: WAC-8
 #[tokio::test]
-async fn the_actors_page_holds_no_table() {
+async fn neither_the_actors_page_nor_the_page_of_an_actor_holds_a_table() {
     let repo = generated_repo();
     let page = actors(repo.path()).await;
     assert!(!page.contains("<table"), "{page}");
+    let clerk = actor(repo.path(), "actor-clerk").await;
+    assert!(!clerk.contains("<table"), "{clerk}");
+}
+
+// spec: WAC-9
+#[tokio::test]
+async fn the_page_of_an_unknown_actor_answers_404() {
+    let repo = generated_repo();
+    for id in ["actor-nobody", "actor-bank", "clerk"] {
+        let (status, page) = get(repo.path(), &format!("/actors/{id}")).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{id}: {page}");
+        assert!(page.contains("Not found"), "{page}");
+    }
+    actor(repo.path(), "system-bank").await;
+}
+
+// spec: WAC-9
+#[tokio::test]
+async fn with_no_run_the_page_of_an_actor_says_to_run_generate() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, page) = get(dir.path(), "/actors/actor-clerk").await;
+    assert!(page.contains("retrodoc generate"), "{page}");
 }
 
 // spec: WAC-1
@@ -535,7 +642,6 @@ async fn a_run_with_no_actor_says_none_was_found() {
     .unwrap();
     let page = actors(repo.path()).await;
     assert!(page.contains("No actor was found"), "{page}");
-    assert!(!page.contains("class=\"actor\""), "{page}");
     assert!(!page.contains("actor-index"), "{page}");
     assert!(!page.contains("id=\"human-actors\""), "{page}");
 }

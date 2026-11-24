@@ -35,7 +35,15 @@ const FIXED: [(&str, &str); 11] = [
     ("not-found", "/no-such-page"),
 ];
 /// The pages found from the links, in the order they are looked for.
-const FOUND: [&str; 6] = ["domain", "feature", "use-case", "domain-map", "code", "collected-doc"];
+const FOUND: [&str; 7] = [
+    "domain",
+    "feature",
+    "use-case",
+    "domain-map",
+    "actor",
+    "code",
+    "collected-doc",
+];
 /// At most this many pages are read to find the pages of `FOUND`: the home page, the fixed pages, then the pages
 /// found.
 const MAX_READS: usize = 20;
@@ -59,6 +67,7 @@ fn kind(path: &str) -> Option<&'static str> {
         ["domains", _, _] => Some("feature"),
         ["domains", _, _, _] => Some("use-case"),
         ["map", _] => Some("domain-map"),
+        ["actors", _] => Some("actor"),
         ["code", _, ..] => Some("code"),
         ["docs", _, ..] => Some("collected-doc"),
         _ => None,

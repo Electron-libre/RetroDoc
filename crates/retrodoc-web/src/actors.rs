@@ -1,7 +1,7 @@
-//! What the actors page shows (`specs/web-actors.md`): an index of the
-//! actors, then a section per actor with the use cases it starts or takes
-//! part in, by domain and feature, and the permission rules of those use
-//! cases. The actors are grouped by their exact name: the LLM names them per
+//! What the actors pages show (`specs/web-actors.md`): `/actors`, an index
+//! of the actors, and `/actors/<id>`, the page of one actor with the use
+//! cases it starts or takes part in, by domain and feature with their
+//! counts, and the permission rules of those use cases. The actors are grouped by their exact name: the LLM names them per
 //! use case, and merging two spellings is left out.
 
 use std::collections::{BTreeSet, HashSet};
@@ -26,8 +26,10 @@ pub struct ActorGroup {
     pub actors: Vec<ActorSection>,
 }
 
+/// An actor: its entry in the index and its page.
 pub struct ActorSection {
-    /// The `id` of its section (WAC-7).
+    /// The `id` of its entry in the index and the last segment of the path
+    /// of its page (WAC-7).
     pub id: String,
     pub name: String,
     /// The use cases it starts (its primary actor).
@@ -46,10 +48,16 @@ pub struct ActorDomain {
     /// Its page; none for a domain the run does not list.
     pub href: Option<String>,
     pub features: Vec<ActorFeature>,
+    /// The use cases of the actor in its features.
+    pub use_case_count: usize,
 }
 
 pub struct ActorFeature {
     pub link: Link,
+    /// The use cases of the actor it starts there.
+    pub starts: usize,
+    /// The others it takes part in there.
+    pub takes_part: usize,
     /// Those it starts first, then the others, each in the order of the run.
     pub use_cases: Vec<ActorUseCase>,
 }
@@ -61,8 +69,7 @@ pub struct ActorUseCase {
 }
 
 impl ActorsPage {
-    /// The section of the human actor `name` (WAC-5), else the top of the
-    /// page.
+    /// The page of the human actor `name` (WAC-5), else the actors page.
     #[must_use]
     pub fn human_href(&self, name: &str) -> String {
         self.groups
@@ -70,8 +77,22 @@ impl ActorsPage {
             .filter(|g| g.id == "human-actors")
             .flat_map(|g| &g.actors)
             .find(|a| a.name == name)
-            .map_or_else(|| "/actors".to_string(), |a| format!("/actors#{}", a.id))
+            .map_or_else(|| "/actors".to_string(), |a| actor_href(&a.id))
     }
+
+    /// The actor whose id is `id` (WAC-7), with the heading of its kind.
+    #[must_use]
+    pub fn actor(&self, id: &str) -> Option<(&'static str, &ActorSection)> {
+        self.groups
+            .iter()
+            .find_map(|g| g.actors.iter().find(|a| a.id == id).map(|a| (g.heading, a)))
+    }
+}
+
+/// The page of the actor whose id is `id`.
+#[must_use]
+pub fn actor_href(id: &str) -> String {
+    format!("/actors/{id}")
 }
 
 /// The actors page of `docs`.
@@ -267,6 +288,8 @@ fn actor_section(
                     href: feature_href(feature),
                     name: feature.name.clone(),
                 },
+                starts: started,
+                takes_part: use_cases.len() - started,
                 use_cases: use_cases
                     .into_iter()
                     .map(|(u, starts)| ActorUseCase {
@@ -283,6 +306,7 @@ fn actor_section(
             sections.push(ActorDomain {
                 name: domain.name.clone(),
                 href: domain.href.clone(),
+                use_case_count: shown.iter().map(|f| f.use_cases.len()).sum(),
                 features: shown,
             });
         }

@@ -198,20 +198,24 @@ ul.hits { list-style: none; padding-left: 0; }
 .wide th[scope="row"] { position: sticky; left: 0; z-index: 1; background: var(--bg); box-shadow: inset -1px 0 0 var(--border); }
 .wide thead th:first-child { left: 0; z-index: 2; box-shadow: inset -1px 0 0 var(--border); }
 .wide tbody tr:hover th[scope="row"] { background: var(--surface); }
-/* The actors page: an index of the actors, people beside systems, then a section per actor. */
+/* The actors page: an index of the actors, people beside systems; the page of an actor: its domains as panels, their features in columns, the use cases folded under each. */
 .actor-index { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--space-4); }
 .actor-index h2 { margin-top: var(--space-3); }
 .actor-index ul { list-style: none; padding: 0; margin: 0; }
 .actor-index li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) 0; border-bottom: 1px solid var(--border); }
+.actor-index li:target { border-bottom-color: var(--gold); }
 .counts { color: var(--text-muted); font-size: var(--text-sm); white-space: nowrap; }
-section.actor { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); margin: var(--space-4) 0; scroll-margin-top: var(--space-4); }
-section.actor h2 { margin: 0; }
-section.actor h2 .kind { color: var(--text-muted); font-size: var(--text-sm); font-weight: normal; margin-left: var(--space-2); }
-section.actor p.counts { margin: var(--space-1) 0 var(--space-2); }
-section.actor h3 { font-size: var(--text-base); margin: var(--space-3) 0 var(--space-1); }
-.actor-features, .actor-rules { margin: 0; padding-left: 1.2rem; }
-.actor-features > li { margin: var(--space-1) 0; }
-.actor-features ul { margin: 0; padding-left: 1.2rem; }
+h1 .kind { color: var(--text-muted); font-size: var(--text-base); font-weight: normal; margin-left: var(--space-2); }
+p.back { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+h1 + p.counts { margin: 0 0 var(--space-3); }
+section.actor-domain { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); margin: var(--space-3) 0; }
+section.actor-domain h2 { font-size: var(--text-lg); margin: 0 0 var(--space-2); }
+section.actor-domain h2 .counts { font-weight: normal; margin-left: var(--space-2); }
+.actor-features { list-style: none; margin: 0; padding: 0; columns: 3 18rem; column-gap: var(--space-5); }
+.actor-features > li { break-inside: avoid; padding: var(--space-1) 0; }
+.actor-features summary { cursor: pointer; }
+.actor-features summary .counts { margin-left: var(--space-1); }
+.actor-features ul, .actor-rules { margin: var(--space-1) 0 0; padding-left: 1.2rem; }
 .wide table.heatmap th[scope="row"] { min-width: 10rem; max-width: 14rem; }
 
 /* The home page: the brief, where to start, the domains as cards. */

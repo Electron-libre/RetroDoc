@@ -10,6 +10,7 @@
 //! edits saved beside them change ([`retrodoc_docs::edits::Live`]); the reviews
 //! and the edits are read at each request.
 
+mod actor_pages;
 pub mod actors;
 mod ask;
 mod assets;
@@ -193,7 +194,8 @@ fn routes(
         .route("/history", get(pages::history))
         .route("/map", get(pages::map))
         .route("/map/{domain}", get(pages::domain_map))
-        .route("/actors", get(pages::actors))
+        .route("/actors", get(actor_pages::actors))
+        .route("/actors/{id}", get(actor_pages::actor))
         .route("/search", get(pages::search))
         .route("/code/{*path}", get(pages::code))
         .route("/docs/{*path}", get(pages::collected_doc))

@@ -141,11 +141,14 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   per run, a link that swaps them, `Compared::swap`), sent by `htmx` on change and answered with
   `history_body.html` alone, swapped into `#history-body`; each radio has an id, so `htmx` gives the focus back to it. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
   every page, built once in `Site::new`; `specs/web-actors.md`), is an index of the actors, human then system, each with the
-  number of use cases it starts and of the others it takes part in, then a section per actor (`#actor-<slug>`, `#system-<slug>`):
-  the actors are grouped by their exact name (a primary actor no step names counts as human and starts its use cases in the
-  human section of its name), each section lists its use cases by domain then feature, those it starts first and marked
-  (`starts`), then the permission rules that apply to them. No table: a matrix of the features was mostly empty on an
-  application of real size. The map page, `/map`
+  number of use cases it starts and of the others it takes part in, each a link to the page of the actor,
+  `/actors/{id}` (`ActorsPage::actor`, `actor.html`; the id `actor-<slug>` or `system-<slug>` of WAC-7, also the id of its
+  entry in the index, so a former `/actors#actor-<slug>` lands on it): the actors are grouped by their exact name (a primary
+  actor no step names counts as human and starts its use cases in the human group of its name); the page of an actor
+  gives its domains with their counts of features and use cases, under each its features with what it starts and takes
+  part in there, the use cases folded under each feature (`<details>`), those it starts first and marked (`starts`), then
+  the permission rules that apply to them. No table: a matrix of the features was mostly empty on an application of real
+  size, and a single page of every actor ran to 13 screens on one with 43 features. The map page, `/map`
   (`map.html`, linked from the header of every page; `map::maps` builds it and the map of each domain once in
   `Site::new`, the concepts of each use case read once), keeps the source of
   a `mermaid` flowchart, a node per domain with its counts and an edge per pair of domains whose use cases use the
@@ -156,7 +159,7 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   linked from the page of the domain), draws its features with their use case counts, the humans of their use cases
   (a primary actor counts as one unless the steps of the run name it a system only, as on the actors page) with an edge to each feature, solid when the actor starts one of its use cases and
   dotted when it only takes part in one, and the concepts each feature uses; its list gives each feature with its
-  actors, each linked to its section of the actors page (`ActorsPage::human_href`, WAC-5), and its concepts, under the
+  actors, each linked to the page of the actor (`ActorsPage::human_href`, WAC-5), and its concepts, under the
   same `data-node` rule. The ask page (`ask.rs`, `specs/web-ask.md`, ADR 0048) is routed
   only when `router_with` gets an `Asking` (the provider and the rounds of the agent): `/ask` and its `POST` answer a
   question with the `retrodoc_agent::Conversation` of the browser session (the cookie `retrodoc_ask`, 128 random bits

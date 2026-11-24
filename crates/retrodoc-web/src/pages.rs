@@ -11,7 +11,6 @@ use retrodoc_docs::reviews::Reviews;
 use retrodoc_docs::GeneratedDocs;
 use tokio::task::JoinError;
 
-use crate::actors::ActorsPage;
 use crate::assets::MERMAID;
 use crate::audit::{audit_page, AuditPage};
 use crate::code::{code_page, Asked, CodePage};
@@ -154,14 +153,6 @@ struct DomainMapTemplate<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "actors.html")]
-struct ActorsTemplate<'a> {
-    t: &'static WebTexts,
-    shell: &'a Shell,
-    page: &'a ActorsPage,
-}
-
-#[derive(Template)]
 #[template(path = "rules.html")]
 struct RulesTemplate<'a> {
     t: &'static WebTexts,
@@ -225,7 +216,7 @@ struct NoRun<'a> {
 }
 
 /// The page that says to run `generate`, the answer of a page before a first run.
-fn no_run_page(site: &Site) -> Response {
+pub(crate) fn no_run_page(site: &Site) -> Response {
     render(
         StatusCode::OK,
         &NoRun {
@@ -501,20 +492,6 @@ pub async fn domain_map(State(site): State<Arc<Site>>, Path(slug): Path<String>)
             shell: site.shell(),
             page,
             mermaid: MERMAID,
-        },
-    )
-}
-
-pub async fn actors(State(site): State<Arc<Site>>) -> Response {
-    let Some(page) = site.actors() else {
-        return no_run_page(&site);
-    };
-    render(
-        StatusCode::OK,
-        &ActorsTemplate {
-            t: site.texts(),
-            shell: site.shell(),
-            page,
         },
     )
 }

@@ -51,3 +51,56 @@ Then propose, decide at `issue-workflow` step 1; the options can be combined.
 * The test repos of the crate are too small to show the problem: judge on the linkding baseline (43 features) with
   `just screenshots`; the shots stop at 4,000 px, so measure the full height another way.
 * A folded section must still open on the anchor the map links to, or the link lands on a closed heading.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-24
+
+## Understanding
+`/actors` becomes the index only (who the actors are, one screen: 8 lines on linkding) and each actor gets its page
+`/actors/<id>`: its domains and features with counts, the use cases folded under each feature. Options 3 and 2 of the
+issue, the folding of option 1 applied per feature; options 4 and 5 left out. Measured before: 10,374 px high at
+1440 px (13 screens), 11,846 px at 500 px; on the actor page Bookmark owner shows 5 domains and 24 features, System
+5 and 43 (shots: `~/retrodoc-runs/screenshots/before-actors-practical-1f904893`).
+
+## Plan
+1. [x] Page per actor: `specs/web-actors.md` amended (WAC-1 to WAC-5, WAC-7, WAC-8, WAC-9, WAC-10, non-goals);
+   `actors.rs` gives the index and the page of an actor (`ActorsPage::actor(id)`), `actors.html` the index only, a
+   new `actor.html`, the route `/actors/{id}` (404 of WAC-9), the map links to the actor page, the texts in English
+   and French beside the others in `texts.rs`, the `.actor` styles; verified by `tests/actors_page.rs` and
+   `tests/map_page.rs` on the WAC ids, the height of `/actors` and of the page of the largest actors measured on the
+   linkding baseline before/after (`just screenshots` plus a chromedriver measure); makes true WAC-1 to WAC-10. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 1f9048933c14c382c3faee1b68ed5b431c6277ac
+- Answers of step 2 (2026-11-24): 1a index plus a page per actor; 2a path `/actors/<WAC-7 id>`; 3a the search does not list the actors; 4a "System" is a line of the index like the others.
+- `texts.rs` (1,509 lines) and `view.rs` (1,027) are over the file limit: the few strings go beside the others in
+  `texts.rs` (its split is not this issue), the lookup of an actor lives in `actors.rs`, not `view.rs`.
+- `pages.rs` went over 800 lines with the handler of the actor page: the two handlers of the actors pages moved to
+  `actor_pages.rs`. `texts.rs` stays over the limit (one string added), as decided above.
+
+## Deliverable 1: page per actor
+- done: `/actors` is the index only, each actor linking to `/actors/<id>` (its entry carries the id, so a former
+  `/actors#actor-<slug>` lands on it); the page of an actor gives its domains with their counts, its features in
+  columns with what it starts and takes part in, the use cases folded under each feature, then its permission rules;
+  unknown id 404; the map links to the actor page; `just screenshots` also shoots an actor page. Measured on the
+  linkding baseline (chromedriver, `scrollHeight`): `/actors` 10,374 → 757 px at 1440 px (one screen), 11,846 → 930 px
+  at 500 px; Administrator 831 px, Bookmark owner 1,290 px, System 1,822 px at 1440 px (no horizontal scroll). Shots:
+  `~/retrodoc-runs/screenshots/before-actors-practical-1f904893`, `after-actors-practical`.
+
+| check | result |
+|---|---|
+| tests | pass (`tests/actors_page.rs` 19, `tests/map_page.rs`) |
+| lint | pass (clippy pedantic, -D warnings) |
+| specs | `specs/web-actors.md` accepted, WAC-1 to WAC-10 traced |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md`, a doc comment of `view.rs` |
+| code review | see below |
+
+- red: WAC-1, WAC-2, WAC-3, WAC-4, WAC-6, WAC-7, WAC-8, WAC-9, WAC-10: `/actors/actor-clerk` answered 404 (`left: 404,
+  right: 200`), `no entry actor-clerk` in the index, the use case links found on `/actors`; WAC-5 was not run red
+  apart (the actors tests failed first in the same `cargo test`).
+- Code review: no findings
+- not verified: the opening of a fold by keyboard and screen reader (native `<details>`, not tested); Firefox and
+  Safari not shot.
+- decisions needed: none.

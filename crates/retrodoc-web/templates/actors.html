@@ -12,39 +12,11 @@
 <h2>{{ group.heading }}</h2>
 <ul id="{{ group.id }}">
   {% for actor in group.actors %}
-  <li><a href="#{{ actor.id }}">{{ actor.name }}</a> <span class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</span></li>
+  <li id="{{ actor.id }}"><a href="/actors/{{ actor.id }}">{{ actor.name }}</a> <span class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</span></li>
   {% endfor %}
 </ul>
 </div>
 {% endfor %}
 </nav>
-{% for group in page.groups %}
-{% for actor in group.actors %}
-<section class="actor" id="{{ actor.id }}">
-  <h2>{{ actor.name }} <span class="kind">{{ group.heading }}</span></h2>
-  <p class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</p>
-  {% for domain in actor.domains %}
-  <h3>{% if let Some(href) = domain.href %}<a href="{{ href }}">{{ domain.name }}</a>{% else %}{{ domain.name }}{% endif %}</h3>
-  <ul class="actor-features">
-    {% for feature in domain.features %}
-    <li><a href="{{ feature.link.href }}">{{ feature.link.name }}</a>
-      <ul>
-        {% for use_case in feature.use_cases %}
-        <li><a href="{{ use_case.link.href }}">{{ use_case.link.name }}</a>{% if use_case.starts %} <span class="badge">{{ t.starts }}</span>{% endif %}</li>
-        {% endfor %}
-      </ul>
-    </li>
-    {% endfor %}
-  </ul>
-  {% endfor %}
-  {% if !actor.permissions.is_empty() %}
-  <h3>{{ t.permission_rules }}</h3>
-  <ul class="actor-rules">
-    {% for rule in actor.permissions %}<li><a href="{{ rule.href }}">{{ rule.name }}</a></li>{% endfor %}
-  </ul>
-  {% endif %}
-</section>
-{% endfor %}
-{% endfor %}
 {% endif %}
 {% endblock %}

@@ -349,21 +349,18 @@ async fn the_map_lists_each_domain_with_the_concepts_it_shares_with_each_other()
 
 // spec: WAC-5, WAC-H2
 #[tokio::test]
-async fn each_actor_of_the_map_of_a_domain_links_to_its_section_of_the_actors_page() {
+async fn each_actor_of_the_map_of_a_domain_links_to_its_page() {
     let repo = generated_repo();
     let map = page(repo.path(), "/map/billing").await;
     let list = list(&map);
     for (id, name) in [("actor-clerk", "Clerk"), ("actor-buyer", "buyer")] {
-        let href = format!("href=\"/actors#{id}\"");
+        let href = format!("href=\"/actors/{id}\"");
         let start = list.find(&href).unwrap_or_else(|| panic!("{href}: {list}"));
         let link = &list[start..start + list[start..].find("</a>").unwrap()];
         assert!(link.ends_with(&format!(">{name}")), "{link}");
+        let actor = page(repo.path(), &format!("/actors/{id}")).await;
+        assert!(actor.contains(&format!(">{name}")), "{actor}");
     }
-    let actors = page(repo.path(), "/actors").await;
-    assert!(
-        actors.contains("<section class=\"actor\" id=\"actor-clerk\""),
-        "{actors}"
-    );
 }
 
 // spec: WEB-74
