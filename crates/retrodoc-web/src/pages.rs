@@ -22,7 +22,7 @@ use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
 use crate::history::{history_page, HistoryPage};
 use crate::map::{DomainMapPage, MapPage};
-use crate::review::{self, Place, ReviewView, SavedForm};
+use crate::review::{self, Place, ReviewView};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{panel_answers, query_value, search_page, Results, SearchPage};
 use crate::texts::WebTexts;
@@ -292,7 +292,7 @@ pub async fn domain(
             let (reviews, review) = reviews_of(docs, &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place, &links));
+            let (review, edit_form) = (after.shown(review), EditFormView::of(docs, &place, &links));
             domain_page(docs, site.links(), &reviews, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -315,37 +315,25 @@ pub async fn domain(
     }
 }
 
-/// What the forms of a section saved, as the redirect after a save names it (`?saved=review`,
-/// `?saved=edit`), so that its page says so (WEB-104), and whether the page was asked to edit,
-/// `?edit=1` (WEB-114).
+/// Whether the form of a section saved, as the redirect after a save names it (`?saved=1`), so
+/// that its page says so (SFM-8).
 struct AfterSave {
-    saved: Option<SavedForm>,
-    edit: bool,
+    saved: bool,
 }
 
 impl AfterSave {
     fn of(query: Option<&str>) -> Self {
         Self {
-            saved: query_value(query, "saved")
-                .as_deref()
-                .and_then(SavedForm::named),
-            edit: query_value(query, "edit").as_deref() == Some("1"),
+            saved: query_value(query, "saved").as_deref() == Some("1"),
         }
     }
 
-    /// `review` and `edit_form`, the one that was saved saying so; not a review whose reviews
-    /// can't be read.
-    fn shown(&self, review: ReviewView, edit_form: EditFormView) -> (ReviewView, EditFormView) {
-        let review = ReviewView {
-            saved: self.saved == Some(SavedForm::Review) && review.error.is_none(),
+    /// `review` saying it was saved; not a review whose reviews can't be read.
+    fn shown(&self, review: ReviewView) -> ReviewView {
+        ReviewView {
+            saved: self.saved && review.error.is_none(),
             ..review
-        };
-        let edit_form = EditFormView {
-            saved: self.saved == Some(SavedForm::Edit),
-            open: self.edit,
-            ..edit_form
-        };
-        (review, edit_form)
+        }
     }
 }
 
@@ -372,7 +360,7 @@ pub async fn feature(
             let (reviews, review) = reviews_of(docs, &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place, &links));
+            let (review, edit_form) = (after.shown(review), EditFormView::of(docs, &place, &links));
             feature_page(docs, site.links(), &reviews, &domain, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -411,7 +399,7 @@ pub async fn use_case(
             let review = ReviewView::of(docs, &review::load(docs), &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place, &links));
+            let (review, edit_form) = (after.shown(review), EditFormView::of(docs, &place, &links));
             use_case_page(docs, site.links(), &domain, &feature, &slug, &links)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -724,7 +712,7 @@ pub async fn not_found(State(site): State<Arc<Site>>) -> Response {
 }
 
 /// A form answered to `htmx` after a refusal, the error in it: `HX-Reswap` asks `forms.js` to swap
-/// it though its status is an error (WEB-105, WEB-106).
+/// it though its status is an error (SFM-15, WEB-106).
 pub(crate) fn form_answer(status: StatusCode, form: &impl Template) -> Response {
     let mut response = render(status, form);
     response

@@ -242,11 +242,11 @@ fn saved(root: &Path) -> Vec<(Section, Fields)> {
         .collect()
 }
 
-/// The edit form of a section page.
+/// The form of a section page (`specs/section-form.md`).
 fn form_block(page: &str) -> &str {
     let start = page
-        .find("<section class=\"edit-form\"")
-        .unwrap_or_else(|| panic!("no edit form in {page}"));
+        .find("<section class=\"review\"")
+        .unwrap_or_else(|| panic!("no form in {page}"));
     let end = start + page[start..].find("</section>").unwrap();
     &page[start..end]
 }
@@ -260,7 +260,7 @@ const PREVIEW: &str = "/preview/domains/billing/pay-invoice/pay-by-card";
 async fn an_edit_from_another_site_is_refused() {
     let repo = generated_repo();
     let root = repo.path();
-    let request = Request::post(format!("/edit{FEATURE}"))
+    let request = Request::post(FEATURE)
         .header("host", "127.0.0.1:8730")
         .header("origin", "http://evil.example")
         .header("content-type", "application/x-www-form-urlencoded")
@@ -386,7 +386,7 @@ fn files_under(dir: &Path) -> Vec<(std::path::PathBuf, Vec<u8>)> {
     files
 }
 
-/// The preview of the edit form of a section page, `None` when it has none.
+/// The preview of the form of a section page, `None` when it has none.
 fn preview_block(page: &str) -> Option<&str> {
     let start = page.find("<div class=\"preview narrative\"")?;
     Some(&page[start..start + page[start..].find("</div>").unwrap()])
@@ -394,7 +394,7 @@ fn preview_block(page: &str) -> Option<&str> {
 
 // spec: WEB-119
 #[tokio::test]
-async fn the_edit_form_of_a_use_case_previews_its_narrative_as_it_is_typed() {
+async fn the_form_of_a_use_case_previews_its_narrative_as_it_is_typed() {
     let repo = generated_repo();
     let root = repo.path();
     edit(
@@ -474,7 +474,7 @@ async fn the_preview_renders_the_narrative_sent_and_writes_nothing() {
     assert_eq!(files_under(root), before);
 }
 
-// spec: WEB-121
+// spec: SFM-5
 #[tokio::test]
 async fn the_back_button_asks_for_a_confirmation() {
     let repo = generated_repo();

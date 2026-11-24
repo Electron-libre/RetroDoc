@@ -2,7 +2,8 @@
 //! router that renders HTML pages on the server from `askama` templates, with
 //! its scripts and stylesheet embedded in the binary. It calls no LLM, but
 //! for the ask page of `retrodoc ui --ask` ([`Asking`], ADR 0048), and writes
-//! nothing but the human reviews and edits its forms send ([`review_form`]).
+//! nothing but the human reviews and edits the form of a section sends
+//! ([`section_form`]).
 //!
 //! The pages are built from [`GeneratedDocs`], the read model `retrodoc-docs`
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
@@ -26,9 +27,9 @@ pub mod history;
 pub mod map;
 mod pages;
 pub mod review;
-mod review_form;
 pub mod rules;
 pub mod search;
+mod section_form;
 pub mod texts;
 pub mod trends;
 pub mod view;
@@ -166,25 +167,19 @@ fn routes(
         .route("/", get(pages::home))
         .route(
             "/domains/{domain}",
-            get(pages::domain).post(review_form::domain),
+            get(pages::domain).post(section_form::domain),
         )
         .route(
             "/domains/{domain}/{feature}",
-            get(pages::feature).post(review_form::feature),
+            get(pages::feature).post(section_form::feature),
         )
         .route(
             "/domains/{domain}/{feature}/{use_case}",
-            get(pages::use_case).post(review_form::use_case),
+            get(pages::use_case).post(section_form::use_case),
         )
         .route(
             "/preview/domains/{domain}/{feature}/{slug}",
             post(edit_form::preview),
-        )
-        .route("/edit/domains/{slug}", post(edit_form::domain))
-        .route("/edit/domains/{domain}/{slug}", post(edit_form::feature))
-        .route(
-            "/edit/domains/{domain}/{feature}/{slug}",
-            post(edit_form::use_case),
         )
         .route("/files", get(pages::files))
         .route("/glossary", get(pages::glossary))

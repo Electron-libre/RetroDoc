@@ -1,49 +1,27 @@
-//! The form of the human edit of a section (`specs/web-ui.md`, WEB-93 to WEB-99): a `POST` to
-//! `/edit` followed by the URL of the page of the section records its edit through the store of
-//! `retrodoc-docs`, the fields it leaves as generated left out, or removes it, and answers `htmx`
-//! with a reload of the page, else a redirect to it; a refusal answers `htmx` with the form alone,
-//! the error in it. The path sits under `/edit`, not after the
-//! page's: a feature or a use case may be named `edit`. A `POST` to `/preview` followed by the URL
-//! of the page of a use case answers the narrative it sends rendered as that page renders it
+//! The fields of the text of a section in its form (`specs/section-form.md` SFM-1): its name,
+//! its description and, for a use case, its narrative, filled with the text its page shows; the
+//! form saves them with the review (`section_form`). A `POST` to `/preview` followed by the URL of
+//! the page of a use case answers the narrative it sends rendered as that page renders it
 //! (WEB-119, WEB-120), and writes nothing.
 
 use std::sync::Arc;
 
-use askama::Template;
 use axum::extract::{Path, State};
-use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::Form;
-use retrodoc_docs::edits::{self, EditsError, Fields};
+use retrodoc_docs::edits;
 use retrodoc_docs::GeneratedDocs;
 use serde::Deserialize;
 
 use crate::collected::{narrative_html, NarrativeLinks};
 use crate::edit::is_edited;
-use crate::pages::{blocking, form_answer, not_found, read_failed};
-use crate::review::{Place, SavedForm};
-use crate::texts::{ErrorTexts, WebTexts};
+use crate::pages::not_found;
+use crate::review::Place;
 use crate::view::Site;
 
-/// What the form sends; a field it leaves out is empty, but for the narrative, which only the
-/// form of a use case sends.
-#[derive(Debug, Deserialize)]
-pub struct EditForm {
-    #[serde(default)]
-    name: String,
-    #[serde(default)]
-    description: String,
-    narrative: Option<String>,
-    /// `revert` for the button that brings the generated text back.
-    #[serde(default)]
-    action: String,
-}
-
-/// The edit form of a section, filled with the text its page shows.
+/// The fields of the text of a section in its form, filled with the text its page shows.
 #[derive(Debug)]
 pub struct EditFormView {
-    /// Where it posts.
-    pub action: String,
     /// Where the preview of its narrative is asked (WEB-119).
     pub preview: String,
     pub name: String,
@@ -55,12 +33,8 @@ pub struct EditFormView {
     pub narrative_preview: String,
     /// Whether the section holds an edit, which the button "back to the generated text" removes.
     pub edited: bool,
-    /// Why the last save failed, the fields kept as sent.
-    pub error: Option<String>,
-    /// Whether the form says that the edit was saved (WEB-104).
-    pub saved: bool,
-    /// Whether the page was asked to edit, `?edit=1`, which unfolds the form (WEB-114).
-    pub open: bool,
+    /// Whether the fields are shown as a save sent them, which unfolds them (SFM-2).
+    pub sent: bool,
 }
 
 impl EditFormView {
@@ -68,42 +42,51 @@ impl EditFormView {
     /// preview's links resolved by `links`.
     #[must_use]
     pub(crate) fn of(docs: &GeneratedDocs, place: &Place, links: &NarrativeLinks) -> Self {
-        let section = place.section();
-        let shown = edits::fields_in(docs.sections(), &section).unwrap_or_default();
+        let shown = edits::fields_in(docs.sections(), &place.section()).unwrap_or_default();
         let narrative = is_use_case(place).then(|| shown.narrative.unwrap_or_default());
         Self {
-            action: action(place),
-            preview: format!("/preview{}", place.href()),
-            name: shown.name.unwrap_or_default(),
-            description: shown.description.unwrap_or_default(),
-            narrative_preview: preview_html(narrative.as_deref(), links),
-            narrative,
-            edited: is_edited(docs, place),
-            error: None,
-            saved: false,
-            open: false,
+            sent: false,
+            ..Self::new(
+                place,
+                shown.name.unwrap_or_default(),
+                shown.description.unwrap_or_default(),
+                narrative,
+                is_edited(docs, place),
+                links,
+            )
         }
     }
 
-    fn failed(
+    /// The fields as a save sent them, kept in the form that says why it failed (SFM-15).
+    #[must_use]
+    pub(crate) fn sent(
         place: &Place,
-        form: &EditForm,
+        name: String,
+        description: String,
+        narrative: Option<&str>,
         edited: bool,
-        error: String,
         links: &NarrativeLinks,
     ) -> Self {
-        let narrative = is_use_case(place).then(|| form.narrative.clone().unwrap_or_default());
+        let narrative = is_use_case(place).then(|| narrative.unwrap_or_default().to_string());
+        Self::new(place, name, description, narrative, edited, links)
+    }
+
+    fn new(
+        place: &Place,
+        name: String,
+        description: String,
+        narrative: Option<String>,
+        edited: bool,
+        links: &NarrativeLinks,
+    ) -> Self {
         Self {
-            action: action(place),
             preview: format!("/preview{}", place.href()),
-            name: form.name.clone(),
-            description: form.description.clone(),
+            name,
+            description,
             narrative_preview: preview_html(narrative.as_deref(), links),
             narrative,
             edited,
-            error: Some(error),
-            saved: false,
-            open: false,
+            sent: true,
         }
     }
 }
@@ -140,164 +123,6 @@ pub async fn preview(
     Html(preview_html(form.narrative.as_deref(), &links)).into_response()
 }
 
-fn action(place: &Place) -> String {
-    format!("/edit{}", place.href())
-}
-
 fn is_use_case(place: &Place) -> bool {
     matches!(place, Place::UseCase { .. })
-}
-
-/// The edit form alone, answered to `htmx` when a save failed, the error in the form, and swapped
-/// in place of the former one by `forms.js`, as any HTML error.
-#[derive(Template)]
-#[template(path = "edit_form.html")]
-struct EditFormFragment {
-    t: &'static WebTexts,
-    edit_form: EditFormView,
-}
-
-pub async fn domain(
-    State(site): State<Arc<Site>>,
-    Path(slug): Path<String>,
-    headers: HeaderMap,
-    Form(form): Form<EditForm>,
-) -> Response {
-    save(site, Place::Domain(slug), &headers, form).await
-}
-
-pub async fn feature(
-    State(site): State<Arc<Site>>,
-    Path((domain, slug)): Path<(String, String)>,
-    headers: HeaderMap,
-    Form(form): Form<EditForm>,
-) -> Response {
-    save(site, Place::Feature { domain, slug }, &headers, form).await
-}
-
-pub async fn use_case(
-    State(site): State<Arc<Site>>,
-    Path((domain, feature, slug)): Path<(String, String, String)>,
-    headers: HeaderMap,
-    Form(form): Form<EditForm>,
-) -> Response {
-    let place = Place::UseCase {
-        domain,
-        feature,
-        slug,
-    };
-    save(site, place, &headers, form).await
-}
-
-/// What a save came to.
-enum Saved {
-    Done,
-    NotFound,
-    /// The status, the error, whether the section holds an edit.
-    Failed(StatusCode, String, bool),
-}
-
-/// A field as the form sent it, trimmed and with `\n` line ends (WEB-94).
-fn clean(text: &str) -> String {
-    text.replace("\r\n", "\n").trim().to_string()
-}
-
-/// The fields of `form` that change the text generated (WEB-95): an empty one, or one equal to
-/// the generated text, both cleaned as a browser sends them back (WEB-94), left out.
-fn changed(form: &EditForm, generated: &Fields) -> Fields {
-    let keep = |sent: Option<&str>, generated: Option<&str>| {
-        let text = clean(sent?);
-        (!text.is_empty() && text != clean(generated.unwrap_or_default())).then_some(text)
-    };
-    Fields {
-        name: keep(Some(&form.name), generated.name.as_deref()),
-        description: keep(Some(&form.description), generated.description.as_deref()),
-        narrative: keep(form.narrative.as_deref(), generated.narrative.as_deref()),
-    }
-}
-
-/// Records or removes the edit of the section at `place` of `docs`.
-fn write(docs: &GeneratedDocs, place: &Place, form: &EditForm, errors: &ErrorTexts) -> Saved {
-    let section = place.section();
-    let edited = is_edited(docs, place);
-    let failed = |code, error: String| Saved::Failed(code, error, edited);
-    // Only a use case has a narrative (SED-3): refused before the store is read, a revert
-    // included.
-    if form.narrative.is_some() && !is_use_case(place) {
-        return failed(
-            StatusCode::BAD_REQUEST,
-            errors.narrative_of_use_case_only.into(),
-        );
-    }
-    let Some(root) = docs.repo_root() else {
-        return failed(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            errors.no_repository.into(),
-        );
-    };
-    let fields = if form.action == "revert" {
-        Fields::default()
-    } else {
-        let generated = edits::fields_in(docs.generated(), &section).unwrap_or_default();
-        changed(form, &generated)
-    };
-    let done = if fields == Fields::default() {
-        edits::remove(root, &section)
-    } else {
-        edits::record(root, docs, &section, fields).map(|_| ())
-    };
-    match done {
-        Ok(()) => Saved::Done,
-        Err(EditsError::UnknownSection(_)) => Saved::NotFound,
-        Err(err) => failed(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
-    }
-}
-
-async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: EditForm) -> Response {
-    let htmx = headers.contains_key("HX-Request");
-    let (at, sent) = (place.clone(), form);
-    let saved = blocking(&site, move |site| {
-        let saved = match site.docs().filter(|docs| at.in_docs(docs)) {
-            None => Saved::NotFound,
-            Some(docs) => write(docs, &at, &sent, &site.texts().errors),
-        };
-        (saved, sent)
-    })
-    .await;
-    let failed = |code, error: String, edited, form: &EditForm| {
-        if htmx {
-            let links = NarrativeLinks::of(&site, &place);
-            let edit_form = EditFormView::failed(&place, form, edited, error, &links);
-            form_answer(
-                code,
-                &EditFormFragment {
-                    t: site.texts(),
-                    edit_form,
-                },
-            )
-        } else {
-            (code, error).into_response()
-        }
-    };
-    match saved {
-        Ok((Saved::Done, _)) if htmx => (
-            StatusCode::OK,
-            [("HX-Redirect", place.saved_href(SavedForm::Edit))],
-        )
-            .into_response(),
-        Ok((Saved::Done, _)) => (
-            StatusCode::SEE_OTHER,
-            [(header::LOCATION, place.saved_href(SavedForm::Edit))],
-        )
-            .into_response(),
-        Ok((Saved::NotFound, form)) if htmx => failed(
-            StatusCode::NOT_FOUND,
-            site.texts().errors.no_section.into(),
-            false,
-            &form,
-        ),
-        Ok((Saved::NotFound, _)) => not_found(State(Arc::clone(&site))).await,
-        Ok((Saved::Failed(code, error, edited), form)) => failed(code, error, edited, &form),
-        Err(err) => read_failed(&err),
-    }
 }

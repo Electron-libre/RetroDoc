@@ -62,10 +62,10 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
 2. [x] Drop the tests of the withdrawn requirements (WEB-81, 83, 85, 86, 88, 93 to 99, 103 to 105, 114) from
    `review_pages.rs`, `edit_pages.rs` and `form_states.rs`, deletions only, the code unchanged; verified by the
    project check. (autonomous)
-3. [ ] One form, one `POST`: `section_form.rs` (new, replacing `review_form.rs` and the saves of `edit_form.rs`, the
+3. [x] One form, one `POST`: `section_form.rs` (new, replacing `review_form.rs` and the saves of `edit_form.rs`, the
    preview kept) and `section_form.html` (replacing `review.html` and `edit_form.html`), the routes under `/edit`
    removed, `?saved=1`, one "Review" action, the remaining tests moved to the new form; the core tests in
-   `tests/section_form.rs`; makes true SFM-1, SFM-3, SFM-6, SFM-7, SFM-9, SFM-12 to SFM-16.
+   `tests/section_form.rs`; makes true SFM-1, SFM-3, SFM-6, SFM-7, SFM-9, SFM-12 to SFM-16. (autonomous)
 4. [ ] The remaining tests of `tests/section_form.rs` (SFM-2, SFM-4, SFM-5, SFM-8, SFM-10, SFM-11), the unfolding
    on "wrong" in `forms.js`, the style of the form, before/after `just screenshots`.
 5. [ ] Docs of the whole issue and fixes of the `high` review (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`,
@@ -111,4 +111,22 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
 - red: none (deletions only).
 - Code review: no findings
 - not verified: nothing.
+- decisions needed: none.
+
+## Deliverable 3
+- done: one form per section page (`section_form.rs`, `section_form.html`) posting to the page, saving through
+  `corrections::save`; `?saved=1`; the routes under `/edit` and the action "Edit" removed; the remaining tests moved
+  to the form. 1422 changed lines (866 added, 556 removed): the code alone is about 1000, so no further cut keeps
+  each commit green; more than the ~1100 announced when the split was chosen.
+- | check | result |
+  |---|---|
+  | tests | `cargo test -p retrodoc-web`: pass (`section_form.rs`: 9) |
+  | lint | clippy pedantic: clean |
+  | specs | `check-specs`: pass |
+  | docs | deferred to deliverable 5 (plan), the `//!` docs of the modules updated |
+  | code review | low: no findings |
+- red: SFM-1, SFM-3, SFM-9: the save answered `?saved=review` where `?saved=1` was expected, and the page held two
+  forms.
+- Code review: no findings
+- not verified: the page in a browser (deliverable 4, screenshots).
 - decisions needed: none.

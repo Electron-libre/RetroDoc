@@ -122,7 +122,7 @@ fn assert_indicator(form: &str, text: &str) {
     );
 }
 
-// spec: WEB-102
+// spec: WEB-102, SFM-16
 #[tokio::test]
 async fn the_forms_that_write_show_that_they_are_sent_and_disable_their_buttons() {
     let dir = generated_repo();
@@ -133,17 +133,12 @@ async fn the_forms_that_write_show_that_they_are_sent_and_disable_their_buttons(
         "/domains/billing/pay-invoice/pay-by-card",
     ] {
         let page = get(root, path).await;
-        for start in [
-            "<form class=\"filters\" method=\"post\"",
-            "<form class=\"edit-fields\"",
-        ] {
-            let form = form(&page, start);
-            assert_indicator(form, "Saving…");
-            assert!(
-                opening(form).contains("hx-disabled-elt=\"find button\""),
-                "{form}"
-            );
-        }
+        let form = form(&page, "<form class=\"section-form\"");
+        assert_indicator(form, "Saving…");
+        assert!(
+            opening(form).contains("hx-disabled-elt=\"find button\""),
+            "{form}"
+        );
     }
 }
 
@@ -171,7 +166,7 @@ async fn the_indicators_are_worded_in_french() {
     let root = dir.path();
     let (_, page) = get_in(root, "/domains/billing", Some("fr")).await;
     assert_indicator(
-        form(&page, "<form class=\"edit-fields\""),
+        form(&page, "<form class=\"section-form\""),
         "Enregistrement…",
     );
     assert_indicator(form(&page, "<form class=\"search\""), "Chargement…");
@@ -239,7 +234,7 @@ fn assert_error_above_buttons(form: &str, text: &str) {
     assert!(at < form.find("<button").unwrap(), "{form}");
 }
 
-// spec: WEB-77, WEB-105
+// spec: WEB-77, SFM-15
 #[tokio::test]
 async fn the_errors_of_the_forms_are_worded_in_french() {
     let dir = generated_repo();
@@ -248,8 +243,8 @@ async fn the_errors_of_the_forms_are_worded_in_french() {
     assert_error_above_buttons(form(&body, "<form"), "Statut de relecture inconnu.");
     let (_, body) = post_htmx(
         root,
-        "/edit/domains/billing",
-        "name=N&description=D&narrative=X",
+        "/domains/billing",
+        "status=&name=N&description=D&narrative=X",
         Some("fr"),
     )
     .await;
@@ -291,15 +286,13 @@ fn notice(text: &str) -> String {
     format!("<p class=\"notice\" role=\"status\">{text}</p>")
 }
 
-// spec: WEB-77, WEB-104
+// spec: WEB-77, SFM-8
 #[tokio::test]
-async fn the_saved_notices_are_worded_in_french() {
+async fn the_saved_notice_is_worded_in_french() {
     let dir = generated_repo();
     let root = dir.path();
-    let (_, page) = get_in(root, "/domains/billing?saved=review", Some("fr")).await;
-    assert!(page.contains(&notice("Relecture enregistrée.")), "{page}");
-    let (_, page) = get_in(root, "/domains/billing?saved=edit", Some("fr")).await;
-    assert!(page.contains(&notice("Correction enregistrée.")), "{page}");
+    let (_, page) = get_in(root, "/domains/billing?saved=1", Some("fr")).await;
+    assert!(page.contains(&notice("Enregistré.")), "{page}");
 }
 
 /// What follows the heading of `page`, up to the end of the page.
@@ -310,9 +303,9 @@ fn after_heading(page: &str) -> &str {
     page[end + "</h1>".len()..].trim_start()
 }
 
-// spec: WEB-113
+// spec: SFM-6
 #[tokio::test]
-async fn a_section_page_shows_its_actions_under_its_heading() {
+async fn a_section_page_shows_its_action_under_its_heading() {
     let dir = generated_repo();
     let root = dir.path();
     for path in [
@@ -327,22 +320,21 @@ async fn a_section_page_shows_its_actions_under_its_heading() {
             "{actions}"
         );
         let actions = &actions[..actions.find("</nav>").unwrap()];
-        let review = "<a class=\"button\" href=\"#review\">Review</a>";
-        let edit = "<a class=\"button secondary\" href=\"?edit=1#edit-form\">Edit</a>";
-        assert!(actions.contains(review), "{actions}");
-        assert!(actions.contains(edit), "{actions}");
-        assert!(actions.find(review) < actions.find(edit), "{actions}");
+        assert_eq!(
+            actions,
+            "<nav class=\"section-actions\" aria-label=\"Actions on this section\">\
+             <a class=\"button\" href=\"#review\">Review</a>"
+        );
         assert!(page.contains("id=\"review\""), "{page}");
-        assert!(page.contains("id=\"edit-form\""), "{page}");
     }
 }
 
-// spec: WEB-77, WEB-113
+// spec: WEB-77, SFM-6
 #[tokio::test]
 async fn the_actions_of_a_section_are_worded_in_french() {
     let dir = generated_repo();
     let (_, page) = get_in(dir.path(), "/domains/billing", Some("fr")).await;
     let actions = after_heading(&page);
     assert!(actions.contains(">Relire</a>"), "{actions}");
-    assert!(actions.contains(">Corriger</a>"), "{actions}");
+    assert!(!actions.contains(">Corriger</a>"), "{actions}");
 }

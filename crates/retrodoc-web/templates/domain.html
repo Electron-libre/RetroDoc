@@ -9,8 +9,7 @@
 <p><a href="{{ page.map }}">{{ t.map_of_this_domain }}</a>{{ t.map_of_this_domain_tail }}</p>
 {% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}
 {% include "edit.html" %}
-{% include "review.html" %}
-{% include "edit_form.html" %}
+{% include "section_form.html" %}
 {% if !page.features.is_empty() %}
 <h2>{{ t.doc.features }}</h2>
 {% call m::items(page.features) %}{% endcall %}

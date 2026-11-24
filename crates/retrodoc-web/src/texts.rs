@@ -101,7 +101,7 @@ pub struct WebTexts {
     pub unbacked_hint: &'static str,
     pub diagram_source: &'static str,
     pub sequence_label: &'static str,
-    /// The label of the actions of a section (WEB-113).
+    /// The label of the actions of a section (SFM-6).
     pub section_actions: &'static str,
     pub previous: &'static str,
     pub next: &'static str,
@@ -380,7 +380,7 @@ pub struct EditTexts {
     pub outdated: OutdatedTexts,
     /// The mark of an edited section in a list.
     pub badge: &'static str,
-    /// The summary of the folded edit form.
+    /// The summary of the folded fields of the text in the form of a section (SFM-2).
     pub form_heading: &'static str,
     /// The labels of the fields of the form, in the order of `Field::ALL`.
     pub labels: [&'static str; 3],
@@ -388,15 +388,10 @@ pub struct EditTexts {
     pub form_hint: &'static str,
     /// The label of the narrative rendered as it is typed.
     pub preview: &'static str,
-    pub save: &'static str,
-    /// The notice of a save.
-    pub saved: &'static str,
     /// The button that removes the edit.
     pub revert: &'static str,
-    /// The question the revert asks before it is sent (WEB-121).
+    /// The question the revert asks before it is sent (SFM-5).
     pub revert_confirm: &'static str,
-    /// The action of a section that leads to its edit form, unfolded (WEB-113).
-    pub act: &'static str,
 }
 
 /// Why a review or an edit is outdated, in words.
@@ -423,9 +418,9 @@ pub struct ReviewTexts {
     pub no_status: &'static str,
     pub comment: &'static str,
     pub save: &'static str,
-    /// The notice of a save.
+    /// The notice of a save of the form of a section (SFM-8).
     pub saved: &'static str,
-    /// The action of a section that leads to its review form (WEB-113).
+    /// The action of a section that leads to its form (SFM-6).
     pub act: &'static str,
     pub outdated: OutdatedTexts,
     /// Beside the badge of an outdated review in a list.
@@ -790,7 +785,7 @@ impl WebTexts {
             no_status: "No review",
             comment: "Comment",
             save: "Save",
-            saved: "Review saved.",
+            saved: "Saved.",
             act: "Review",
             outdated: OutdatedTexts {
                 heading: "Outdated review",
@@ -817,15 +812,12 @@ impl WebTexts {
                 files_changed: "files changed since the edit:",
             },
             badge: "edited",
-            form_heading: "Edit this section",
+            form_heading: "Correct the text",
             labels: ["Name", "Description", "Narrative"],
             form_hint: "An empty field, or one left as generated, keeps the generated text.",
             preview: "Preview of the narrative",
-            save: "Save the edit",
-            saved: "Edit saved.",
             revert: "Back to the generated text",
             revert_confirm: "Remove the edit and show the generated text again?",
-            act: "Edit",
         },
         ask: AskTexts {
             link: "Ask",
@@ -1204,7 +1196,7 @@ impl WebTexts {
             no_status: "Pas de relecture",
             comment: "Commentaire",
             save: "Enregistrer",
-            saved: "Relecture enregistrée.",
+            saved: "Enregistré.",
             act: "Relire",
             outdated: OutdatedTexts {
                 heading: "Relecture périmée",
@@ -1231,15 +1223,12 @@ impl WebTexts {
                 files_changed: "fichiers modifiés depuis la correction :",
             },
             badge: "corrigée",
-            form_heading: "Corriger cette section",
+            form_heading: "Corriger le texte",
             labels: ["Nom", "Description", "Récit"],
             form_hint: "Un champ vide, ou laissé tel que généré, garde le texte généré.",
             preview: "Aperçu du récit",
-            save: "Enregistrer la correction",
-            saved: "Correction enregistrée.",
             revert: "Revenir au texte généré",
             revert_confirm: "Supprimer la correction et revenir au texte généré ?",
-            act: "Corriger",
         },
         ask: AskTexts {
             link: "Demander",

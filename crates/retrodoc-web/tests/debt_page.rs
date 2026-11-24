@@ -797,15 +797,15 @@ fn between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
     &rest[..to]
 }
 
-/// The actions of an item (WEB-113), `None` when it has none.
+/// The actions of an item (SFM-7), `None` when it has none.
 fn actions(item: &str) -> Option<&str> {
     let start = item.find("<nav class=\"section-actions\"")?;
     Some(&item[start..start + item[start..].find("</nav>").unwrap()])
 }
 
-// spec: WEB-115
+// spec: SFM-7
 #[tokio::test]
-async fn each_item_of_a_section_offers_to_review_or_edit_it() {
+async fn each_item_of_a_section_offers_to_review_it() {
     let repo = generated_repo();
     let page = debt(repo.path(), "/debt").await;
     let rows = items(&page);
@@ -820,14 +820,8 @@ async fn each_item_of_a_section_offers_to_review_or_edit_it() {
             "named by its section: {actions}"
         );
         assert!(
-            actions.contains(&format!(
-                "<a class=\"button secondary\" href=\"{href}#review\">Review</a>"
-            )),
-            "{actions}"
-        );
-        assert!(
-            actions.contains(&format!(
-                "<a class=\"button quiet\" href=\"{href}?edit=1#edit-form\">Edit</a>"
+            actions.ends_with(&format!(
+                "><a class=\"button secondary\" href=\"{href}#review\">Review</a>"
             )),
             "{actions}"
         );

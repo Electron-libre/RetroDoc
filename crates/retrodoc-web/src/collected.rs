@@ -116,7 +116,7 @@ impl<'a> NarrativeLinks<'a> {
 }
 
 /// The narrative of a use case rendered as its page and the preview of its edit show it (WEB-118),
-/// its line ends and surrounding whitespace cleaned as a save cleans them (WEB-94), its headings
+/// its line ends and surrounding whitespace cleaned as a save cleans them (SFM-10), its headings
 /// under the `h2` of its section with no anchor (WEB-122), its relative links resolved by `links`
 /// (WEB-123); `None` when it is blank.
 pub(crate) fn narrative_html(narrative: &str, links: &NarrativeLinks) -> Option<String> {

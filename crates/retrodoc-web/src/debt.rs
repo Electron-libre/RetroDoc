@@ -72,7 +72,7 @@ pub struct DebtRow {
     pub feature: Option<String>,
     /// The page of its section; `None` when its feature is not in the run.
     pub href: Option<String>,
-    /// Whether the item offers the review and edit of the page of its section (WEB-115): a
+    /// Whether the item offers the form of the page of its section (SFM-7): a
     /// domain, a feature or a use case of the run, not a rule.
     pub actions: bool,
     pub score: Option<Confidence>,

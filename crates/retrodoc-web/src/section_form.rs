@@ -1,0 +1,244 @@
+//! The one form of a section page (`specs/section-form.md`): a `POST` to the page of a domain, a
+//! feature or a use case saves its edit, then its review, through `retrodoc_docs::corrections`,
+//! and answers `htmx` with a reload of the page, else a redirect to it; a refusal or a failure
+//! answers `htmx` with the form alone, as sent, the error in it.
+
+use std::sync::Arc;
+
+use askama::Template;
+use axum::extract::{Path, State};
+use axum::http::{header, HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::Form;
+use retrodoc_docs::corrections::{self, Correction, CorrectionError, EditChange};
+use retrodoc_docs::edits::{self, EditsError, Fields};
+use retrodoc_docs::reviews::Status;
+use retrodoc_docs::GeneratedDocs;
+use serde::Deserialize;
+
+use crate::collected::NarrativeLinks;
+use crate::edit::is_edited;
+use crate::edit_form::EditFormView;
+use crate::pages::{blocking, form_answer, not_found, read_failed};
+use crate::review::{self as review_view, Place, ReviewView};
+use crate::texts::WebTexts;
+use crate::view::Site;
+
+/// What the form sends. A field of the text it leaves out is left as the page shows it, so that
+/// a form sending a status alone keeps the edit; the narrative only the form of a use case sends.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SectionForm {
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    comment: String,
+    name: Option<String>,
+    description: Option<String>,
+    narrative: Option<String>,
+    /// `revert` for the button that brings the generated text back (SFM-5).
+    #[serde(default)]
+    action: String,
+}
+
+/// The review and the form of a section, answered to `htmx` when a save is refused or fails,
+/// swapped in place of the former ones by `forms.js`, as any HTML error.
+#[derive(Template)]
+#[template(path = "section_form.html")]
+struct FormFragment {
+    t: &'static WebTexts,
+    review: ReviewView,
+    edit_form: EditFormView,
+}
+
+pub async fn domain(
+    State(site): State<Arc<Site>>,
+    Path(slug): Path<String>,
+    headers: HeaderMap,
+    Form(form): Form<SectionForm>,
+) -> Response {
+    save(site, Place::Domain(slug), &headers, form).await
+}
+
+pub async fn feature(
+    State(site): State<Arc<Site>>,
+    Path((domain, slug)): Path<(String, String)>,
+    headers: HeaderMap,
+    Form(form): Form<SectionForm>,
+) -> Response {
+    save(site, Place::Feature { domain, slug }, &headers, form).await
+}
+
+pub async fn use_case(
+    State(site): State<Arc<Site>>,
+    Path((domain, feature, slug)): Path<(String, String, String)>,
+    headers: HeaderMap,
+    Form(form): Form<SectionForm>,
+) -> Response {
+    let place = Place::UseCase {
+        domain,
+        feature,
+        slug,
+    };
+    save(site, place, &headers, form).await
+}
+
+/// What a save came to.
+enum Saved {
+    Done,
+    NotFound,
+    /// The status, and the review as it is saved with the form as sent, the error in it.
+    Refused(StatusCode, Box<(ReviewView, EditFormView)>),
+}
+
+/// A field as the form sent it, trimmed and with `\n` line ends (SFM-10).
+fn clean(text: &str) -> String {
+    text.replace("\r\n", "\n").trim().to_string()
+}
+
+/// What `form` does to the edit of the section at `place` of `docs` (SFM-3, SFM-11): the revert
+/// removes it; fields sent as the page shows them keep it; else the fields that change the
+/// generated text, cleaned, none removing it.
+fn edit_change(docs: &GeneratedDocs, place: &Place, form: &SectionForm) -> EditChange {
+    if form.action == "revert" {
+        return EditChange::Remove;
+    }
+    let section = place.section();
+    let shown = edits::fields_in(docs.sections(), &section).unwrap_or_default();
+    let generated = edits::fields_in(docs.generated(), &section).unwrap_or_default();
+    let sent = |field: &Option<String>, shown: &Option<String>| {
+        clean(field.as_deref().or(shown.as_deref()).unwrap_or_default())
+    };
+    let pairs = [
+        (&form.name, &shown.name, &generated.name),
+        (
+            &form.description,
+            &shown.description,
+            &generated.description,
+        ),
+        (&form.narrative, &shown.narrative, &generated.narrative),
+    ];
+    let unchanged = pairs
+        .iter()
+        .all(|(field, shown, _)| sent(field, shown) == clean(shown.as_deref().unwrap_or_default()));
+    if unchanged {
+        return EditChange::Keep;
+    }
+    let [name, description, narrative] = pairs.map(|(field, shown, generated)| {
+        let text = sent(field, shown);
+        (!text.is_empty() && text != clean(generated.as_deref().unwrap_or_default()))
+            .then_some(text)
+    });
+    let fields = Fields {
+        name,
+        description,
+        narrative,
+    };
+    if fields == Fields::default() {
+        EditChange::Remove
+    } else {
+        EditChange::Set(fields)
+    }
+}
+
+/// Saves `form` of the section at `place` of `docs`.
+fn write(site: &Site, docs: &GeneratedDocs, place: &Place, form: &SectionForm) -> Saved {
+    let errors = &site.texts().errors;
+    let sent = review_view::parse(form.status.trim());
+    let comment = form.comment.trim().to_string();
+    let refused = |code, error: String| {
+        let current = ReviewView::of(docs, &review_view::load(docs), place);
+        let review = current.refused(error, sent.flatten(), comment.clone());
+        let fields = sent_form(site, place, form, is_edited(docs, place));
+        Saved::Refused(code, Box::new((review, fields)))
+    };
+    let Some(status) = sent else {
+        return refused(StatusCode::BAD_REQUEST, errors.unknown_status.into());
+    };
+    if form.narrative.is_some() && !matches!(place, Place::UseCase { .. }) {
+        return refused(
+            StatusCode::BAD_REQUEST,
+            errors.narrative_of_use_case_only.into(),
+        );
+    }
+    let Some(root) = docs.repo_root() else {
+        return refused(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            errors.no_repository.into(),
+        );
+    };
+    let correction = Correction {
+        edit: edit_change(docs, place, form),
+        review: status.map(|status: Status| (status, comment.clone())),
+    };
+    match corrections::save(root, docs, &place.section(), &correction) {
+        Ok(_) => Saved::Done,
+        Err(err) if err.is_unknown_section() => Saved::NotFound,
+        Err(CorrectionError::Edits(EditsError::NoNarrative(_))) => refused(
+            StatusCode::BAD_REQUEST,
+            errors.narrative_of_use_case_only.into(),
+        ),
+        Err(err) => refused(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+    }
+}
+
+/// The fields of the text as `form` sent them, unfolded to show them.
+fn sent_form(site: &Site, place: &Place, form: &SectionForm, edited: bool) -> EditFormView {
+    let links = NarrativeLinks::of(site, place);
+    EditFormView::sent(
+        place,
+        form.name.clone().unwrap_or_default(),
+        form.description.clone().unwrap_or_default(),
+        form.narrative.as_deref(),
+        edited,
+        &links,
+    )
+}
+
+async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: SectionForm) -> Response {
+    let htmx = headers.contains_key("HX-Request");
+    let (at, sent) = (place.clone(), form.clone());
+    let saved = blocking(&site, move |site| {
+        match site.docs().filter(|docs| at.in_docs(docs)) {
+            None => Saved::NotFound,
+            Some(docs) => write(site, docs, &at, &sent),
+        }
+    })
+    .await;
+    let refused = |code, review: ReviewView, edit_form| {
+        if htmx {
+            let fragment = FormFragment {
+                t: site.texts(),
+                review,
+                edit_form,
+            };
+            form_answer(code, &fragment)
+        } else {
+            (code, review.form_error.unwrap_or_default()).into_response()
+        }
+    };
+    match saved {
+        Ok(Saved::Done) if htmx => {
+            (StatusCode::OK, [("HX-Redirect", place.saved_href())]).into_response()
+        }
+        Ok(Saved::Done) => (
+            StatusCode::SEE_OTHER,
+            [(header::LOCATION, place.saved_href())],
+        )
+            .into_response(),
+        // The form to `htmx`, which swaps an error it names the swap of; the not-found page
+        // otherwise.
+        Ok(Saved::NotFound) if htmx => {
+            let error = site.texts().errors.no_section.to_string();
+            let sent = review_view::parse(form.status.trim()).flatten();
+            let review = ReviewView::absent(&place, error, sent, form.comment.trim().into());
+            let edit_form = sent_form(&site, &place, &form, false);
+            refused(StatusCode::NOT_FOUND, review, edit_form)
+        }
+        Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,
+        Ok(Saved::Refused(code, form)) => {
+            let (review, edit_form) = *form;
+            refused(code, review, edit_form)
+        }
+        Err(err) => read_failed(&err),
+    }
+}

@@ -20,30 +20,6 @@ pub fn load(docs: &GeneratedDocs) -> Result<Reviews, ReviewsError> {
         .map_or_else(|| Ok(Reviews::default()), reviews::load)
 }
 
-/// The form of a section page that saved, as the redirect after a save names it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SavedForm {
-    Review,
-    Edit,
-}
-
-impl SavedForm {
-    fn key(self) -> &'static str {
-        match self {
-            Self::Review => "review",
-            Self::Edit => "edit",
-        }
-    }
-
-    /// The form the value of `saved` names, none for another value.
-    #[must_use]
-    pub fn named(value: &str) -> Option<Self> {
-        [Self::Review, Self::Edit]
-            .into_iter()
-            .find(|form| form.key() == value)
-    }
-}
-
 /// A section as its page names it: by its domain, and its feature for a use case.
 #[derive(Debug, Clone)]
 pub enum Place {
@@ -84,10 +60,10 @@ impl Place {
         }
     }
 
-    /// The page of the section, asked to say that `form` saved it (WEB-83, WEB-97, WEB-104).
+    /// The page of the section, asked to say that its form saved it (SFM-8, SFM-9).
     #[must_use]
-    pub fn saved_href(&self, form: SavedForm) -> String {
-        format!("{}?saved={}", self.href(), form.key())
+    pub fn saved_href(&self) -> String {
+        format!("{}?saved=1", self.href())
     }
 
     /// Whether `docs` hold it at that place: a feature in its domain, a use case in its feature.
@@ -231,7 +207,7 @@ pub struct ReviewView {
     pub error: Option<String>,
     /// Why the review sent was refused or not saved, shown in the form above its buttons.
     pub form_error: Option<String>,
-    /// Whether the form says that the review was saved (WEB-103, WEB-104).
+    /// Whether the form says that the section was saved (SFM-8).
     pub saved: bool,
     /// The comment the form holds when it is not that of the review: one sent by a save refused.
     pub draft: Option<String>,
@@ -309,6 +285,13 @@ impl ReviewView {
             ..Self::default()
         }
         .refused(error, status, comment)
+    }
+
+    /// Whether the form unfolds the fields of the text (SFM-2): the status `wrong` selected, or a
+    /// save refused.
+    #[must_use]
+    pub fn unfolds(&self) -> bool {
+        self.selected == Some(Status::Wrong) || self.form_error.is_some()
     }
 
     /// The choices of the form, labelled from `texts`: no review, then [`STATUSES`].
