@@ -102,7 +102,13 @@ pub async fn replay_domains(
     let map = tracker
         .in_pass(
             "domains",
-            build_domains_from_surface(work_root, &inputs.surface, &inputs.brief, llm),
+            build_domains_from_surface(
+                work_root,
+                &inputs.surface,
+                &inputs.brief,
+                llm,
+                &retrodoc_pipeline::Corrections::default(),
+            ),
         )
         .await?;
     figures(

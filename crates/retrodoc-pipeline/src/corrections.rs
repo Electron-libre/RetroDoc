@@ -74,6 +74,8 @@ impl Correction {
 /// The corrections of a run, grouped by the unit that writes their sections.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Corrections {
+    /// The domains.
+    domains: Vec<Correction>,
     /// The features, by the slug of their domain.
     features: BTreeMap<String, Vec<Correction>>,
     /// The use cases, by the slug of their feature.
@@ -81,6 +83,18 @@ pub struct Corrections {
 }
 
 impl Corrections {
+    /// Adds the correction of a domain; one that says nothing is left out.
+    pub fn add_domain(&mut self, correction: Correction) {
+        if !correction.is_empty() {
+            self.domains.push(correction);
+        }
+    }
+
+    /// The corrections of the domains (HCR-6).
+    pub(crate) fn domains(&self) -> &[Correction] {
+        &self.domains
+    }
+
     /// Adds the correction of a feature of the domain `domain`; one that says nothing is left out.
     pub fn add_feature(&mut self, domain: &str, correction: Correction) {
         if !correction.is_empty() {

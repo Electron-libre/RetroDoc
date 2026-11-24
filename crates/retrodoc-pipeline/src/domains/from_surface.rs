@@ -12,6 +12,7 @@ use serde::Deserialize;
 
 use super::{layer_named_domains, DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::brief::ProductBrief;
+use crate::corrections::{self, Correction, Corrections};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::naming::normalize;
@@ -110,6 +111,7 @@ pub async fn build_domains_from_surface(
     surface: &Surface,
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
+    corrections: &Corrections,
 ) -> Result<DomainMap, PipelineError> {
     if surface.is_empty() {
         let map = DomainMap::default();
@@ -119,14 +121,26 @@ pub async fn build_domains_from_surface(
 
     let mut prints = Fingerprints::load(repo_root);
     let input_print = surface_fingerprint(surface, brief, model_part(llm));
-    if prints.domains.as_ref() == Some(&input_print) {
+    // The uncategorized domain is gathered by the code, not written by the model.
+    let fixes: Vec<Correction> = corrections
+        .domains()
+        .iter()
+        .filter(|c| c.slug != UNCATEGORIZED_SLUG)
+        .cloned()
+        .collect();
+    let reviews = corrections::wrong_keys(&fixes);
+    let answered = corrections::answered_key("domains", "-");
+    if prints.domains.as_ref() == Some(&input_print)
+        && !corrections::pending(&prints, &answered, &reviews)
+    {
         if let Some(saved) = DomainMap::load(repo_root).filter(|m| !m.domains.is_empty()) {
             tracing::info!("domains unchanged, reused");
             return Ok(saved);
         }
     }
 
-    let prompt = surface_prompt(surface, brief);
+    let mut prompt = surface_prompt(surface, brief);
+    prompt.push_str(&corrections::prompt_part("domain", &fixes).unwrap_or_default());
     let raw = REQUEST
         .ask(llm, &prompt, "domains from the surface")
         .await?
@@ -144,6 +158,7 @@ pub async fn build_domains_from_surface(
     }
     map.save(repo_root)?;
     prints.domains = Some(input_print);
+    corrections::record_answered(&mut prints, answered, reviews);
     prints.save(repo_root)?;
     Ok(map)
 }

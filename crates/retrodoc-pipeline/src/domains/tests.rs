@@ -41,7 +41,7 @@ fn surface_of(entry_points: &str, glossary: &str) -> Surface {
 }
 
 /// Three resources (order, invoice, webhook) and three entities, in files of their own.
-fn shop_surface() -> Surface {
+pub(super) fn shop_surface() -> Surface {
     surface_of(
         "files:\n\
          \x20 app/orders_controller.rb:\n    content_hash: h\n    entry_points:\n\
@@ -58,7 +58,7 @@ fn shop_surface() -> Surface {
     )
 }
 
-const SHOP_ANSWER: &str = r#"{"domains":[
+pub(super) const SHOP_ANSWER: &str = r#"{"domains":[
     {"slug":"ordering","name":"Ordering","description":"Placing orders",
      "resources":["order","ghost"],"entities":["Order","Customer"]},
     {"slug":"billing","name":"Billing","description":"Invoicing",
@@ -69,10 +69,15 @@ async fn domains_from_the_surface_hold_resources_and_entities_and_their_files() 
     let dir = tempfile::tempdir().unwrap();
     let llm = FakeLlm::answering(SHOP_ANSWER);
 
-    let map =
-        build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
-            .await
-            .unwrap();
+    let map = build_domains_from_surface(
+        dir.path(),
+        &shop_surface(),
+        &ProductBrief::default(),
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
 
     let slugs: Vec<&str> = map.domains.iter().map(|d| d.slug.as_str()).collect();
     assert_eq!(slugs, ["ordering", "billing", UNCATEGORIZED_SLUG]);
@@ -123,10 +128,15 @@ async fn an_accented_domain_slug_of_the_answer_keeps_its_base_letters() {
          "resources":["order"],"entities":["Order"]}]}"#,
     );
 
-    let map =
-        build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
-            .await
-            .unwrap();
+    let map = build_domains_from_surface(
+        dir.path(),
+        &shop_surface(),
+        &ProductBrief::default(),
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(map.domains[0].slug, "preferences-clients");
 }
@@ -139,10 +149,15 @@ async fn two_domains_whose_slugs_leave_no_latin_letter_stay_apart() {
          {"slug":"счета","name":"Счета","description":"d","resources":["invoice"],"entities":["Invoice"]}]}"#,
     );
 
-    let map =
-        build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
-            .await
-            .unwrap();
+    let map = build_domains_from_surface(
+        dir.path(),
+        &shop_surface(),
+        &ProductBrief::default(),
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
 
     let slugs: Vec<&str> = map.domains.iter().map(|d| d.slug.as_str()).collect();
     assert_eq!(slugs[..2], ["unnamed", "unnamed-2"]);
@@ -157,9 +172,15 @@ async fn a_name_the_surface_does_not_know_is_dropped_at_info() {
          "resources":["order","ghost"],"entities":["Order","Phantom"]}]}"#,
     );
 
-    build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    build_domains_from_surface(
+        dir.path(),
+        &shop_surface(),
+        &ProductBrief::default(),
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
 
     let logs = logs.text();
     let dropped: Vec<&str> = logs
@@ -177,12 +198,24 @@ async fn the_surface_domains_are_reused_while_the_surface_and_the_model_are_unch
     let surface = shop_surface();
     let brief = ProductBrief::default();
 
-    let first = build_domains_from_surface(dir.path(), &surface, &brief, &llm)
-        .await
-        .unwrap();
-    let again = build_domains_from_surface(dir.path(), &surface, &brief, &llm)
-        .await
-        .unwrap();
+    let first = build_domains_from_surface(
+        dir.path(),
+        &surface,
+        &brief,
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
+    let again = build_domains_from_surface(
+        dir.path(),
+        &surface,
+        &brief,
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
 
     assert_eq!(llm.calls(), 1);
     assert_eq!(first.domains.len(), again.domains.len());
@@ -194,9 +227,15 @@ async fn the_surface_domains_are_reused_while_the_surface_and_the_model_are_unch
          \x20   - {kind: http_route, name: DELETE /orders, verb: cancel, resource: order}\n",
         "models: {}\ntests: []\n",
     );
-    build_domains_from_surface(dir.path(), &more, &brief, &llm)
-        .await
-        .unwrap();
+    build_domains_from_surface(
+        dir.path(),
+        &more,
+        &brief,
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(llm.calls(), 2);
 }
 
@@ -208,6 +247,7 @@ async fn an_empty_surface_gives_no_domain_and_asks_nothing() {
         &Surface::default(),
         &ProductBrief::default(),
         &never_called(),
+        &crate::corrections::Corrections::default(),
     )
     .await
     .unwrap();
@@ -223,10 +263,15 @@ async fn a_domain_the_model_calls_uncategorized_is_the_one_bucket_the_leftovers_
             {"slug":"billing","name":"Billing","description":"y","resources":["invoice"],"entities":["Invoice"]}]}"#,
     );
 
-    let map =
-        build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
-            .await
-            .unwrap();
+    let map = build_domains_from_surface(
+        dir.path(),
+        &shop_surface(),
+        &ProductBrief::default(),
+        &llm,
+        &crate::corrections::Corrections::default(),
+    )
+    .await
+    .unwrap();
 
     let slugs: Vec<&str> = map.domains.iter().map(|d| d.slug.as_str()).collect();
     assert_eq!(slugs, [UNCATEGORIZED_SLUG, "billing"]);

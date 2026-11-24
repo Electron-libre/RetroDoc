@@ -68,8 +68,8 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
 2. [x] Features: the corrections of the features of a domain in its call (the slice holding them), new code in
    `features/from_surface/corrections.rs` (`from_surface.rs` is over the file size limit); verified by pipeline
    tests; makes true HCR-6 (feature), HCR-H2, the slice scenario (~450 lines). (autonomous)
-3. [ ] Domains: the corrections of the domains in the domains call; verified by pipeline tests; makes true HCR-6
-   (domain), HCR-9 scenario; spec `accepted` (~300 lines).
+3. [x] Domains: the corrections of the domains in the domains call; verified by pipeline tests; makes true HCR-6
+   (domain), HCR-9 scenario; spec `accepted` (~300 lines). (autonomous)
 4. [ ] Measure: on a saved run of the default smoke repository, a few edits and `wrong` reviews, then `generate`:
    calls rerun, cost, corrected sections kept in substance (slug and text); entry in `docs/findings.md` and the
    ledger. Paid DeepSeek run: asked before it starts (~60 lines).
@@ -106,3 +106,12 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
 - File size: `features/from_surface.rs` (+18 lines of wiring, the logic in `from_surface/corrections.rs`) and
   `generate/mod.rs` (801, +1 argument) not split here: a split by responsibility is a refactor of its own.
 - not verified: the corrections on a real model (deliverable 4).
+
+### 3. Domains
+- done: the domains call is given the corrections of the domains (the uncategorized one left out); a domain marked
+  wrong asks it again once; spec `accepted`, non-goal for `domains_from = "contexts"`.
+- red: HCR-2, HCR-4, HCR-6: `left: [1, 1, 1], right: [2, 1, 1]` (no domains call after the review `wrong`); HCR-1,
+  HCR-5, HCR-6, HCR-9 (internal): did not compile, no corrections argument yet.
+- Code review: no findings.
+- File size: `generate/mod.rs` at 802 (+1 argument), not split here, as in deliverable 2.
+- not verified: the cascade of a domain `wrong` on a real model (deliverable 4).

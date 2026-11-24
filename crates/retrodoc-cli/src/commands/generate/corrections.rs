@@ -5,6 +5,7 @@
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_core::artifacts::DomainMap;
 use retrodoc_docs::edits::{self, Edit};
 use retrodoc_docs::history::SectionKind;
 use retrodoc_docs::reviews::{self, Review, Status};
@@ -43,6 +44,14 @@ pub(super) fn load(repo_root: &Path) -> anyhow::Result<Corrections> {
         )
     };
     let mut corrections = Corrections::default();
+    for domain in DomainMap::load(repo_root).unwrap_or_default().domains {
+        let section = Section::new(SectionKind::Domain, domain.slug.clone());
+        corrections.add_domain(of(
+            section,
+            &domain.slug,
+            (&domain.name, &domain.description),
+        ));
+    }
     for feature in retrodoc_core::artifacts::load_features(repo_root).unwrap_or_default() {
         let section = Section::new(SectionKind::Feature, feature.slug.clone());
         corrections.add_feature(

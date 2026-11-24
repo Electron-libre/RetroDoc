@@ -241,7 +241,7 @@ there; `specs/run-estimate.md`).
 
 The human corrections of the docs guide the passes that write the sections again (ADR 0056,
 `specs/human-corrections.md`): `generate` reads `.retrodoc/edits.json` and `.retrodoc/reviews.json` before `--force`
-removes anything, and gives a unit the corrections of the sections it writes (the features of a domain to its call, or to the slice that
+removes anything, and gives a unit the corrections of the sections it writes (the domains to the domains call, the features of a domain to its call, or to the slice that
 holds them, the use cases of a feature to its call):
 an edit as the text to keep, a review `wrong` with its comment as what to fix, a review `validated` as the text to
 keep. They are out of the fingerprints, so an edit or a validation asks nothing again by itself and guides the next

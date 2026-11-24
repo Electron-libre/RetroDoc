@@ -466,6 +466,7 @@ async fn cluster_domains_from_surface(
         surface,
         brief,
         run.llm.get(passes::DOMAINS)?.as_ref(),
+        run.corrections,
     )
     .await
     .context("failed to build the domains from the surface")

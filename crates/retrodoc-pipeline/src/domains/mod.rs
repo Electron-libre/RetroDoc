@@ -10,6 +10,8 @@
 
 pub(crate) use retrodoc_core::artifacts::domains::{DomainCluster, DomainMap};
 
+#[cfg(test)]
+mod corrections_tests;
 mod from_surface;
 mod prompt;
 #[cfg(test)]

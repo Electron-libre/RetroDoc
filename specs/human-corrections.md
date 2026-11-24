@@ -1,6 +1,6 @@
 ---
 id: HCR
-status: draft
+status: accepted
 adrs: [0037, 0044, 0045, 0056]
 ---
 
@@ -77,6 +77,8 @@ or contradict what a human fixed, and a section marked wrong is written again.
   "rewritten" (SED-34), and the team keeps or drops it.
 - No check that the model followed a correction: what it writes depends on the model, measured on a saved run, not
   required.
+- With `domains_from = "contexts"`, no correction of a domain: its domains come from the map of the bounded contexts,
+  which reads none.
 - No correction read by the other passes (steps beyond the use case call, business rules, glossary, confidence,
   reconciliation).
 - A review `wrong` outdated by the rewrite it asked keeps guiding the later rewrites of its unit until the team

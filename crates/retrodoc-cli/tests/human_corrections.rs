@@ -273,3 +273,36 @@ fn a_feature_marked_wrong_asks_its_domain_again_once_with_the_comment() {
     succeeds(&generate(dir.path()));
     assert_eq!(llm.calls().len(), calls);
 }
+
+// spec: HCR-2, HCR-4, HCR-6
+#[test]
+fn a_domain_marked_wrong_asks_the_domains_again_once_with_the_comment() {
+    let llm = fake_llm();
+    let dir = shop(&llm);
+    succeeds(&generate(dir.path()));
+    let [domains, features, use_cases] = writing_calls(&llm);
+    let reviews = serde_json::json!({
+        "version": 1,
+        "reviews": [{
+            "kind": "domain", "id": "orders", "status": "wrong",
+            "comment": "Name it after the purchases.", "author": "A",
+            "reviewed_at": "2026-11-24T10:00:00Z", "fingerprint": "0f",
+        }],
+    });
+    std::fs::write(
+        dir.path().join(".retrodoc/reviews.json"),
+        serde_json::to_string_pretty(&reviews).unwrap(),
+    )
+    .unwrap();
+
+    succeeds(&generate(dir.path()));
+
+    // The same answer: the features and the use cases are reused.
+    assert_eq!(writing_calls(&llm), [domains + 1, features, use_cases]);
+    let asked = llm.calls_of("domains").pop().unwrap().user;
+    assert!(asked.contains("domain `orders`"), "{asked}");
+    assert!(asked.contains("Name it after the purchases."), "{asked}");
+    let calls = llm.calls().len();
+    succeeds(&generate(dir.path()));
+    assert_eq!(llm.calls().len(), calls);
+}
