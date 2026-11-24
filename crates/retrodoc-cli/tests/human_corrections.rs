@@ -306,3 +306,40 @@ fn a_domain_marked_wrong_asks_the_domains_again_once_with_the_comment() {
     succeeds(&generate(dir.path()));
     assert_eq!(llm.calls().len(), calls);
 }
+
+// spec: HCR-1, HCR-6
+#[test]
+fn a_forced_run_gives_the_features_call_the_edit_of_a_feature() {
+    let llm = fake_llm();
+    let dir = shop(&llm);
+    succeeds(&generate(dir.path()));
+    write_edits(
+        dir.path(),
+        &serde_json::json!([{
+            "kind": "feature", "id": "list-orders", "name": "Browse the orders",
+            "edited_at": "2026-11-24T10:00:00Z", "fingerprint": "0f",
+        }]),
+    );
+
+    // `--force` removes `features.yaml`: the feature is matched with what was read before.
+    succeeds(&run(dir.path(), &["generate", "--force"]));
+
+    let asked = llm.calls_of("features").pop().unwrap().user;
+    assert!(asked.contains("feature `list-orders`"), "{asked}");
+    assert!(asked.contains("Browse the orders"), "{asked}");
+}
+
+// spec: HCR-3
+#[test]
+fn a_validated_use_case_is_given_with_its_narrative() {
+    let llm = fake_llm();
+    let dir = shop(&llm);
+    succeeds(&generate(dir.path()));
+    review_the_use_case(dir.path(), "validated", "", "2026-11-24T11:00:00Z");
+
+    succeeds(&run(dir.path(), &["generate", "--force"]));
+
+    let asked = llm.calls_of("use-cases").pop().unwrap().user;
+    assert!(asked.contains("validated"), "{asked}");
+    assert!(asked.contains("The customer lists the orders."), "{asked}");
+}

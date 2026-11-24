@@ -54,24 +54,33 @@ pub(super) fn load(repo_root: &Path) -> anyhow::Result<Corrections> {
     }
     for feature in retrodoc_core::artifacts::load_features(repo_root).unwrap_or_default() {
         let section = Section::new(SectionKind::Feature, feature.slug.clone());
+        let correction = of(
+            section,
+            &feature.slug,
+            (&feature.name, &feature.description),
+        );
         corrections.add_feature(
             &feature.domain_slug,
-            of(
-                section,
-                &feature.slug,
-                (&feature.name, &feature.description),
-            ),
+            // What tells the slice that writes it, once `--force` removed the saved features.
+            Correction {
+                entry_points: feature.entry_points.clone(),
+                ..correction
+            },
         );
     }
     for use_case in retrodoc_core::artifacts::load_use_cases(repo_root).unwrap_or_default() {
         let section = Section::use_case(&use_case.feature_slug, &use_case.slug);
+        let correction = of(
+            section,
+            &use_case.slug,
+            (&use_case.name, &use_case.description),
+        );
         corrections.add_use_case(
             &use_case.feature_slug,
-            of(
-                section,
-                &use_case.slug,
-                (&use_case.name, &use_case.description),
-            ),
+            Correction {
+                shown_narrative: correction.narrative.clone().or(use_case.narrative),
+                ..correction
+            },
         );
     }
     Ok(corrections)
@@ -101,6 +110,7 @@ fn correction(
         description: edited_description,
         narrative: field(|f| &f.narrative),
         verdict: review.and_then(verdict),
+        ..Correction::default()
     }
 }
 

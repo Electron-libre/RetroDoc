@@ -190,11 +190,11 @@ Each domain, feature and use case has two forms:
   with its author and date; one button brings the generated text back.
 
 Both files are yours: no `generate`, `--force` included, writes them, and they are read by the next run. When a run
-writes a domain, a feature or a use case again (its code changed, another model, or a review `wrong`), it is given what you said of it: your
-edited text as the one to keep unless the code contradicts it, the comment of a review `wrong` as what to fix, a
-validated text as the one to keep. A domain, a feature or a use case marked wrong is written again at the next `generate`, once per review;
-an edit or a validation asks for no call by itself. A rewrite still flags your edit as outdated: compare it with the
-new text, then keep or drop it.
+writes a domain, a feature or a use case again (its code changed, another model, or a review `wrong`), it is given
+what you said of it: your edited text as the one to keep unless the code contradicts it, the comment of a review
+`wrong` as what to fix, a validated text as the one to keep. A domain, a feature or a use case marked wrong is written
+again at the next `generate`, once per review; an edit or a validation asks for no call by itself. A rewrite still
+flags your edit as outdated: compare it with the new text, then keep or drop it.
 
 After editing, `retrodoc render --path ~/src/linkding` writes the Markdown again from the saved artifacts, with no
 LLM call.

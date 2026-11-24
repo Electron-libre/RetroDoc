@@ -1,6 +1,6 @@
 # 0056. The human corrections reach the passes as input of the command
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

@@ -42,17 +42,19 @@ fn answers_per_domain(prompt: &str) -> String {
     .to_string()
 }
 
-fn renamed(slug: &str, name: &str) -> Correction {
+fn renamed(slug: &str, name: &str, entry_points: &[&str]) -> Correction {
     Correction {
         slug: slug.to_string(),
         name: Some(name.to_string()),
+        entry_points: entry_points.iter().map(ToString::to_string).collect(),
         ..Correction::default()
     }
 }
 
-fn wrong(slug: &str, comment: &str) -> Correction {
+fn wrong(slug: &str, comment: &str, entry_points: &[&str]) -> Correction {
     Correction {
         slug: slug.to_string(),
+        entry_points: entry_points.iter().map(ToString::to_string).collect(),
         verdict: Some(Verdict::Wrong {
             comment: comment.to_string(),
             reviewed_at: "2026-11-24T10:00:00Z".to_string(),
@@ -71,8 +73,14 @@ async fn a_domain_asked_again_is_given_the_edited_name_of_its_feature() {
     run(dir.path(), (&domains, &entries), &llm, &none).await;
     let calls = llm.calls();
     let mut corrections = Corrections::default();
-    corrections.add_feature("orders", renamed("place-order", "Order goods"));
-    corrections.add_feature("routing", renamed("list-routes", "Browse routes"));
+    corrections.add_feature(
+        "orders",
+        renamed("place-order", "Order goods", &["orders.rb#GET /orders"]),
+    );
+    corrections.add_feature(
+        "routing",
+        renamed("list-routes", "Browse routes", &["orders.rb#GET /routes"]),
+    );
 
     run(dir.path(), (&domains, &entries), &llm, &corrections).await;
     assert_eq!(llm.calls(), calls, "an edit asks nothing again by itself");
@@ -112,7 +120,10 @@ async fn a_feature_marked_wrong_asks_again_the_slice_that_holds_it_once() {
     let calls = llm.calls();
     let mut corrections = Corrections::default();
     // `later` holds an entry point of the second slice only.
-    corrections.add_feature("big", wrong("later", "It is done at once."));
+    corrections.add_feature(
+        "big",
+        wrong("later", "It is done at once.", &["b.rb#GET /b1"]),
+    );
 
     run(dir.path(), (&domains, &entries), &llm, &corrections).await;
 

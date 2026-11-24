@@ -602,13 +602,7 @@ impl SurfaceRun<'_> {
                 &close,
                 self.llm,
             );
-            let fixes = SliceCorrections::of(
-                self.corrections,
-                self.previous,
-                (&domain.slug, &key),
-                slice,
-                entries,
-            );
+            let fixes = SliceCorrections::of(self.corrections, (&domain.slug, &key), slice);
             if self.known_units.get(&key) == Some(&print) && !fixes.pending(prints) {
                 if let Some(kept) =
                     reusable_slice(self.previous, features, &domain.slug, slice, entries)

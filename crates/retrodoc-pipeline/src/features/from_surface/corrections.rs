@@ -1,9 +1,7 @@
 //! The human corrections of the features a slice of a domain writes (`specs/human-corrections.md`):
-//! the corrections of the features the previous run saved with an entry point of the slice.
+//! the corrections of the features that held an entry point of the slice when they were read.
 
-use retrodoc_core::model::Feature;
-
-use super::{restricted, Entry};
+use super::Entry;
 use crate::corrections::{self, Correction, Corrections};
 use crate::fingerprints::Fingerprints;
 
@@ -21,20 +19,21 @@ pub(super) struct SliceCorrections {
 }
 
 impl SliceCorrections {
-    /// The corrections of the features of `domain_slug` the previous run saved with an entry point
-    /// of `slice`, the slice of `entries` whose print is under `key` (HCR-6).
+    /// The corrections of the features of `domain_slug` that held an entry point of `slice` when the
+    /// corrections were read, the slice whose print is under `key` (HCR-6).
     pub(super) fn of(
         corrections: &Corrections,
-        previous: &[Feature],
         (domain_slug, key): (&str, &str),
         slice: &[Entry<'_>],
-        entries: &[Entry<'_>],
     ) -> Self {
-        let held = restricted(previous, domain_slug, slice, entries);
         let fixes: Vec<Correction> = corrections
             .features_of(domain_slug)
             .iter()
-            .filter(|c| held.iter().any(|f| f.slug == c.slug))
+            .filter(|c| {
+                c.entry_points
+                    .iter()
+                    .any(|id| slice.iter().any(|e| &e.id == id))
+            })
             .cloned()
             .collect();
         Self {

@@ -44,6 +44,11 @@ pub struct Correction {
     /// vouched for.
     pub shown_name: String,
     pub shown_description: String,
+    /// The narrative the docs show, the edit applied, for a use case.
+    pub shown_narrative: Option<String>,
+    /// The entry points the section held when the corrections were read, for a feature: they tell
+    /// the slice of its domain that writes it (HCR-6), `--force` having removed the saved features.
+    pub entry_points: Vec<String>,
 }
 
 impl Correction {
@@ -180,7 +185,7 @@ pub(crate) fn prompt_part(kind: &str, corrections: &[Correction]) -> Option<Stri
         .into_iter()
         .filter_map(|(field, text)| {
             text.as_deref()
-                .map(|text| format!(" {field} \"{}\"", one_line(text)))
+                .map(|text| format!(" {field} {}", quoted(text)))
         })
         .collect();
         if !edited.is_empty() {
@@ -191,21 +196,30 @@ pub(crate) fn prompt_part(kind: &str, corrections: &[Correction]) -> Option<Stri
                 part.push_str(WRONG_NO_COMMENT);
             }
             Some(Verdict::Wrong { comment, .. }) => {
-                let _ = write!(part, "{WRONG} \"{}\".", one_line(comment));
+                let _ = write!(part, "{WRONG} {}.", quoted(comment));
             }
             Some(Verdict::Validated) => {
                 let _ = write!(
                     part,
-                    "{VALIDATED} name \"{}\"; description \"{}\".",
-                    one_line(&correction.shown_name),
-                    one_line(&correction.shown_description)
+                    "{VALIDATED} name {}; description {}",
+                    quoted(&correction.shown_name),
+                    quoted(&correction.shown_description)
                 );
+                if let Some(narrative) = &correction.shown_narrative {
+                    let _ = write!(part, "; narrative {}", quoted(narrative));
+                }
+                part.push('.');
             }
             None => {}
         }
         part.push('\n');
     }
     Some(part)
+}
+
+/// `text` on one line, as a JSON string: a quote of the human text can't end it early.
+fn quoted(text: &str) -> String {
+    serde_json::to_string(&one_line(text)).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -257,6 +271,17 @@ mod tests {
         }
         // A review removed asks nothing.
         assert!(!pending(&prints, "use cases:d/f", &[]));
+    }
+
+    #[test]
+    fn a_quote_of_a_comment_does_not_end_it() {
+        let part = prompt_part(
+            "feature",
+            &[wrong("a", "Name it \"Checkout\"; keep it", "t")],
+        );
+        assert!(part
+            .unwrap()
+            .contains(r#"fix it: "Name it \"Checkout\"; keep it"."#),);
     }
 
     #[test]

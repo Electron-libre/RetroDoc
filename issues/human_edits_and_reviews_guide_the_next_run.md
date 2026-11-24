@@ -73,6 +73,9 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
 4. [x] Measure: on a saved run of the default smoke repository, a few edits and `wrong` reviews, then `generate`:
    calls rerun, cost, corrected sections kept in substance (slug and text); entry in `docs/findings.md` and the
    ledger. Paid DeepSeek run: asked before it starts (~60 lines). (autonomous, the run asked and agreed)
+5. [x] Docs of the whole issue and fixes of its `high` review: feature corrections matched by the entry points read
+   before `--force`, a validated use case given with its narrative, human text quoted as JSON; verified by binary tests;
+   makes true HCR-1, HCR-3, HCR-6 under `--force`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -125,3 +128,20 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
 - red: none (a measure, no test).
 - Code review: no findings.
 - not verified: the edits on a real rewrite (their units were not asked by this run, by design).
+
+### 5. Docs and review fixes
+- done: `update-docs` over the issue (paragraphs reflowed, the `contexts` limit stated, ADR 0056 accepted); the high
+  review's fixes below.
+- red: HCR-1, HCR-6: under `--force` the features request held no correction (`features.yaml` removed before the
+  pass); HCR-3: the validated use case was sent without its narrative.
+- High review: 8 findings.
+  - Feature corrections lost under `--force` (important): fixed, a correction carries the entry points its feature
+    held when read, and a slice matches only its own entry points (fixes the nit of a feature held by every slice).
+  - Validated use case without its narrative (important): fixed, `shown_narrative`.
+  - Quotes of a human text not escaped: fixed, quoted as JSON strings.
+  - Blank line splitting a list of `docs/crates/pipeline.md`: fixed.
+  - Estimate blind to pending reviews `wrong`: not fixed, `issues/estimate_counts_the_units_a_wrong_review_asks.md`.
+  - Corrections added after the prompt budget: not fixed, they are the few sections of one unit; a cap would cut a
+    human's text.
+  - `Fingerprints::answered` never pruned: not fixed, a few keys per corrected unit, cleared by `--force`.
+- Code review (low, of this deliverable): no findings.
