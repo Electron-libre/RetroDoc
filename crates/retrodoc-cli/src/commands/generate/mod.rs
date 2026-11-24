@@ -11,11 +11,12 @@ use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
-    Actors, CodeIndex, EntryPoints, Evidence, ProductBrief, RoleMap, Surface, UseCaseContext,
-    WalkedFiles,
+    Actors, CodeIndex, Corrections, EntryPoints, Evidence, ProductBrief, RoleMap, Surface,
+    UseCaseContext, WalkedFiles,
 };
 
 mod contexts;
+mod corrections;
 mod estimate;
 mod force;
 mod open;
@@ -123,7 +124,7 @@ pub async fn run(
         max_files,
         ..
     } = *options;
-    let (workspace, mut ingest) = open::open_workspace(path, force, options.estimate)?;
+    let (workspace, mut ingest, corrections) = open::open_workspace(path, force, options.estimate)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
     *printed = Some(estimate::print(repo_root, config, options, &ingest));
     if options.estimate {
@@ -157,6 +158,7 @@ pub async fn run(
         off: &off,
         tracker,
         force,
+        corrections: &corrections,
     };
 
     if config.pipeline.domains_from == DomainsFrom::Contexts {
@@ -233,6 +235,8 @@ struct Run<'a> {
     tracker: &'a UsageTracker,
     /// Ask again what is kept until then (`--force`).
     force: bool,
+    /// The human corrections of the docs, read before `--force` removed the saved results.
+    corrections: &'a Corrections,
 }
 
 impl Run<'_> {
@@ -357,6 +361,7 @@ fn use_case_context(
         rule_evidence,
         put_back: run.config.rules.clone(),
         walked: run.walked.clone(),
+        corrections: run.corrections.clone(),
     }
 }
 

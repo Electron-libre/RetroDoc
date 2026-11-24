@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use futures_util::stream::{self, StreamExt};
 use retrodoc_core::model::Feature;
 
+use crate::corrections::{answered_key, record_answered};
 use crate::error::PipelineError;
 use crate::fingerprints::{feature_key, Fingerprints};
 use crate::progress::Progress;
@@ -34,6 +35,9 @@ pub(crate) struct Unit<'f, A> {
     pub key: String,
     pub print: String,
     pub plan: Plan<A>,
+    /// The keys of the reviews `wrong` the call answers (`crate::corrections`), recorded once it
+    /// is answered.
+    pub reviews: Vec<String>,
 }
 
 /// What a pass gives the loop.
@@ -137,6 +141,7 @@ pub(crate) async fn run<P: FeaturePass>(
             key,
             print,
             plan,
+            reviews,
         } = unit;
         match (plan, answer) {
             (Plan::Reuse, _) => {
@@ -161,6 +166,7 @@ pub(crate) async fn run<P: FeaturePass>(
                         return Err(err);
                     }
                     Ok(true) => {
+                        record_answered(prints, answered_key(P::NAME, &key), reviews);
                         P::prints(prints).insert(key, print);
                     }
                     // Asked again on the next run: with its saved results goes their print, so

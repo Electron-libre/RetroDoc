@@ -557,6 +557,7 @@ fn plan_unit<'a>(
             key,
             print,
             plan,
+            reviews: Vec::new(),
         },
         (feature.slug.clone(), reach),
     )

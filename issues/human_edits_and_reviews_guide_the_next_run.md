@@ -48,3 +48,50 @@ Read by someone taking an application over
   crate edge, an ADR decision.
 * An edit must stay the user's text: the run may propose, never overwrite `.retrodoc/edits.json`.
 * Measures are paid: read the ledger first and ask before a run.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-24
+
+## Understanding
+`generate` gives the domains, features and use cases passes the edits and reviews of the sections each unit writes
+(edit = text to keep, `wrong` + comment = what to fix, `validated` = keep), by slug; only a `wrong` review asks its
+unit again, once. The CLI loads the stores and hands plain data to the pipeline (no new crate edge, ADR 0056). Out:
+writing to `edits.json`/`reviews.json`, other passes, any change of the outdated rule. Spec: `specs/human-corrections.md`.
+
+## Plan
+1. [x] Corrections and use cases: `Corrections` type (`retrodoc-pipeline/src/corrections.rs`: per-section input, the
+   prompt part, the set of `wrong` reviews answered in `fingerprints.json`), loaded by `generate` from the two stores
+   (fails before any call on a bad file), given to the use cases pass; README answers "are my edits kept, do they
+   guide the next run"; verified by pipeline tests with a fake LLM and a CLI test for the bad file; makes true HCR-1
+   to HCR-5, HCR-7 to HCR-12 for use cases, HCR-6 (use case), HCR-H1 (~900 lines). (autonomous)
+2. [ ] Features: the corrections of the features of a domain in its call (the slice holding them), new code in
+   `features/from_surface/corrections.rs` (`from_surface.rs` is over the file size limit); verified by pipeline
+   tests; makes true HCR-6 (feature), HCR-H2, the slice scenario (~450 lines).
+3. [ ] Domains: the corrections of the domains in the domains call; verified by pipeline tests; makes true HCR-6
+   (domain), HCR-9 scenario; spec `accepted` (~300 lines).
+4. [ ] Measure: on a saved run of the default smoke repository, a few edits and `wrong` reviews, then `generate`:
+   calls rerun, cost, corrected sections kept in substance (slug and text); entry in `docs/findings.md` and the
+   ledger. Paid DeepSeek run: asked before it starts (~60 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 944963231fee83b2373ce5cd7ce8d83706646ab6
+- An edit does not ask its unit again: it guides the next rewrite the unit gets for another reason (HCR-5).
+- A review `validated` is only shown to the model as the text to keep, never put back by the code.
+- A review `wrong` of a domain asks the domains call again, cascade included; its cost is measured in deliverable 4.
+- HCR-11 aligned on RHI-14 (accepted): an unreadable `reviews.json` is warned of and gives no review, the run goes on;
+  an unreadable `edits.json` still stops it before any call (deliverable 1).
+
+## Summaries
+
+### 1. Corrections and use cases
+- done: `generate` reads the edits and reviews before `--force`, gives each feature's use cases call the corrections of
+  its use cases; a review `wrong` asks its feature again once (`Fingerprints::answered`); tutorial answers the question.
+- red: HCR-H1, HCR-2, HCR-4, HCR-6, HCR-8, HCR-10: use-cases calls unchanged after the review `wrong` (left
+  `[1, 1, 1]`, right `[1, 1, 2]`); HCR-1, HCR-3: the forced rerun's request lacked the edited narrative; HCR-11: an
+  unreadable `reviews.json` did not stop `generate` (test rewritten after aligning on RHI-14); HCR-5, HCR-9, HCR-12
+  passed before the code (nothing guided the run yet).
+- Code review: 1 finding. Not fixed: `load_use_cases` gives `None` both for no saved use case (a first run, the
+  usual case) and for an unreadable file, so a warning would fire on every first run.
+- not verified: the corrections on a real model (deliverable 4).

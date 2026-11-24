@@ -27,6 +27,7 @@ use crate::actors::Actors;
 use crate::artifact::warn_on_error;
 use crate::brief::{Evidence, ProductBrief};
 use crate::chunks::{Focus, Splitter};
+use crate::corrections::{self, Corrections};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::{entry_point_id, file_ranges, unique_slug};
@@ -141,6 +142,8 @@ pub struct UseCaseContext {
     /// The files of the walk: a file a saved feature or entry point names is shown only when it is one of them,
     /// as `features.yaml` and `entry-points.yaml` can be edited (none by default: no file is shown).
     pub walked: WalkedFiles,
+    /// The human corrections of the use cases (`specs/human-corrections.md`), out of the prints.
+    pub corrections: Corrections,
 }
 
 impl UseCaseContext {
@@ -187,7 +190,14 @@ pub async fn build_use_cases(
         previous: saved.unwrap_or_default(),
     };
     let splitter = load_splitter(repo_root);
-    let units = plan_units(repo_root, features, context, &known, &splitter, llm);
+    let units = plan_units(
+        repo_root,
+        features,
+        context,
+        (&known, &prints),
+        &splitter,
+        llm,
+    );
     let use_cases = per_feature::run(&pass, units, &mut prints, &known, concurrency).await?;
 
     // Use cases first: a fingerprint without its use cases would freeze a
@@ -308,7 +318,7 @@ fn plan_units<'a>(
     repo_root: &Path,
     features: &'a [Feature],
     context: &UseCaseContext,
-    known: &BTreeMap<String, String>,
+    (known, answered): (&BTreeMap<String, String>, &Fingerprints),
     splitter: &Splitter,
     llm: &dyn LlmProvider,
 ) -> Vec<Unit<'a, Vec<Request>>> {
@@ -331,15 +341,24 @@ fn plan_units<'a>(
                 evidence: &close,
             };
             let print = feature_fingerprint(&context.walked, feature, &input, &framing, llm);
-            let plan = if known.get(&key) == Some(&print) {
+            let fixes = context.corrections.use_cases_of(&feature.slug);
+            let reviews = corrections::wrong_keys(fixes);
+            let pending = corrections::pending(
+                answered,
+                &corrections::answered_key(UseCasesPass::NAME, &key),
+                &reviews,
+            );
+            let shown = corrections::prompt_part("use case", fixes);
+            let plan = if known.get(&key) == Some(&print) && !pending {
                 Plan::Reuse
             } else {
                 let requests: Vec<Request> = input
                     .calls(repo_root, feature, context)
                     .into_iter()
                     .filter_map(|input| {
-                        let (prompt, cited_files) =
+                        let (mut prompt, cited_files) =
                             use_cases_prompt(&context.walked, feature, &input, &framing, splitter);
+                        prompt.push_str(shown.as_deref().unwrap_or_default());
                         if cited_files.is_empty() {
                             tracing::warn!(feature = %feature.slug, "slice left out: none of its files is readable");
                         }
@@ -365,6 +384,7 @@ fn plan_units<'a>(
                 key,
                 print,
                 plan,
+                reviews,
             }
         })
         .collect()

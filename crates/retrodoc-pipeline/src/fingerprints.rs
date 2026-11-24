@@ -54,6 +54,10 @@ pub(crate) struct Fingerprints {
     /// Another of either scores them all again.
     #[serde(default)]
     pub confidence_model: Option<String>,
+    /// The reviews `wrong` each unit was last asked with, `<pass>:<unit key>` → their keys
+    /// (`crate::corrections`): a review not among them asks its unit again, once (HCR-4).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub answered: BTreeMap<String, Vec<String>>,
 }
 
 impl Fingerprints {

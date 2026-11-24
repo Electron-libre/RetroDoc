@@ -23,6 +23,7 @@ pub mod chunks;
 mod citations;
 pub mod confidence;
 pub mod contexts;
+mod corrections;
 pub mod diagrams;
 pub mod domains;
 pub mod entry_points;
@@ -72,6 +73,7 @@ pub use contexts::{
     build_context_map, domain_vocabulary, domains_from_contexts, mapped_sources, mark_done,
     plan_run, BoundedContext, ContextMap, Resolved, ResolvedContext, RunSlice,
 };
+pub use corrections::{Correction, Corrections, Verdict};
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::build_domains_from_surface;
 pub use entry_points::{

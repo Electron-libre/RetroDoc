@@ -239,6 +239,13 @@ that fails or is killed mid-pass loses the call in flight and the next run resum
 `--max-files` flags bound the cost of a run, which `generate` estimates before its first call (`--estimate` stops
 there; `specs/run-estimate.md`).
 
+The human corrections of the docs guide the passes that write the sections again (ADR 0056,
+`specs/human-corrections.md`): `generate` reads `.retrodoc/edits.json` and `.retrodoc/reviews.json` before `--force`
+removes anything, and gives a unit the corrections of the sections it writes (for now the use cases of a feature):
+an edit as the text to keep, a review `wrong` with its comment as what to fix, a review `validated` as the text to
+keep. They are out of the fingerprints, so an edit or a validation asks nothing again by itself and guides the next
+rewrite; a review `wrong` asks its unit again once, the reviews answered being kept in `fingerprints.json`.
+
 ## 6. Publishing the docs (no LLM)
 
 `generate` ends with the same code path that the `render` command runs alone.
@@ -269,8 +276,8 @@ Guarantees:
 ```
 <target repo>/
 ├── retrodoc.toml                  # config (LLM model, ignores, docs dir) — you edit this
-├── .retrodoc/reviews.json         # the human reviews of the sections, outside the cache: no `generate` touches it (ADR 0044, `specs/section-review.md`)
-├── .retrodoc/edits.json           # the human edits of the sections, an overlay outside the cache: no `generate` touches it, every reader (pages, MCP, search, rendered Markdown) shows it (ADR 0045, `specs/section-edit.md`)
+├── .retrodoc/reviews.json         # the human reviews of the sections, outside the cache: no `generate` writes it, each one reads it (ADR 0044, ADR 0056, `specs/section-review.md`)
+├── .retrodoc/edits.json           # the human edits of the sections, an overlay outside the cache: no `generate` writes it, each one reads it (ADR 0056), every reader (pages, MCP, search, rendered Markdown) shows it (ADR 0045, `specs/section-edit.md`)
 ├── .retrodoc/cache/               # intermediate artifacts (pipeline state)
 │   ├── source-hashes.json         #   hash of each source file at the last complete run (MCP freshness)
 │   ├── domains.yaml               #   domain clustering

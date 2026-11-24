@@ -144,13 +144,15 @@ it and no `generate` loses it.
 ## Non-goals
 
 - No edit of the steps, the business rules nor the glossary (decided with the user on 2026-11-05).
-- No change to the generated artifacts: the edits are an overlay, applied by the readers.
+- No change to the generated artifacts: the edits are an overlay, applied by the readers; `generate` reads them as
+  input of the passes that write the sections again (`specs/human-corrections.md`).
 - No history of the edits: a new edit replaces the former one; git keeps the history of a versioned file.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (SED-12), not
   both.
 - The form that writes an edit: `specs/web-ui.md` (WEB-93 to WEB-99).
 - No mark of an edit in the lists of sections of the Markdown (a domain's features, `llms.txt`), and no word of an
   outdated edit there: the web page shows both (WEB-92, WEB-100).
-- No merge of an outdated edit with the new generated text: the team rewrites or drops it.
+- No merge of an outdated edit with the new generated text: the team rewrites or drops it, the new text written
+  with the edit as guidance (`specs/human-corrections.md`).
 - No new verdict of the reconciliation on the edited text: an edit renames an item of the debt report, it does not
   judge it again against the project's docs.
