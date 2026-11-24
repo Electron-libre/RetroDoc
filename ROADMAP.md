@@ -35,3 +35,5 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [debt_lists_fixed_items_apart](issues/done/debt_lists_fixed_items_apart.md)
   - [human_edits_and_reviews_guide_the_next_run](issues/human_edits_and_reviews_guide_the_next_run.md)
   - [agent_helps_settle_a_disputed_section](issues/agent_helps_settle_a_disputed_section.md)
+  - [keep_the_slugs_of_a_unit_asked_again](issues/keep_the_slugs_of_a_unit_asked_again.md)
+  - [estimate_counts_the_units_a_wrong_review_asks](issues/estimate_counts_the_units_a_wrong_review_asks.md)

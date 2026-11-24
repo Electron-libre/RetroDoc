@@ -70,9 +70,9 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
    tests; makes true HCR-6 (feature), HCR-H2, the slice scenario (~450 lines). (autonomous)
 3. [x] Domains: the corrections of the domains in the domains call; verified by pipeline tests; makes true HCR-6
    (domain), HCR-9 scenario; spec `accepted` (~300 lines). (autonomous)
-4. [ ] Measure: on a saved run of the default smoke repository, a few edits and `wrong` reviews, then `generate`:
+4. [x] Measure: on a saved run of the default smoke repository, a few edits and `wrong` reviews, then `generate`:
    calls rerun, cost, corrected sections kept in substance (slug and text); entry in `docs/findings.md` and the
-   ledger. Paid DeepSeek run: asked before it starts (~60 lines).
+   ledger. Paid DeepSeek run: asked before it starts (~60 lines). (autonomous, the run asked and agreed)
 
 ## Decisions
 - Mode: autonomous
@@ -115,3 +115,13 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
 - Code review: no findings.
 - File size: `generate/mod.rs` at 802 (+1 argument), not split here, as in deliverable 2.
 - not verified: the cascade of a domain `wrong` on a real model (deliverable 4).
+
+### 4. Measure
+- done: measured on the default smoke repository at 4653ed9, deepseek-chat (`docs/findings.md` §15, ledger line):
+  56 calls for the baseline, 13 for the guided rerun (~$0.01), 0 for the rerun after; the use case marked wrong
+  fixed with its slug kept, 2 of its 3 siblings renamed; the domain marked wrong reworded, not re-placed; the
+  estimate missed the calls. Follow-ups: `issues/keep_the_slugs_of_a_unit_asked_again.md`,
+  `issues/estimate_counts_the_units_a_wrong_review_asks.md`.
+- red: none (a measure, no test).
+- Code review: no findings.
+- not verified: the edits on a real rewrite (their units were not asked by this run, by design).

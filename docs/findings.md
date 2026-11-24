@@ -850,3 +850,27 @@ store, its own Node runtime, telemetry on by default) indexed the checkouts of t
   repository (`module Rails` in an initializer) is resolved to that file.
 - Decision: the passes cut their slices along the resolved references (ADR 0055).
 
+
+## 15. Human corrections guiding a rerun (2026-11-24)
+
+`issues/human_edits_and_reviews_guide_the_next_run.md`, deliverable 4: the default smoke repository generated at
+4653ed9 with deepseek-chat (56 calls), then two edits (a feature's name, a use case's narrative), a review
+`validated` of a feature and two reviews `wrong` with a comment (a use case, a domain), then `generate` again.
+
+| Run | Calls | Tokens in / out | Asked again |
+|---|---|---|---|
+| baseline | 56 | 72.8k / 14.2k | everything |
+| with the corrections | 13 | 15.5k / 2.7k | domains 1, features 1, use cases 2, rules 6, confidence 2, reconcile 1 |
+| rerun | 0 | 0 | nothing |
+
+- **A use case marked wrong is fixed and keeps its slug.** "The actor is the client application, not a developer":
+  the rewritten use case names the client application, its slug unchanged. But the call writes the whole feature
+  again: two of its three other use cases came back under new slugs (`compute-…` to `estimate-…`), so an edit or a
+  review of a sibling would have been orphaned (SED-24).
+- **A domain marked wrong follows the comment in its words, not in its placement.** "Route building belongs to order
+  routing; this domain is about how far and how fast a rider travels": the description was rewritten that way, the
+  resources stayed where they were. The domains call rewrote the four domains (names re-cased), and one domain whose
+  answer changed asked its features, use cases and rules again: the cascade ADR 0056 foresaw, 12 calls past the
+  domains one.
+- **An edit and a validation ask nothing**: their units were not asked, the edits stay an overlay (HCR-5).
+- **The estimate printed before the run counted 0 calls**: it does not know a review `wrong` asks its unit again.
