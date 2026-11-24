@@ -231,7 +231,7 @@ schema of its answer and the fixed texts of its user prompt (ADR 0037, ADR 0040)
 or change its request, and its units are redone once (the hand-editable roles, sources, business files and brief are only redone with `--force`).
 Domain clustering is not deterministic, so
 `domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
-invalidated, see `docs/findings.md`): the surface (entities and resources), the brief and the model. A use case written again with the entry points of a saved one keeps its slug, so its edits and reviews still
+invalidated, see `docs/findings.md`): the surface (entities and resources), the brief and the model. A use case or a feature written again with the entry points of a saved one keeps its slug, so its edits and reviews still
 name it (`specs/rerun.md` RER-13). The features are one call per domain over its
 entry points (keyed on them and the domain's entities) and the use cases read those entry points. With `[pipeline] domains_from = "contexts"` (ADR 0029) a run documents a slice of the application, some bounded contexts of `contexts.yaml`: it reads their files only, keeps the inventories, features and use cases of the others as they are (`Retention::Others`, per-domain vocabulary, frozen actors) and marks its contexts done. The passes save after each answer
 (features, use cases, rules, confidence) and every artifact is written beside then renamed, so a run

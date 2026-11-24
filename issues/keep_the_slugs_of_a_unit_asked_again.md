@@ -50,10 +50,10 @@ Out of scope: listing the saved slugs in the prompt (HCR-8 unchanged, non-goal o
    entry points), used by `grounded_use_cases`; verified by a binary test in `crates/retrodoc-cli/tests/human_corrections.rs`
    (a use case renamed by the model keeps its slug and its edit) and unit tests of the module; makes true RER-13,
    RER-14, RER-15. (autonomous)
-2. [ ] Saved slugs kept by the features pass: the features of a slice matched against the saved features of the
+2. [x] Saved slugs kept by the features pass: the features of a slice matched against the saved features of the
    domain in that slice, a slug held by another slice or domain left out; new tests in
    `features/from_surface/slug_tests.rs` (`from_surface.rs` and its `tests.rs` are over the file size limit: a few
-   call lines only there); makes true RER-13, RER-14, RER-15 for the features.
+   call lines only there); makes true RER-13, RER-14, RER-15 for the features. (autonomous)
 3. [ ] Saved slugs kept by the domains call: matched on their resources, `uncategorized` never matched; tests in
    `domains/tests.rs`; makes true RER-13, RER-16; the spec set `accepted`.
 
@@ -80,4 +80,25 @@ Code review: 1 findings
   named `<feature>/<use case>`).
 
 not verified: no paid run of the default smoke repository (the measure of the saved run shows the 2 renames had equal entry points).
+decisions needed: none
+
+## Deliverable 2: summary
+done: the features pass gives back the saved slug of a feature a slice writes again with the same entry points in the slice (`features/from_surface/slugs.rs`); RER-15 no longer names the other slices of a domain: the part of a feature over two slices takes its saved slug back and merges by slug.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (RER-15 reworded, one scenario added) |
+| docs | `docs/crates/pipeline.md` (Saved slugs), `docs/ARCHITECTURE.md` §5 |
+| file size | `from_surface.rs` 1032 to 1041: call lines and module declarations only, the code in `slugs.rs` and `slug_tests.rs` |
+| code review | see below |
+
+red: RER-13, RER-14, RER-15: `[("orders", "order-goods"), …]` instead of `place-order`; `[("big", "all"), ("big", "everything"), ("big", "afterwards")]` instead of `all`, `later`; with no check of the other domains, `routing` took back `list-routes`, which `orders` held.
+Code review: 1 findings
+- `others` could hold the earlier slices of the same domain, so a feature over two slices would not merge back: no
+  change, `features` holds the domains before this one only (`domain_features` keeps this one's slices apart), which
+  `the_part_of_a_feature_a_slice_writes_again_merges_back_under_its_slug` proves.
+
+not verified: no paid run.
 decisions needed: none

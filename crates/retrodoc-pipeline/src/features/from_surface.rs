@@ -648,6 +648,12 @@ impl SurfaceRun<'_> {
                 };
                 // Slugs are unique across domains; the features of this one merge by slug.
                 produced = place_entry_points(raw, domain, slice, features);
+                slugs::keep_saved(
+                    &mut produced,
+                    self.previous,
+                    (&domain.slug, slice),
+                    features,
+                );
                 if !produced.is_empty() {
                     break;
                 }
@@ -1028,5 +1034,8 @@ mod corrections;
 #[cfg(test)]
 mod corrections_tests;
 mod repair;
+#[cfg(test)]
+mod slug_tests;
+mod slugs;
 #[cfg(test)]
 mod tests;

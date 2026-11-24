@@ -50,8 +50,8 @@ repository makes no LLM call and rewrites no file.
   judgement print changed must be judged again from its saved stated rules, with no statement call.
 - **RER-14** (deterministic) A section whose entry points are not those of a saved section of its unit, or that has
   none, must keep the slug its answer gives it: the match renames a section, it never merges two.
-- **RER-15** (deterministic) A saved slug must not be given back when a section already holds it (in the answer, the
-  other slices of its domain or, for a feature, another domain), when the matching section of the answer holds a saved
+- **RER-15** (deterministic) A saved slug must not be given back when a section already holds it (in the answer or, for
+  a feature, another domain), when the matching section of the answer holds a saved
   slug of its unit, or when another section, of the answer or saved, has the same entry points: each section then
   keeps the slug its answer gives it.
 - **RER-16** (deterministic) The domain the code gathers what no domain claimed in (`uncategorized`) must keep its
@@ -64,6 +64,8 @@ repository makes no LLM call and rewrites no file.
   `estimate-order-time` for E1, then the use case is saved as `compute-order-time` and the edit of it still shows.
 - (RER-13) Given a domain asked again whose answer renames a feature that groups the same entry points, then the
   feature keeps its saved slug and its use cases are reused.
+- (RER-13) Given a feature over two slices of its domain, when the second slice is asked again and renames its part,
+  then the part takes the saved slug back and merges with the part of the first slice.
 - (RER-13) Given the domains asked again and a domain answered under a new slug with the same resources, then it
   keeps its saved slug.
 - (RER-14) Given a saved feature grouping E1 and E2, when the answer splits them into two features, then both keep
