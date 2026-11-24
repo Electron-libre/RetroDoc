@@ -56,10 +56,10 @@ reviews and edits, no new status, no format change (`specs/debt-fixed.md`, FIX).
    tests in a file of their own: `debt/mod.rs` is near the file limit), a fixed section left out of "marked wrong" and
    of the kinds of judgement; the DBT spec takes the Behaviour / Contract shape; verified by internal tests of the
    debt; makes true FIX-1, FIX-2, FIX-4, FIX-5, FIX-6, FIX-7. (autonomous)
-2. [ ] Section "Fixed" of the debt page: rows with verdict, comment, author, dates, link and kinds taken out, the
+2. [x] Section "Fixed" of the debt page: rows with verdict, comment, author, dates, link and kinds taken out, the
    filters, the `HX-Request` answer, the texts, screenshots before and after; verified by web tests in a new
    `crates/retrodoc-web/tests/debt_fixed.rs` (`debt_page.rs` is over the file limit); makes true FIX-3, FIX-8,
-   FIX-9, FIX-10, FIX-H1, FIX-H2, FIX-H3, DBT-H1.
+   FIX-9, FIX-10, FIX-H1, FIX-H2, FIX-H3, DBT-H1. (autonomous)
 3. [ ] Docs of the whole issue and the fixes of the `high` review.
 
 ## Decisions
@@ -83,3 +83,17 @@ reviews and edits, no new status, no format change (`specs/debt-fixed.md`, FIX).
   the run (`rewrite_run`) or use `to_review`.
 - Code review: no findings.
 - not verified: the page (deliverable 2).
+
+## Deliverable 2: section "Fixed" of the debt page
+- done: `debt::FixedRow` and the `#debt-fixed` part of `debt_list.html` (verdict badge, link, comment, review and edit
+  authors and dates, kinds taken out), `DebtFilter::keeps_fixed`, texts in English and French; the fixtures of the
+  debt tests moved to `tests/support`; FIX and DBT accepted.
+- checks: project-check ok; specs ok, every FIX and DBT requirement traced; docs README, `docs/crates/render-mcp-cli.md`
+  (no new component for `docs/dev/web-ui.md`: the review badge is reused); screenshots
+  `~/retrodoc-runs/screenshots/before-fixed-6718e05d` and `after-fixed` (`debt-fixed-1440.png`, `debt-fixed-500.png`:
+  `/debt?domain=administration` on a copy of a saved linkding run with three reviews; no horizontal scroll).
+- red: FIX-H1, FIX-H2, FIX-H3, FIX-3, FIX-4, FIX-8, FIX-10: `assertion left == right failed, left: 0` (no row under
+  "Fixed"); FIX-9 and DBT-H1 passed at once (nothing to show yet; DBT-H1 describes the page as it was).
+- `crates/retrodoc-web/src/texts.rs` is over the file limit (1,536 lines, 1,517 before): not split here, the four
+  texts belong with the others of the debt page; splitting the texts by page is a change of its own.
+- Code review: no findings.

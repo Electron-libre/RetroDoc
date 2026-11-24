@@ -2,183 +2,16 @@
 //! a socket over the artifacts a run leaves and the reviews saved in
 //! `.retrodoc/reviews.json`.
 
-use std::path::Path;
+mod support;
 
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use retrodoc_core::artifacts::{DomainCluster, DomainMap};
-use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, SourceRef, Step, UseCase};
-use retrodoc_docs::edits::{self, Fields};
-use retrodoc_docs::reviews::{self, Section, SectionKind, Status};
+use axum::http::Request;
+use retrodoc_docs::reviews::{self, SectionKind, Status};
 use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
+use support::*;
 use tower::ServiceExt;
-
-fn feature(slug: &str, domain: &str, name: &str) -> Feature {
-    Feature {
-        back_office: false,
-        technical: false,
-        slug: slug.into(),
-        domain_slug: domain.into(),
-        name: name.into(),
-        description: String::new(),
-        source_paths: vec![format!("app/{slug}.rb")],
-        entry_points: vec![format!("app/{slug}.rb#create")],
-        confidence: Some(ConfidenceScore::new(0.9, "fine".to_string())),
-    }
-}
-
-fn use_case(slug: &str, feature: &str, name: &str, confidence: Option<f32>) -> UseCase {
-    UseCase {
-        entry_points: Vec::new(),
-        primary_actor: None,
-        narrative: None,
-        business_language: None,
-        slug: slug.into(),
-        feature_slug: feature.into(),
-        name: name.into(),
-        description: String::new(),
-        steps: vec![Step {
-            order: 1,
-            description: "Acts".into(),
-            actor: Actor {
-                name: "Clerk".into(),
-                kind: ActorKind::Human,
-            },
-            action: String::new(),
-            source_refs: vec![SourceRef {
-                path: format!("app/{feature}.rb"),
-                start_line: Some(1),
-                end_line: None,
-            }],
-        }],
-        diagram_mermaid: None,
-        confidence: confidence.map(|c| ConfidenceScore::new(c, "few cited lines".to_string())),
-        narrative_check: None,
-    }
-}
-
-fn use_cases() -> Vec<UseCase> {
-    vec![
-        use_case("refund", "pay-invoice", "Refund", Some(0.3)),
-        use_case("pay-by-card", "pay-invoice", "Pay by card", None),
-        use_case("ship", "ship-order", "Ship", Some(0.9)),
-    ]
-}
-
-/// `billing` (feature `pay-invoice`: `Refund` low at 30% and set apart for it, `Pay by card` not
-/// scored) and `shipping` (feature `ship-order`, use case `Ship` at 90%); no git history.
-fn generated_repo() -> tempfile::TempDir {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    retrodoc_core::artifacts::save_features(
-        root,
-        &[
-            feature("pay-invoice", "billing", "Pay an invoice"),
-            feature("ship-order", "shipping", "Ship an order"),
-        ],
-    )
-    .unwrap();
-    retrodoc_core::artifacts::save_use_cases(root, &use_cases()).unwrap();
-    save_domains(root, "");
-    dir
-}
-
-fn save_domains(root: &Path, description: &str) {
-    DomainMap {
-        domains: ["billing", "shipping"]
-            .map(|slug| DomainCluster {
-                slug: slug.into(),
-                name: format!("{}{}", slug[..1].to_uppercase(), &slug[1..]),
-                description: description.into(),
-                ..DomainCluster::default()
-            })
-            .to_vec(),
-    }
-    .save(root)
-    .unwrap();
-}
-
-/// A later run that rewrites the domains, the features and the use cases: every review is
-/// outdated, and a section marked wrong is listed again (FIX-5).
-fn rewrite_run(root: &Path) {
-    save_domains(root, "Rewritten.");
-    let features: Vec<Feature> = [
-        ("pay-invoice", "billing", "Pay an invoice"),
-        ("ship-order", "shipping", "Ship an order"),
-    ]
-    .map(|(slug, domain, name)| Feature {
-        description: "Rewritten.".into(),
-        ..feature(slug, domain, name)
-    })
-    .to_vec();
-    retrodoc_core::artifacts::save_features(root, &features).unwrap();
-    let rewritten: Vec<UseCase> = use_cases()
-        .into_iter()
-        .map(|u| UseCase {
-            description: "Rewritten.".into(),
-            ..u
-        })
-        .collect();
-    retrodoc_core::artifacts::save_use_cases(root, &rewritten).unwrap();
-}
-
-fn review(root: &Path, kind: SectionKind, id: &str, status: Status, comment: &str) {
-    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
-    reviews::record(root, &docs, &Section::new(kind, id), status, comment).unwrap();
-}
-
-async fn get(root: &Path, path: &str) -> String {
-    let response = retrodoc_web::router(
-        Project::default(),
-        GeneratedDocs::load(root, &[]).unwrap(),
-        DocLinks::default(),
-        Vec::new(),
-    )
-    .oneshot(Request::get(path).body(Body::empty()).unwrap())
-    .await
-    .unwrap();
-    let status = response.status();
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let page = String::from_utf8(body.to_vec()).unwrap();
-    assert_eq!(status, StatusCode::OK, "{page}");
-    page
-}
-
-/// The items of the debt list, one string per `<li class="debt-item">`.
-fn items(page: &str) -> Vec<String> {
-    let start = page.find("id=\"debt-list\"").expect(page);
-    page[start..]
-        .split("<li class=\"debt-item\"")
-        .skip(1)
-        .map(str::to_string)
-        .collect()
-}
-
-/// The kind and the link of each item, in order.
-fn listed(page: &str) -> Vec<(String, String)> {
-    let field = |item: &str, open: &str, close: &str| {
-        item.split_once(open)
-            .and_then(|(_, rest)| rest.split_once(close))
-            .map_or_else(String::new, |(value, _)| value.to_string())
-    };
-    items(page)
-        .iter()
-        .map(|item| {
-            (
-                field(item, "class=\"badge kind\">", "</span>"),
-                field(item, "<a href=\"", "\""),
-            )
-        })
-        .collect()
-}
-
-fn pair(kind: &str, href: &str) -> (String, String) {
-    (kind.to_string(), href.to_string())
-}
 
 // spec: DBT-32
 #[tokio::test]
@@ -402,11 +235,12 @@ async fn an_unreadable_file_of_reviews_is_said_and_the_debt_listed_without_it() 
         "",
     );
     let page = get(repo.path(), "/debt").await;
-    assert!(!page.contains("Low confidence</span>"), "{page}");
+    let low = "class=\"badge kind\">Low confidence</span>";
+    assert!(!page.contains(low), "{page}");
     std::fs::write(reviews::reviews_path(repo.path()), "{ not json").unwrap();
     let page = get(repo.path(), "/debt").await;
     assert!(page.contains("The reviews could not be read"), "{page}");
-    assert!(page.contains("Low confidence</span>"), "{page}");
+    assert!(page.contains(low), "{page}");
 }
 
 // spec: DBT-34
@@ -585,15 +419,6 @@ async fn an_unreadable_file_of_reviews_is_said_on_the_audit_page() {
     assert!(page.contains("id=\"audit-heatmap\""), "{page}");
 }
 
-fn edit_name(root: &Path, kind: SectionKind, id: &str, name: &str) {
-    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
-    let fields = Fields {
-        name: Some(name.into()),
-        ..Fields::default()
-    };
-    edits::record(root, &docs, &Section::new(kind, id), fields).unwrap();
-}
-
 // spec: DBT-39, DBT-29
 #[tokio::test]
 async fn an_edit_of_a_section_rewritten_since_enters_the_debt() {
@@ -645,4 +470,36 @@ async fn an_edit_of_a_section_rewritten_since_enters_the_debt() {
         edited[0]
     );
     assert!(edited[0].contains("weight 0.50"), "{}", edited[0]);
+}
+
+// spec: DBT-H1, DBT-1, DBT-9, DBT-23, DBT-31
+#[tokio::test]
+async fn the_auditor_sees_the_debt_ranked_and_filters_it_by_kind() {
+    let repo = generated_repo();
+    review(
+        repo.path(),
+        SectionKind::Feature,
+        "ship-order",
+        Status::ToReview,
+        "",
+    );
+
+    let page = get(repo.path(), "/debt").await;
+
+    assert_eq!(
+        listed(&page),
+        [
+            pair("To review", "/domains/shipping/ship-order"),
+            pair("Low confidence", "/domains/billing/pay-invoice/refund"),
+            pair("Not scored", "/domains/billing/pay-invoice/pay-by-card"),
+            pair("Set apart", "/domains/billing/pay-invoice/refund"),
+        ],
+        "{page}"
+    );
+    assert!(items(&page)[1].contains("Billing"), "{}", items(&page)[1]);
+    let filtered = get(repo.path(), "/debt?kind=to_review").await;
+    assert_eq!(
+        listed(&filtered),
+        [pair("To review", "/domains/shipping/ship-order")]
+    );
 }

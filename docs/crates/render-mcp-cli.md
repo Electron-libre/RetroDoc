@@ -124,8 +124,11 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   or its reasons and a link to its page, an item marked wrong or to review with why its review is outdated, an outdated edit with why (the
   `outdated` macro of `macros.html`, `review::OutdatedView`, `OutdatedView::of_edit` saying "since the edit"), a doc item with its kind or the sections that contradict it
   (linked to `/docs/`), a folder with its files or entry points folded under it (linked to `/code/`), an item of a domain, a feature or a use case of the run with the review and edit actions of its page (`DebtRow::actions`, `m::section_actions` labelled with the name of the section, WEB-115), kept by
-  `?kind=` and `?domain=` (`debt::DebtFilter`; a folder has no domain); its form swaps
-  `debt_list.html` into `#debt-list` like the rules page. The audit page, `/audit` (`audit::audit_page`, `audit.html`,
+  `?kind=` and `?domain=` (`debt::DebtFilter`; a folder has no domain); then, under "Fixed" (`#debt-fixed`, shown
+  only when the filters keep one; `specs/debt-fixed.md`), the sections a human settled (`DebtList::fixed`,
+  `debt::FixedRow`): the verdict badge, the link, the comment, the author and date of the review, the edit saved after
+  it, the kinds it took out, kept by the same filters (`DebtFilter::keeps_fixed`: its domain, a kind it took out) and
+  counted nowhere; its form swaps `debt_list.html` into `#debt-list` like the rules page. The audit page, `/audit` (`audit::audit_page`, `audit.html`,
   under the "Audit" group of the header, not in "Start here"; `specs/audit-dashboard.md`), shows the figures of
   `retrodoc_docs::audit::audit`, built at each request off the async workers with the reviews read then (a
   `reviews.json` that can't be read is said in place of the share reviewed), a line naming the command that produces

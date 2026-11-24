@@ -1,15 +1,16 @@
 //! What the debt page shows (`specs/debt-view.md`): the debt items of the
 //! read model, kept by the kind and the domain asked in the query, each with
-//! the names of its domain and section and a link to its page.
+//! the names of its domain and section and a link to its page, then the
+//! sections a human settled, apart (`specs/debt-fixed.md`).
 
 use retrodoc_core::model::ConfidenceScore;
 use retrodoc_docs::debt::{
-    debt, entry_file, DebtItem, DebtKind, DocItem, ItemKind, Section, Subject,
+    debt, entry_file, DebtItem, DebtKind, DocItem, Fixed, ItemKind, Section, Subject,
 };
 use retrodoc_docs::reviews::Reviews;
 use retrodoc_docs::GeneratedDocs;
 
-use crate::review::OutdatedView;
+use crate::review::{OutdatedView, ReviewBadge};
 use crate::texts::WebTexts;
 use crate::view::{active_filters, Filter};
 use crate::view::{code_href, doc_section_href, Confidence, Link, StaleFile};
@@ -37,6 +38,28 @@ pub struct DebtPage {
     /// item.
     pub history_note: Option<&'static str>,
     pub items: Vec<DebtRow>,
+    /// The sections a human settled the filters keep, the newest first (FIX-1, FIX-7).
+    pub fixed: Vec<FixedRow>,
+}
+
+/// A section a human settled (FIX-3, FIX-4).
+pub struct FixedRow {
+    /// The verdict of its review, validated or wrong.
+    pub badge: ReviewBadge,
+    pub domain: Option<String>,
+    /// The use case, the feature or the domain.
+    pub name: String,
+    /// The feature of a use case.
+    pub feature: Option<String>,
+    pub href: Option<String>,
+    /// The comment of its review; `None` when empty.
+    pub comment: Option<String>,
+    pub author: Option<String>,
+    pub date: String,
+    /// The author and the date of the edit saved after the review.
+    pub edit: Option<(Option<String>, String)>,
+    /// The names of the kinds it took out of the items left, joined.
+    pub kinds: Option<String>,
 }
 
 pub struct DebtRow {
@@ -111,6 +134,41 @@ pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) ->
         history_note: (docs.churn().is_none() && !list.items.is_empty())
             .then_some(texts.debt.no_history),
         items,
+        fixed: list
+            .fixed
+            .iter()
+            .filter(|fixed| filter.keeps_fixed(fixed))
+            .map(|fixed| fixed_row(docs, fixed, texts))
+            .collect(),
+    }
+}
+
+fn fixed_row(docs: &GeneratedDocs, fixed: &Fixed, texts: &WebTexts) -> FixedRow {
+    let named = match &fixed.subject {
+        Subject::Domain(slug) => domain_row(docs, slug),
+        Subject::Section(section) => section_row(docs, section),
+        // A review names a domain, a feature or a use case only.
+        Subject::DocItem(_) | Subject::Folder(_) => Named {
+            domain: None,
+            name: fixed.label(),
+            feature: None,
+            href: None,
+        },
+    };
+    let kinds: Vec<&str> = fixed.kinds.iter().map(|k| texts.debt_kind(*k)).collect();
+    FixedRow {
+        badge: ReviewBadge::of(fixed.status, false),
+        domain: named.domain,
+        name: named.name,
+        feature: named.feature,
+        href: named.href,
+        comment: Some(fixed.comment.trim())
+            .filter(|c| !c.is_empty())
+            .map(str::to_string),
+        author: fixed.author.clone(),
+        date: fixed.reviewed_at.clone(),
+        edit: fixed.edit.clone(),
+        kinds: (!kinds.is_empty()).then(|| kinds.join(", ")),
     }
 }
 
@@ -132,6 +190,19 @@ impl DebtFilter {
             .domain
             .as_deref()
             .is_none_or(|asked| item.domain() == Some(asked));
+        kind && domain
+    }
+
+    /// Keeps a settled section of the domain asked, that took out an item of the kind asked (FIX-8).
+    fn keeps_fixed(&self, fixed: &Fixed) -> bool {
+        let kind = self
+            .kind
+            .as_deref()
+            .is_none_or(|asked| fixed.kinds.iter().any(|k| k.key() == asked));
+        let domain = self
+            .domain
+            .as_deref()
+            .is_none_or(|asked| fixed.subject.domain() == Some(asked));
         kind && domain
     }
 }

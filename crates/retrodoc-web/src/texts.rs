@@ -270,6 +270,13 @@ pub struct DebtTexts {
     pub no_run: &'static str,
     /// The file of the reviews could not be read: the debt is listed as if no section was reviewed.
     pub reviews_unreadable: &'static str,
+    /// The heading of the sections a human settled, and what they are.
+    pub fixed: &'static str,
+    pub fixed_intro: &'static str,
+    /// Before the edit saved after the review of a settled section.
+    pub edited: &'static str,
+    /// Before the kinds a settled section took out of the items left.
+    pub took_out: &'static str,
 }
 
 /// The fixed text of the audit page.
@@ -680,6 +687,12 @@ impl WebTexts {
             no_run: "<section id=\"debt-list\"><p class=\"empty\">No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
             reviews_unreadable: "The reviews could not be read: the debt is listed as if no section \
                 was reviewed.",
+            fixed: "Fixed",
+            fixed_intro: "The sections a human validated or marked wrong, the newest first: they \
+                come back to the list when their section is rewritten or their code changes, unless \
+                an edit saved after the review still holds.",
+            edited: "Edited",
+            took_out: "Took out",
         },
         audit_page: AuditTexts {
             intro: "The figures of the last run, and where the debt of the docs concentrates: \
@@ -1087,6 +1100,12 @@ impl WebTexts {
             no_run: "<section id=\"debt-list\"><p class=\"empty\">Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
             reviews_unreadable: "Les revues n'ont pas pu être lues : la dette est listée comme si \
                 aucune section n'avait été revue.",
+            fixed: "Traité",
+            fixed_intro: "Les sections qu'un humain a validées ou marquées fausses, les plus récentes \
+                d'abord : elles reviennent dans la liste quand leur section est réécrite ou que leur \
+                code change, sauf si une modification enregistrée après la relecture tient toujours.",
+            edited: "Modifiée",
+            took_out: "Retiré",
         },
         audit_page: AuditTexts {
             intro: "Les chiffres du dernier run, et où se concentre la dette de la doc : chaque \

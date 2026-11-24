@@ -43,4 +43,24 @@
     {% endfor %}
   </ul>
   {% endif %}
+  {% if !page.fixed.is_empty() %}
+  <div id="debt-fixed">
+  <h2>{{ t.debt.fixed }}</h2>
+  <p class="muted">{{ t.debt.fixed_intro }}</p>
+  <ul class="debt">
+    {% for row in page.fixed %}
+    <li class="fixed-item">
+      <span class="badge review {{ row.badge.class }}">{{ t.review.status(*row.badge.status) }}</span>
+      {% if let Some(href) = row.href %}<a href="{{ href }}">{{ row.name }}</a>{% else %}{{ row.name }} <span class="muted">({{ t.not_in_the_run }})</span>{% endif %}
+      {% if let Some(feature) = row.feature %}<span class="muted">{{ t.feature }}{{ t.colon }} {{ feature }}</span>{% endif %}
+      {% if let Some(domain) = row.domain %}<span class="muted">{{ t.domain }}{{ t.colon }} {{ domain }}</span>{% endif %}
+      {% if let Some(comment) = row.comment %}<span class="why">{{ comment }}</span>{% endif %}
+      <span class="muted">{% if let Some(author) = row.author %}{{ t.review.by }} {{ author }}, {% endif %}{{ row.date }}</span>
+      {% if let Some((author, date)) = row.edit %}<span class="muted">{{ t.debt.edited }} {% if let Some(author) = author %}{{ t.review.by }} {{ author }}, {% endif %}{{ date }}</span>{% endif %}
+      {% if let Some(kinds) = row.kinds %}<span class="muted">{{ t.debt.took_out }}{{ t.colon }} {{ kinds }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  </div>
+  {% endif %}
 </section>
