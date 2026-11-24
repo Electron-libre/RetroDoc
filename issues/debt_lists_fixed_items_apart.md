@@ -41,3 +41,45 @@ Read by someone taking an application over
 * The review form is being rethought (`one_form_to_review_and_edit_a_section`): agree on what resolving means
   there first, or do both together.
 * A new review status changes the format of `reviews.json`: its version and the readers (ADR 0050).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-24
+
+## Understanding
+A section a human reviewed, validated or marked wrong, leaves the items left of `/debt` and shows under "Fixed",
+while its review is up to date or followed by an edit up to date; it comes back when outdated. Read from the saved
+reviews and edits, no new status, no format change (`specs/debt-fixed.md`, FIX). `retrodoc report` unchanged.
+
+## Plan
+1. [x] Fixed sections in the debt model: `DebtList::fixed` in `retrodoc-docs` (new module `debt/fixed.rs`, its
+   tests in a file of their own: `debt/mod.rs` is near the file limit), a fixed section left out of "marked wrong" and
+   of the kinds of judgement; the DBT spec takes the Behaviour / Contract shape; verified by internal tests of the
+   debt; makes true FIX-1, FIX-2, FIX-4, FIX-5, FIX-6, FIX-7. (autonomous)
+2. [ ] Section "Fixed" of the debt page: rows with verdict, comment, author, dates, link and kinds taken out, the
+   filters, the `HX-Request` answer, the texts, screenshots before and after; verified by web tests in a new
+   `crates/retrodoc-web/tests/debt_fixed.rs` (`debt_page.rs` is over the file limit); makes true FIX-3, FIX-8,
+   FIX-9, FIX-10, FIX-H1, FIX-H2, FIX-H3, DBT-H1.
+3. [ ] Docs of the whole issue and the fixes of the `high` review.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 00c82b245fc0b396578e9990a33ccc5ade403587
+- Fixed = a review `validated` or `wrong` up to date, or followed by an edit up to date (user, 2026-11-24: "si une
+  section est marquée fausse alors elle est en effet fixed"); a wrong review outdated comes back as "marked wrong".
+- No status `fixed`: the verdict stays the user's choice in the review form.
+- `retrodoc report` and `coverage-report.md` unchanged: "Sections marked wrong" (DBT-35) keeps listing them.
+- One spec of its own, `specs/debt-fixed.md` (DBT at 39 requirements, bound 40).
+- Independent of `one_form_to_review_and_edit_a_section`: a review and an edit saved in the same second stay fixed.
+
+## Deliverable 1: fixed sections in the debt model
+- done: `DebtList::fixed` (`debt/fixed.rs`), a settled section takes its kinds of judgement and its marked wrong item
+  out of the items; the DBT spec in the Behaviour / Contract shape, DBT-30 and DBT-32 amended.
+- checks: project-check ok; specs ok (DBT-13 wording warning untouched); docs `docs/crates/docs.md`; code review
+  below.
+- red: FIX-1, FIX-2, FIX-4, FIX-6, FIX-7: `assertion failed: kinds_of(list, "billing/pay/refund") == [SetApart]`
+  (left `[LowConfidence, SetApart, MarkedWrong]`), the fixed list empty.
+- Three web tests of DBT-30, DBT-34 and AUD-6 adapted: an up-to-date wrong review is no longer debt, so they rewrite
+  the run (`rewrite_run`) or use `to_review`.
+- Code review: no findings.
+- not verified: the page (deliverable 2).

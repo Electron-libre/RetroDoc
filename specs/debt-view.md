@@ -1,6 +1,6 @@
 ---
 id: DBT
-status: accepted
+status: draft
 adrs: [0039, 0044]
 ---
 
@@ -15,9 +15,27 @@ from top to bottom.
 
 ## Requirements
 
+### Behaviour
+
 - **DBT-1** (deterministic) The debt page, `/debt`, must list the debt items of the last run, each with its kind,
   the name of its domain, its section (the use case with its feature, or the feature), its score or its reason, and a
   link to the page of its section.
+- **DBT-9** (deterministic) The debt page must keep only the items of the kind `?kind=<kind>` and of the domain
+  `?domain=<slug>`, each given, both when both are; an empty value filters nothing.
+- **DBT-23** (deterministic) The priority of an item must be `weight × weakness × (1 + ln(1 + commits)) × (1 + ln(1 +
+  entry points))`, from the four parts of DBT-24 to DBT-26 and DBT-29.
+- **DBT-30** (deterministic) An item of the kind "marked wrong" must be listed for each domain, feature and use case
+  of the run whose review (`specs/section-review.md`) has the status `wrong`, with the comment of the review as its
+  reason, but for a fixed section (`specs/debt-fixed.md` FIX-1, FIX-2): only a review outdated with no later edit up
+  to date (FIX-5).
+- **DBT-31** (deterministic) An item of the kind "to review" must be listed for each domain, feature and use case of
+  the run whose review has the status `to_review`, with the comment of the review as its reason.
+- **DBT-32** (deterministic) The kinds low confidence, not scored, unbacked narrative and technical language must
+  leave out each fixed feature and use case (`specs/debt-fixed.md` FIX-1): its review, validated or wrong, is not
+  outdated (REV-20, REV-21), or an edit saved after it is not.
+
+### Contract
+
 - **DBT-2** (deterministic) An item of the kind "low confidence" must be listed for each use case whose confidence is
   below `LOW_CONFIDENCE_THRESHOLD`, and each feature below it that has no use case, with its score and its
   rationale: the sections the low-confidence section of `retrodoc report` lists.
@@ -39,8 +57,6 @@ from top to bottom.
   section; the undocumented items most entry points first), the not scored, set apart, stale and contradicted ones in
   the order of the run, a stale feature before its use cases, the reviewed sections as the reviews are saved (REV-15),
   the folders of DBT-21 by path.
-- **DBT-9** (deterministic) The debt page must keep only the items of the kind `?kind=<kind>` and of the domain
-  `?domain=<slug>`, each given, both when both are; an empty value filters nothing.
 - **DBT-10** (deterministic) The debt page must show a form whose choices are the kinds and the domains of the run,
   the ones of the query selected, in the shape of WEB-107, that asks the page again with them.
 - **DBT-11** (deterministic) The debt page must say no section needs a human when the run has no item and is scored
@@ -72,9 +88,6 @@ from top to bottom.
   file a link to its page `/code/{path}` and each entry point to the page of its file.
 - **DBT-22** (deterministic) The items of DBT-19 and DBT-20 must carry no domain: a `?domain=` filter keeps none of
   them.
-
-- **DBT-23** (deterministic) The priority of an item must be `weight × weakness × (1 + ln(1 + commits)) × (1 + ln(1 +
-  entry points))`, from the four parts of DBT-24 to DBT-26 and DBT-29.
 - **DBT-24** (deterministic) The weakness of an item must be `1 − score` for an item with a score (DBT-2, DBT-5) and 1
   for any other.
 - **DBT-25** (deterministic) The commits of an item must be the most commits of one of its files, the commits of a
@@ -91,13 +104,6 @@ from top to bottom.
   missing, unreadable or left to check (not scored, technical language, undocumented, entry point without a feature,
   to review, outdated edit), and 0.25 for the kinds the docs leave out by design (set apart, no domain, reached by no behaviour, not
   analysed).
-- **DBT-30** (deterministic) An item of the kind "marked wrong" must be listed for each domain, feature and use case
-  of the run whose review (`specs/section-review.md`) has the status `wrong`, with the comment of the review as its
-  reason.
-- **DBT-31** (deterministic) An item of the kind "to review" must be listed for each domain, feature and use case of
-  the run whose review has the status `to_review`, with the comment of the review as its reason.
-- **DBT-32** (deterministic) The kinds low confidence, not scored, unbacked narrative and technical language must
-  leave out each feature and use case whose review has the status `validated` and is not outdated (REV-20, REV-21).
 - **DBT-33** (deterministic) An item of a domain (DBT-30, DBT-31) must link to the page of the domain, its files being
   the `source_paths` of the features of the domain and its entry points the sum of theirs (DBT-25, DBT-26).
 - **DBT-34** (deterministic) The debt page must read the reviews at each request, and when the file of the reviews
@@ -116,6 +122,10 @@ from top to bottom.
   its weight (DBT-29) is 0.5, a section left to check.
 
 ## Scenarios
+
+- **DBT-H1** (happy; DBT-1, DBT-9, DBT-23, DBT-31) Given a run with use cases of low confidence and a feature left
+  to review, when the auditor opens `/debt`, then each is listed with its kind, its domain and a link to its section,
+  the highest priority first, and `?kind=to_review` keeps the feature alone.
 
 - (DBT-1) Given a use case whose feature is not in the run (artifacts of an older run), then it is listed without a
   link and no `?domain=` keeps it.
@@ -148,8 +158,9 @@ from top to bottom.
 - (DBT-32) Given a validated domain, then its features and use cases are still listed under the kinds of judgement:
   a review vouches for its own section only.
 - (DBT-30) Given a review of a section the run no longer holds, then no item is listed for it.
-- (DBT-30) Given a section marked wrong whose fingerprint differs from the one of its review, then it is still
-  listed as marked wrong, said outdated (DBT-37).
+- (DBT-30) Given a section marked wrong whose fingerprint differs from the one of its review, by a later run, then
+  it is listed as marked wrong, said outdated (DBT-37); a review up to date, or followed by an edit up to date, fixes
+  it and lists no item (FIX-1).
 - (DBT-30, DBT-31) Given a review with no comment, then its item shows no reason.
 - (DBT-39) Given a feature edited, when a later run rewrites it, then it is listed as an outdated edit, "rewritten";
   an edit of a section the run no longer holds lists no item (SED-24).

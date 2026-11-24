@@ -2,12 +2,14 @@
 //! (`specs/debt-view.md`): the sections of the docs that need a human, read
 //! from the same [`build_report`] as `retrodoc report`, plus the sections whose
 //! cited code changed since the run, judged at each call, then the items the
-//! project's docs contradict or leave out, the sections a human marked wrong or
-//! to review and the code no doc covers, by folder, a section a human validated
-//! left out of the kinds that judge it, sorted by a priority that crosses the weight of its kind and how weak each
-//! item is with the commits of its busiest file and its entry points.
+//! project's docs contradict or leave out, the sections a human left to review or
+//! whose review is outdated and the code no doc covers, by folder, sorted by a
+//! priority that crosses the weight of its kind and how weak each item is with the
+//! commits of its busiest file and its entry points. A section a human settled,
+//! validated or marked wrong, leaves the kinds that judge it for a list of its own
+//! ([`fixed`], `specs/debt-fixed.md`).
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use retrodoc_core::artifacts::DomainMap;
@@ -18,9 +20,12 @@ pub use retrodoc_core::report::Section;
 use retrodoc_core::report::{build_report, DebtReport, WeakSection};
 
 use crate::edits;
+
+mod fixed;
 use crate::freshness::{FileState, Freshness};
 use crate::read_model::{GeneratedDocs, Uncovered};
 use crate::reviews::{self, Outdated, Reviews, SectionKind, Status};
+pub use fixed::Fixed;
 
 /// What makes a section need a human, in the order the debt lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -41,7 +46,7 @@ pub enum DebtKind {
     Contradicted,
     /// An item no section of the project's docs mentions.
     Undocumented,
-    /// A domain, feature or use case a human marked wrong.
+    /// A domain, feature or use case a human marked wrong, whose review is outdated.
     MarkedWrong,
     /// A domain, feature or use case a human left to review.
     ToReview,
@@ -278,22 +283,36 @@ impl DebtItem {
     /// The domain of its section or doc item; `None` for a folder, or a domain not in the run.
     #[must_use]
     pub fn domain(&self) -> Option<&str> {
-        match &self.subject {
-            Subject::Section(section) => section.domain.as_deref(),
-            Subject::Domain(slug) => Some(slug),
-            Subject::DocItem(item) => Some(item.domain.as_str()).filter(|d| *d != "?"),
-            Subject::Folder(_) => None,
+        self.subject.domain()
+    }
+
+    /// The label of its section or doc item, or the path of its folder.
+    #[must_use]
+    pub fn label(&self) -> String {
+        self.subject.label()
+    }
+}
+
+impl Subject {
+    /// The domain of its section or doc item; `None` for a folder, or a domain not in the run.
+    #[must_use]
+    pub fn domain(&self) -> Option<&str> {
+        match self {
+            Self::Section(section) => section.domain.as_deref(),
+            Self::Domain(slug) => Some(slug),
+            Self::DocItem(item) => Some(item.domain.as_str()).filter(|d| *d != "?"),
+            Self::Folder(_) => None,
         }
     }
 
     /// The label of its section or doc item, or the path of its folder.
     #[must_use]
     pub fn label(&self) -> String {
-        match &self.subject {
-            Subject::Section(section) => section.label(),
-            Subject::Domain(slug) => slug.clone(),
-            Subject::DocItem(item) => item.label.clone(),
-            Subject::Folder(folder) => folder.path.clone(),
+        match self {
+            Self::Section(section) => section.label(),
+            Self::Domain(slug) => slug.clone(),
+            Self::DocItem(item) => item.label.clone(),
+            Self::Folder(folder) => folder.path.clone(),
         }
     }
 }
@@ -309,6 +328,8 @@ pub struct DebtList {
     /// There is no collected doc to compare the items with: none is listed as contradicted or
     /// undocumented.
     pub no_docs: bool,
+    /// The sections a human settled, left out of `items`: the newest first.
+    pub fixed: Vec<Fixed>,
 }
 
 /// The debt of `docs` with its `reviews`, the stale sections judged now.
@@ -365,12 +386,9 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport, reviews: &Reviews) -> D
     if let Some(reconciliation) = &uncovered.reconciliation {
         items.extend(doc_items(reconciliation));
     }
-    let validated = validated(docs, reviews);
-    items.retain(|item| {
-        !(item.kind.judges()
-            && matches!(&item.subject, Subject::Section(s) if validated.contains(&review_section(s))))
-    });
     items.extend(reviewed(docs, reviews));
+    let mut fixed = fixed::settled(docs, reviews);
+    take_out_fixed(&mut items, &mut fixed);
     items.extend(outdated_edits(docs));
     items.extend(code_items(uncovered));
     for item in &mut items {
@@ -382,6 +400,7 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport, reviews: &Reviews) -> D
         items,
         no_score,
         no_docs: uncovered.reconciliation.is_none(),
+        fixed,
     }
 }
 
@@ -460,14 +479,37 @@ fn review_section(section: &Section) -> reviews::Section {
     }
 }
 
-/// The sections a human validated whose review is not outdated.
-fn validated<'a>(docs: &GeneratedDocs, reviews: &'a Reviews) -> HashSet<&'a reviews::Section> {
-    reviews
-        .reviews()
+/// Takes out of `items` the kinds of judgement and the marked wrong items of the sections of
+/// `fixed` (FIX-2), each kind noted on its section (FIX-4).
+fn take_out_fixed(items: &mut Vec<DebtItem>, fixed: &mut [Fixed]) {
+    let index: HashMap<reviews::Section, usize> = fixed
         .iter()
-        .filter(|r| r.status == Status::Validated && reviews::outdated(docs, r).is_none())
-        .map(|r| &r.section)
-        .collect()
+        .enumerate()
+        .map(|(i, f)| (f.section.clone(), i))
+        .collect();
+    items.retain(|item| {
+        if !(item.kind.judges() || item.kind == DebtKind::MarkedWrong) {
+            return true;
+        }
+        let Some(&i) = subject_section(&item.subject).and_then(|s| index.get(&s)) else {
+            return true;
+        };
+        fixed[i].kinds.push(item.kind);
+        false
+    });
+    for section in fixed {
+        section.kinds.sort();
+        section.kinds.dedup();
+    }
+}
+
+/// The section of the reviews a section or a domain of the debt names.
+fn subject_section(subject: &Subject) -> Option<reviews::Section> {
+    match subject {
+        Subject::Section(section) => Some(review_section(section)),
+        Subject::Domain(slug) => Some(reviews::Section::new(SectionKind::Domain, slug)),
+        Subject::DocItem(_) | Subject::Folder(_) => None,
+    }
 }
 
 /// The sections of the run marked wrong, then those left to review, as the reviews are saved; the

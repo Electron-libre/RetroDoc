@@ -81,18 +81,47 @@ fn generated_repo() -> tempfile::TempDir {
     )
     .unwrap();
     retrodoc_core::artifacts::save_use_cases(root, &use_cases()).unwrap();
+    save_domains(root, "");
+    dir
+}
+
+fn save_domains(root: &Path, description: &str) {
     DomainMap {
         domains: ["billing", "shipping"]
             .map(|slug| DomainCluster {
                 slug: slug.into(),
                 name: format!("{}{}", slug[..1].to_uppercase(), &slug[1..]),
+                description: description.into(),
                 ..DomainCluster::default()
             })
             .to_vec(),
     }
     .save(root)
     .unwrap();
-    dir
+}
+
+/// A later run that rewrites the domains, the features and the use cases: every review is
+/// outdated, and a section marked wrong is listed again (FIX-5).
+fn rewrite_run(root: &Path) {
+    save_domains(root, "Rewritten.");
+    let features: Vec<Feature> = [
+        ("pay-invoice", "billing", "Pay an invoice"),
+        ("ship-order", "shipping", "Ship an order"),
+    ]
+    .map(|(slug, domain, name)| Feature {
+        description: "Rewritten.".into(),
+        ..feature(slug, domain, name)
+    })
+    .to_vec();
+    retrodoc_core::artifacts::save_features(root, &features).unwrap();
+    let rewritten: Vec<UseCase> = use_cases()
+        .into_iter()
+        .map(|u| UseCase {
+            description: "Rewritten.".into(),
+            ..u
+        })
+        .collect();
+    retrodoc_core::artifacts::save_use_cases(root, &rewritten).unwrap();
 }
 
 fn review(root: &Path, kind: SectionKind, id: &str, status: Status, comment: &str) {
@@ -303,6 +332,8 @@ async fn a_section_marked_wrong_or_to_review_enters_the_debt_with_its_comment() 
         Status::Wrong,
         "",
     );
+    // An up-to-date review settles its section (FIX-1): only an outdated one is debt.
+    rewrite_run(repo.path());
     let page = get(repo.path(), "/debt").await;
     assert_eq!(
         listed(&page),
@@ -392,7 +423,7 @@ async fn a_review_saved_while_the_server_runs_shows_on_the_next_debt_page() {
         repo.path(),
         SectionKind::Feature,
         "ship-order",
-        Status::Wrong,
+        Status::ToReview,
         "",
     );
     let response = app
@@ -402,7 +433,7 @@ async fn a_review_saved_while_the_server_runs_shows_on_the_next_debt_page() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    assert!(String::from_utf8_lossy(&body).contains("Marked wrong</span>"));
+    assert!(String::from_utf8_lossy(&body).contains("To review</span>"));
 }
 
 // spec: AUD-6
@@ -423,6 +454,8 @@ async fn the_heatmap_counts_the_sections_marked_wrong_and_to_review() {
         Status::ToReview,
         "",
     );
+    // An up-to-date review settles its section (FIX-1): only an outdated one is debt.
+    rewrite_run(repo.path());
     let page = get(repo.path(), "/audit").await;
     let heatmap = &page[page.find("id=\"audit-heatmap\"").expect(&page)..];
     let header = heatmap.split("</thead>").next().unwrap();

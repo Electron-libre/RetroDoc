@@ -15,7 +15,7 @@ use super::*;
 use crate::freshness::FileState;
 use crate::read_model::Uncovered;
 
-fn feature(slug: &str, domain: &str, confidence: Option<f32>) -> Feature {
+pub(super) fn feature(slug: &str, domain: &str, confidence: Option<f32>) -> Feature {
     Feature {
         back_office: false,
         technical: false,
@@ -29,7 +29,7 @@ fn feature(slug: &str, domain: &str, confidence: Option<f32>) -> Feature {
     }
 }
 
-fn use_case(slug: &str, feature: &str, confidence: Option<f32>) -> UseCase {
+pub(super) fn use_case(slug: &str, feature: &str, confidence: Option<f32>) -> UseCase {
     UseCase {
         entry_points: Vec::new(),
         primary_actor: None,
@@ -59,7 +59,7 @@ fn use_case(slug: &str, feature: &str, confidence: Option<f32>) -> UseCase {
     }
 }
 
-fn docs(features: Vec<Feature>, use_cases: Vec<UseCase>) -> GeneratedDocs {
+pub(super) fn docs(features: Vec<Feature>, use_cases: Vec<UseCase>) -> GeneratedDocs {
     let domains = ["billing", "auth"]
         .map(|slug| Domain {
             slug: slug.into(),
