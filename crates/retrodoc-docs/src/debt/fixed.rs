@@ -2,6 +2,8 @@
 //! review up to date or followed by an edit up to date. They leave the items left of the debt for
 //! a list of their own, read from the saved reviews and edits, never recorded.
 
+use chrono::{DateTime, FixedOffset};
+
 use crate::edits;
 use crate::read_model::GeneratedDocs;
 use crate::reviews::{self, Reviews, Status};
@@ -45,7 +47,8 @@ impl Fixed {
 }
 
 /// The sections of the run a human settled (FIX-1), the newest first then by section (FIX-7), no
-/// kind taken out yet: a review validated or wrong, up to date or followed by an edit up to date.
+/// kind of judgement taken out yet: a review validated or wrong, up to date or followed by an edit
+/// up to date.
 pub(super) fn settled(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<Fixed> {
     let mut fixed: Vec<Fixed> = reviews
         .reviews()
@@ -54,10 +57,12 @@ pub(super) fn settled(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<Fixed> {
         .filter_map(|review| {
             // The subject first: no file read for a section the run no longer holds.
             let subject = section_subject(docs, &review.section)?;
-            // RFC 3339 in UTC to the second: the strings order as the dates.
             let edit = docs.edits().get(&review.section).filter(|edit| {
                 !edit.changed().is_empty()
-                    && edit.edited_at >= review.reviewed_at
+                    && matches!(
+                        (instant(&edit.edited_at), instant(&review.reviewed_at)),
+                        (Some(edited), Some(reviewed)) if edited >= reviewed
+                    )
                     && edits::outdated(docs, edit).is_none()
             });
             (edit.is_some() || reviews::outdated(docs, review).is_none()).then(|| Fixed {
@@ -68,16 +73,28 @@ pub(super) fn settled(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<Fixed> {
                 author: review.author.clone(),
                 reviewed_at: review.reviewed_at.clone(),
                 edit: edit.map(|e| (e.author.clone(), e.edited_at.clone())),
-                kinds: Vec::new(),
+                // Its review would list it marked wrong (DBT-30); the kinds of judgement are
+                // added as they are taken out.
+                kinds: if review.status == Status::Wrong {
+                    vec![DebtKind::MarkedWrong]
+                } else {
+                    Vec::new()
+                },
             })
         })
         .collect();
+    // A date that does not parse (a file written by hand) comes last.
     fixed.sort_by(|a, b| {
-        b.date()
-            .cmp(a.date())
+        instant(b.date())
+            .cmp(&instant(a.date()))
             .then_with(|| a.section.cmp(&b.section))
     });
     fixed
+}
+
+/// The instant of an RFC 3339 date, whatever its offset; `None` when it does not parse.
+fn instant(date: &str) -> Option<DateTime<FixedOffset>> {
+    DateTime::parse_from_rfc3339(date).ok()
 }
 
 #[cfg(test)]

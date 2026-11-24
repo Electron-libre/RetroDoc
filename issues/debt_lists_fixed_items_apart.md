@@ -60,7 +60,7 @@ reviews and edits, no new status, no format change (`specs/debt-fixed.md`, FIX).
    filters, the `HX-Request` answer, the texts, screenshots before and after; verified by web tests in a new
    `crates/retrodoc-web/tests/debt_fixed.rs` (`debt_page.rs` is over the file limit); makes true FIX-3, FIX-8,
    FIX-9, FIX-10, FIX-H1, FIX-H2, FIX-H3, DBT-H1. (autonomous)
-3. [ ] Docs of the whole issue and the fixes of the `high` review.
+3. [x] Docs of the whole issue and the fixes of the `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -96,4 +96,15 @@ reviews and edits, no new status, no format change (`specs/debt-fixed.md`, FIX).
   "Fixed"); FIX-9 and DBT-H1 passed at once (nothing to show yet; DBT-H1 describes the page as it was).
 - `crates/retrodoc-web/src/texts.rs` is over the file limit (1,536 lines, 1,517 before): not split here, the four
   texts belong with the others of the debt page; splitting the texts by page is a change of its own.
+- Code review: no findings.
+
+## Deliverable 3: docs of the whole issue and fixes of the high review
+- done: the dates of a review and an edit compared as instants (`fixed::instant`), a settled wrong review no longer
+  judged twice (`reviewed_unless`), the intro of "Fixed" says the order (latest review or edit first), the drop of the
+  run history said (non-goal of FIX, `docs/crates/docs.md`).
+- red: FIX-1, FIX-7: `left: ["billing/pay/refund"], right: ["billing/pay", "billing/pay/refund"]` (a review at
+  `10:00:00+02:00` compared as text after an edit at `09:00:00Z`).
+- High review: 5 findings, all nits. Fixed: the dates compared as text, the order unexplained beside the review date,
+  the reviews judged twice, the drop of the run history unsaid. Not changed: "a section marked wrong without an edit
+  leaves the debt" is the decision of the user (option a, 2026-11-24).
 - Code review: no findings.

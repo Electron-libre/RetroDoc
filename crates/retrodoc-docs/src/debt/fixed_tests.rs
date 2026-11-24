@@ -278,3 +278,22 @@ fn the_fixed_sections_are_the_newest_first_then_by_kind_and_id() {
         ]
     );
 }
+
+// spec: FIX-1, FIX-7 (internal: a file of reviews written by hand, with an offset)
+#[test]
+fn the_dates_are_compared_as_instants_not_as_text() {
+    let docs = run();
+    let pay = section(SectionKind::Feature, "pay");
+    // 08:00 in UTC, written after the edit of 09:00 UTC as text, before it as an instant.
+    let wrong = review(&docs, &pay, Status::Wrong, "2026-11-24T10:00:00+02:00");
+    let refund = review(
+        &docs,
+        &section(SectionKind::UseCase, "pay/refund"),
+        Status::Validated,
+        "2026-11-24T08:30:00Z",
+    );
+
+    let list = debt(&edited(docs, &pay, MORNING), &reviewed([wrong, refund]));
+
+    assert_eq!(fixed_labels(&list), ["billing/pay", "billing/pay/refund"]);
+}

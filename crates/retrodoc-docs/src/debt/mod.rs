@@ -9,7 +9,7 @@
 //! validated or marked wrong, leaves the kinds that judge it for a list of its own
 //! ([`fixed`], `specs/debt-fixed.md`).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use retrodoc_core::artifacts::DomainMap;
@@ -386,9 +386,13 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport, reviews: &Reviews) -> D
     if let Some(reconciliation) = &uncovered.reconciliation {
         items.extend(doc_items(reconciliation));
     }
-    items.extend(reviewed(docs, reviews));
     let mut fixed = fixed::settled(docs, reviews);
     take_out_fixed(&mut items, &mut fixed);
+    let settled: HashSet<&reviews::Section> = fixed.iter().map(|f| &f.section).collect();
+    // A settled section is no marked wrong item (FIX-2): its review is not judged twice.
+    items.extend(reviewed_unless(docs, reviews, |section| {
+        settled.contains(section)
+    }));
     items.extend(outdated_edits(docs));
     items.extend(code_items(uncovered));
     for item in &mut items {
@@ -479,8 +483,8 @@ fn review_section(section: &Section) -> reviews::Section {
     }
 }
 
-/// Takes out of `items` the kinds of judgement and the marked wrong items of the sections of
-/// `fixed` (FIX-2), each kind noted on its section (FIX-4).
+/// Takes out of `items` the kinds of judgement of the sections of `fixed` (FIX-2), each kind noted
+/// on its section (FIX-4).
 fn take_out_fixed(items: &mut Vec<DebtItem>, fixed: &mut [Fixed]) {
     let index: HashMap<reviews::Section, usize> = fixed
         .iter()
@@ -488,7 +492,7 @@ fn take_out_fixed(items: &mut Vec<DebtItem>, fixed: &mut [Fixed]) {
         .map(|(i, f)| (f.section.clone(), i))
         .collect();
     items.retain(|item| {
-        if !(item.kind.judges() || item.kind == DebtKind::MarkedWrong) {
+        if !item.kind.judges() {
             return true;
         }
         let Some(&i) = subject_section(&item.subject).and_then(|s| index.get(&s)) else {
@@ -518,11 +522,20 @@ pub fn reviewed<'a>(
     docs: &'a GeneratedDocs,
     reviews: &'a Reviews,
 ) -> impl Iterator<Item = DebtItem> + 'a {
+    reviewed_unless(docs, reviews, |_| false)
+}
+
+/// [`reviewed`], but for the sections `skip` keeps, whose review is not judged.
+fn reviewed_unless<'a>(
+    docs: &'a GeneratedDocs,
+    reviews: &'a Reviews,
+    skip: impl Fn(&reviews::Section) -> bool + Copy + 'a,
+) -> impl Iterator<Item = DebtItem> + 'a {
     let of = move |kind: DebtKind, status: Status| {
         reviews
             .reviews()
             .iter()
-            .filter(move |r| r.status == status)
+            .filter(move |r| r.status == status && !skip(&r.section))
             .filter_map(move |r| {
                 // The subject first: no file read for a section the run no longer holds.
                 let subject = section_subject(docs, &r.section)?;

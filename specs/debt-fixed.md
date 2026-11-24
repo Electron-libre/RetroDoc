@@ -66,6 +66,9 @@ settled.
 - (FIX-5) Given a use case validated, when a file one of its steps cites is edited, then it leaves "Fixed" and is
   listed again under the kinds of judgement it falls in.
 - (FIX-1) Given a review of a section the run no longer holds, then nothing is fixed for it.
+- (FIX-1, FIX-7) Given a review written by hand at `10:00:00+02:00` and an edit at `09:00:00Z`, then the edit is the
+  later one: the dates compare as instants; a date that does not parse keeps no section settled by its edit and
+  orders last.
 - (FIX-8) Given a filter `?kind=stale`, then no fixed section is kept: a review takes out no stale item.
 
 ## Non-goals
@@ -78,4 +81,6 @@ settled.
   section settled; a reviewer who disagrees reviews it again.
 - `retrodoc report` keeps listing the sections marked wrong (DBT-35); it, `coverage-report.md` and the run history
   list no fixed section; the audit dashboard keeps listing the reviews as saved.
+- The run history counts the debt as the page lists it, the settled sections left out; no snapshot saved before is
+  counted again, so the trends of the audit page show a drop at the first run after a section is settled.
 - No history of the resolutions: a section reviewed twice shows its last review.

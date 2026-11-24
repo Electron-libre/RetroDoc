@@ -688,8 +688,8 @@ impl WebTexts {
             reviews_unreadable: "The reviews could not be read: the debt is listed as if no section \
                 was reviewed.",
             fixed: "Fixed",
-            fixed_intro: "The sections a human validated or marked wrong, the newest first: they \
-                come back to the list when their section is rewritten or their code changes, unless \
+            fixed_intro: "The sections a human validated or marked wrong, the latest review or edit \
+                first: they come back to the list when their section is rewritten or their code changes, unless \
                 an edit saved after the review still holds.",
             edited: "Edited",
             took_out: "Took out",
@@ -1101,8 +1101,8 @@ impl WebTexts {
             reviews_unreadable: "Les revues n'ont pas pu être lues : la dette est listée comme si \
                 aucune section n'avait été revue.",
             fixed: "Traité",
-            fixed_intro: "Les sections qu'un humain a validées ou marquées fausses, les plus récentes \
-                d'abord : elles reviennent dans la liste quand leur section est réécrite ou que leur \
+            fixed_intro: "Les sections qu'un humain a validées ou marquées fausses, la dernière \
+                relecture ou modification d'abord : elles reviennent dans la liste quand leur section est réécrite ou que leur \
                 code change, sauf si une modification enregistrée après la relecture tient toujours.",
             edited: "Modifiée",
             took_out: "Retiré",
