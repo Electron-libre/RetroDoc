@@ -853,7 +853,7 @@ store, its own Node runtime, telemetry on by default) indexed the checkouts of t
 
 ## 15. Human corrections guiding a rerun (2026-11-24)
 
-`issues/human_edits_and_reviews_guide_the_next_run.md`, deliverable 4: the default smoke repository generated at
+`issues/done/human_edits_and_reviews_guide_the_next_run.md`, deliverable 4: the default smoke repository generated at
 4653ed9 with deepseek-chat (56 calls), then two edits (a feature's name, a use case's narrative), a review
 `validated` of a feature and two reviews `wrong` with a comment (a use case, a domain), then `generate` again.
 
