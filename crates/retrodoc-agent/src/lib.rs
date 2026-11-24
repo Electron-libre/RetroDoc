@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 use std::fmt::Write as _;
 use std::sync::Arc;
 
+use retrodoc_docs::reviews::Section;
 use retrodoc_docs::{read_tools, Docs, Source, Warning};
 use retrodoc_llm::{
     ChatMessage, CompletionRequest, LlmError, LlmProvider, Role, ToolCall, ToolSpec,
@@ -41,6 +42,9 @@ pub const MAX_RESULT_CHARS: usize = 40_000;
 /// Characters of the earlier questions and answers a [`Conversation`] keeps (CHT-4): a quarter of
 /// the budget of the tool results, which it shrinks by as much (CHT-5).
 pub const MAX_MEMORY_CHARS: usize = 10_000;
+
+mod settle;
+pub use settle::{Disagreement, Disputed, Proposal, PROPOSE_VERDICT};
 
 const LAST_ROUND: &str =
     "You have used all your tool calls. Answer the question now from what the \
@@ -89,6 +93,8 @@ pub struct Answer {
     pub sources: Vec<Source>,
     /// What the sources warn of: low confidence, code changed since the docs.
     pub warnings: Vec<Warning>,
+    /// The verdict proposed by `propose_verdict`, which ended a question of a settling (STL-14).
+    pub proposal: Option<Proposal>,
 }
 
 /// The note of an answer with no source.
@@ -169,9 +175,27 @@ impl Turn {
 #[derive(Debug, Clone, Default)]
 pub struct Conversation {
     turns: VecDeque<Turn>,
+    /// The section a settling conversation settles (`specs/section-settle.md`).
+    settled: Option<Section>,
 }
 
 impl Conversation {
+    /// A conversation that settles `section`: its questions go with the system prompt of
+    /// verification and offer `propose_verdict` (STL-5, STL-6).
+    #[must_use]
+    pub fn settling(section: Section) -> Self {
+        Self {
+            turns: VecDeque::new(),
+            settled: Some(section),
+        }
+    }
+
+    /// The section this conversation settles, none for a conversation of questions.
+    #[must_use]
+    pub fn settled(&self) -> Option<&Section> {
+        self.settled.as_ref()
+    }
+
     /// Asks `question` after the turns kept, like [`ask`], then keeps it with its answer; a failed
     /// question is not kept.
     ///
@@ -210,12 +234,17 @@ impl Conversation {
             max_rounds,
             offered: Tools::All,
             observer,
+            settled: self.settled.as_ref(),
         };
         let answer = answer_after(llm, docs, asked).await?;
         let text = answer.text.trim();
+        let mut kept = if text.is_empty() { NO_ANSWER } else { text }.to_string();
+        if let Some(proposal) = &answer.proposal {
+            let _ = write!(kept, "\n\n{}", proposal.as_text());
+        }
         self.turns.push_back(Turn {
             question: question.to_string(),
-            answer: if text.is_empty() { NO_ANSWER } else { text }.to_string(),
+            answer: kept,
             sources: answer.sources.clone(),
         });
         while self.turns.iter().map(Turn::chars).sum::<usize>() > MAX_MEMORY_CHARS {
@@ -351,6 +380,7 @@ pub async fn ask_with(
         max_rounds,
         offered,
         observer: &|_| {},
+        settled: None,
     };
     answer_after(llm, docs, asked).await
 }
@@ -364,6 +394,8 @@ struct Asked<'a> {
     max_rounds: usize,
     offered: Tools,
     observer: Observer<'a>,
+    /// The section of a settling, whose questions offer `propose_verdict`.
+    settled: Option<&'a Section>,
 }
 
 /// [`ask_with`] after the earlier turns of a conversation, telling the observer each call.
@@ -378,12 +410,18 @@ async fn answer_after(
         max_rounds,
         offered,
         observer,
+        settled,
     } = asked;
-    let tools: Vec<ToolSpec> = tool_specs()
+    let mut tools: Vec<ToolSpec> = tool_specs()
         .into_iter()
         .filter(|tool| offered.offers(&tool.name))
         .collect();
-    let mut messages = vec![ChatMessage::new(Role::System, offered.system_prompt())];
+    let mut system = offered.system_prompt();
+    if settled.is_some() {
+        tools.push(settle::propose_verdict_spec());
+        system.push_str(settle::SETTLING_PROMPT);
+    }
+    let mut messages = vec![ChatMessage::new(Role::System, system)];
     for turn in earlier {
         messages.push(ChatMessage::new(Role::User, turn.question.clone()));
         messages.push(ChatMessage::new(Role::Assistant, turn.answer.clone()));
@@ -414,15 +452,11 @@ async fn answer_after(
         };
         let response = llm.complete(request).await?;
         if !offer || response.tool_calls.is_empty() {
-            answer.sources =
-                checked_sources(&response.content, &answer.tool_results, earlier, &docs);
-            answer.warnings = warnings_of(&docs, answer.sources.clone()).await;
-            answer.text = response.content;
-            return Ok(answer);
+            return Ok(answered(answer, response.content, earlier, &docs).await);
         }
         answer.rounds += 1;
         messages.push(
-            ChatMessage::assistant_calls(response.content, response.tool_calls.clone())
+            ChatMessage::assistant_calls(response.content.clone(), response.tool_calls.clone())
                 .with_reasoning(response.reasoning),
         );
         for (index, call) in response.tool_calls.into_iter().enumerate() {
@@ -437,6 +471,20 @@ async fn answer_after(
                     "Error: at most {MAX_CALLS_PER_ROUND} calls per round are run; make fewer \
                      calls per round, or answer from what the tools showed."
                 )
+            } else if let Some(section) = settled.filter(|_| runs && call.name == PROPOSE_VERDICT) {
+                // A valid proposal ends the question, the calls after it not run (STL-14).
+                match settle::proposal_of(section, &call.arguments) {
+                    Ok(proposal) => {
+                        let text = if response.content.trim().is_empty() {
+                            proposal.comment.clone()
+                        } else {
+                            response.content
+                        };
+                        answer.proposal = Some(proposal);
+                        return Ok(answered(answer, text, earlier, &docs).await);
+                    }
+                    Err(error) => error,
+                }
             } else if runs {
                 within_budget(run_tool(&docs, &call).await, &mut used)
             } else {
@@ -452,6 +500,14 @@ async fn answer_after(
             called.push(call);
         }
     }
+}
+
+/// `answer` ended on `text`, with the sources the text names and their warnings.
+async fn answered(mut answer: Answer, text: String, earlier: &[Turn], docs: &Arc<Docs>) -> Answer {
+    answer.sources = checked_sources(&text, &answer.tool_results, earlier, docs);
+    answer.warnings = warnings_of(docs, answer.sources.clone()).await;
+    answer.text = text;
+    answer
 }
 
 /// `result`, counted in the characters `used` by the question, or the error that refuses it when

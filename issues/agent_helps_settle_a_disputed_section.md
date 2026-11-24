@@ -43,3 +43,58 @@ Read by someone taking an application over
 # Hints
 * Each question costs LLM calls: show the cost as the ask page does (WAK) and ask before paid measures.
 * A loop that asks the user needs the turn to pause on the agent's question, unlike `ask` which always answers.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-24
+
+## Understanding
+From the form of a doubted section (`ui --ask` only), a button starts a settling conversation on the ask page: a first
+message built from the docs (section, review, edit, contradictions), a verification prompt, the agent's questions answered
+as follow-ups, and a `propose_verdict` tool that writes nothing; the proposal fills the form, saved only by the reader.
+Out of scope: transcript kept with the review, choice buttons, settling from `chat`. Spec `specs/section-settle.md`
+(STL-1 to STL-16), ADR 0057.
+
+## Plan
+1. [x] Agent settling conversation: `Conversation::settling` with the settling message of a section (detail answer +
+   contradictions), the verification system prompt, the `propose_verdict` tool and `Answer::proposal`, the proposal in the
+   kept turn; tests in a new `crates/retrodoc-agent/src/settle_tests.rs` with the scripted `FakeLlm` (~650 lines); commits
+   the spec and ADR 0057 drafts; makes true STL-4, STL-5, STL-6, STL-13, STL-14, STL-15. (autonomous)
+2. [ ] Web start of a settling: button in the section form with its conditional confirmation, `POST /ask/settle`
+   (refusals 400/404/409, reset then first question streamed as WAK-30), the settled section named on `/ask`; code in a new
+   `crates/retrodoc-web/src/settle.rs` (texts in `settle_texts.rs`, `texts.rs` being over the file size limit), tests in a
+   new `crates/retrodoc-web/tests/settle_page.rs` (~700 lines); makes true STL-1, STL-2, STL-3, STL-10, STL-11, STL-12.
+3. [ ] Web proposal: the proposal shown in its exchange with "Fill the form", the section page filled from
+   `?proposal=<n>` with its notice, nothing written before the save (~500 lines); makes true STL-7, STL-8, STL-9, STL-16;
+   sets the spec `accepted`.
+4. [ ] Measure on 3 disputed sections of the default smoke repository with DeepSeek (paid: asked before the run, ledger
+   read and appended): turns, calls, tokens, whether the proposal matches the reader's verdict; a dated entry in
+   `docs/findings.md` (~40 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 5413f8cbfc82d536c426eb93bd2e7288f97feb15
+- Session: a settling empties the ask session, with a confirmation when it holds exchanges (1 a).
+- Proposal: the form is filled from `?proposal=<n>`, read from the session (2 a).
+- Measure: the last deliverable, the paid run asked before (3 a).
+
+## Deliverable 1: agent settling conversation
+
+done: `Conversation::settling` and module `settle` of `retrodoc-agent` (settling message, verification prompt,
+`propose_verdict`, `Answer::proposal`, the proposal kept as text); spec `section-settle.md` and ADR 0057 drafts.
+
+| check | result |
+|---|---|
+| tests | `cargo test -p retrodoc-agent`: 29 passed, 5 new |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean for STL (draft) |
+| docs | `docs/crates/agent.md`, `docs/ARCHITECTURE.md` |
+| code review | low, see below |
+
+red: STL-4, STL-5, STL-6, STL-13, STL-14, STL-15: the tests did not compile before the code (no `Conversation::settling`, `Disputed`, `Answer::proposal`).
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none

@@ -36,6 +36,17 @@ the same loop with no earlier turn. `Conversation::ask_observed` tells an `Obser
 `Step` (the tool, and the `id`, `query` or `path` of its arguments), before its result goes back to the model, so the
 ask page can show it as it runs (ASK-25); `Conversation::ask` is it with an observer that does nothing.
 
-Tested in `src/tests.rs` with the scripted `FakeLlm` of `retrodoc-pipeline` (feature `testing`), and through the binary
+`Conversation::settling` starts a conversation that settles a disputed section (`specs/section-settle.md`,
+[ADR 0057](../adr/0057-the-agent-proposes-a-verdict-through-a-tool-that-writes-nothing.md), module `settle`): its first
+question is `Disputed::message`, the answer of the detail tool of the section (its text as shown, its review, its
+edit) then the contradictions of the project's docs the caller gives as `Disagreement`s (STL-4); each of its
+questions goes with the system prompt of `ask` and a paragraph of verification, and offers one more tool,
+`propose_verdict` (STL-5, STL-6). A call of it whose arguments are refused (a status other than the three of a review, no
+comment, a narrative for a domain or a feature) gets the error as its result (STL-13); a valid one ends the question,
+the calls after it in its round not run, its `Proposal` in `Answer::proposal` and the text of the answer the text of
+its message, else the comment (STL-14). Nothing is written: the reader saves the proposal through the form of the
+section. The kept turn of an answer with a proposal holds the proposal as text (STL-15), so a follow-up can amend it.
+
+Tested in `src/tests.rs` and `src/settle/tests.rs` with the scripted `FakeLlm` of `retrodoc-pipeline` (feature `testing`), and through the binary
 in `crates/retrodoc-cli/tests/ask.rs` and `chat.rs`, whose fake HTTP server answers tool calls or an HTTP error
 (`Turn`) and keeps the messages of each request (`Call::messages`).
