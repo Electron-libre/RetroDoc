@@ -1,18 +1,28 @@
 // The answers of the forms sent with htmx (specs/web-ui.md, WEB-106): htmx swaps nothing of an
 // error answer by default. One that names its swap (`HX-Reswap`) is the form again, the error in it
 // and the fields as sent: it is swapped. Any other (a refusal in plain text, a not-found page, a
-// server that failed) is shown in the notice of the page, the form left as it was. A page asked after a save (`?saved=review`, WEB-104) says
-// so once: the parameter is dropped from the address bar, so a reload doesn't say it again; so is
-// `?edit=1` (WEB-114), so that the button "Edit" reloads the page and unfolds the form again.
+// server that failed) is shown in the notice of the page, the form left as it was. A page asked after a save (`?saved=1`,
+// specs/section-form.md SFM-8) says so once: the parameter is dropped from the address bar, so a reload doesn't say it
+// again. Choosing the status "wrong" in the form of a section unfolds the fields of its text (SFM-2).
 (function () {
   "use strict";
 
   const url = new URL(window.location.href);
-  if (url.searchParams.has("saved") || url.searchParams.has("edit")) {
+  if (url.searchParams.has("saved")) {
     url.searchParams.delete("saved");
-    url.searchParams.delete("edit");
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
   }
+
+  document.addEventListener("change", function (event) {
+    const input = event.target;
+    if (input.name !== "status" || input.value !== "wrong" || !input.form) {
+      return;
+    }
+    const fields = input.form.querySelector("details.text-fields");
+    if (fields) {
+      fields.open = true;
+    }
+  });
 
   function namesItsSwap(xhr) {
     return xhr.getResponseHeader("HX-Reswap") !== null;
@@ -31,7 +41,7 @@
   });
 
   // A button that names a question in `data-confirm` sends its form only once the question is
-  // accepted (WEB-121): htmx reads no `hx-confirm` of the button that submits a form.
+  // accepted (SFM-5): htmx reads no `hx-confirm` of the button that submits a form.
   document.addEventListener("htmx:confirm", function (event) {
     const trigger = event.detail.triggeringEvent;
     const question = trigger && trigger.submitter && trigger.submitter.dataset.confirm;

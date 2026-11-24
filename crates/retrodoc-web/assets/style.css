@@ -385,7 +385,7 @@ table.runs td:nth-child(-n+2), table.runs th:nth-child(-n+2) { width: 4.5rem; te
 table.runs tr.compared td { background: var(--surface-2); }
 form.compare .actions { margin: 0; }
 .filter-state { color: var(--text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-3); }
-section.review, section.edit-form {
+section.review {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -393,9 +393,13 @@ section.review, section.edit-form {
   margin: var(--space-4) 0;
 }
 section.review > p:first-child { margin-top: 0; }
-section.review form.filters { margin-bottom: 0; }
-section.edit-form summary { cursor: pointer; font-weight: 600; }
-.edit-fields, form.ask { display: flex; flex-direction: column; gap: var(--space-4); max-width: 48rem; margin: var(--space-4) 0; }
+/* The form of a section (specs/section-form.md): the status chips and the comment, then the fields
+   of the text folded under them, unfolded on "wrong" (SFM-2). */
+details.text-fields[open] > summary { margin-bottom: var(--space-4); }
+details.text-fields > summary { cursor: pointer; font-weight: 600; }
+details.text-fields .field + .field, details.text-fields .field + .hint { margin-top: var(--space-4); }
+form.section-form, form.ask { display: flex; flex-direction: column; gap: var(--space-4); max-width: 48rem; margin: var(--space-4) 0; }
+form.section-form { margin-bottom: 0; }
 form.ask-reset { margin: 0 0 var(--space-4); }
 /* The question field starts at one line and grows with its text up to 12 lines (WAK-42); ask.js
    grows it where `field-sizing` is not supported. */

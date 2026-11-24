@@ -461,3 +461,176 @@ async fn a_refused_htmx_save_answers_the_form_as_sent_with_its_error() {
         missing.body
     );
 }
+
+// spec: SFM-H2, SFM-3, SFM-4
+#[tokio::test]
+async fn marking_wrong_and_fixing_in_one_save_keeps_the_review_up_to_date() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let form = "status=wrong&comment=the+customer+pays%2C+not+the+clerk&name=Pay+by+card\
+        &description=The+customer+pays+by+card&narrative=The+clerk+takes+the+card.";
+
+    let answer = post(root, USE_CASE, form, false).await;
+
+    assert_eq!(answer.status, StatusCode::SEE_OTHER, "{}", answer.body);
+    assert_eq!(
+        answer.location.as_deref(),
+        Some("/domains/billing/pay-invoice/pay-by-card?saved=1")
+    );
+    let description = Fields {
+        description: Some("The customer pays by card".into()),
+        ..Fields::default()
+    };
+    assert_eq!(edits_saved(root), [(pay_by_card(), description)]);
+    assert_eq!(
+        reviews_saved(root),
+        [(
+            pay_by_card(),
+            Status::Wrong,
+            "the customer pays, not the clerk".into()
+        )]
+    );
+    let page = get(root, USE_CASE).await;
+    assert!(!page.contains("Outdated review"), "{page}");
+}
+
+// spec: SFM-3, SFM-4
+#[tokio::test]
+async fn correcting_a_validated_section_writes_the_review_again() {
+    let dir = generated_repo();
+    let root = dir.path();
+    reviews::record(root, &load(root), &pay_invoice(), Status::Validated, "").unwrap();
+
+    post(
+        root,
+        FEATURE,
+        "status=validated&name=Pay+an+invoice&description=What+pay-invoice+does",
+        false,
+    )
+    .await;
+
+    assert_eq!(edits_saved(root).len(), 1);
+    let page = get(root, FEATURE).await;
+    assert!(page.contains("Pay an invoice"), "{page}");
+    assert!(!page.contains("Outdated review"), "{page}");
+}
+
+// spec: SFM-10, SFM-11
+#[tokio::test]
+async fn the_edit_keeps_only_the_fields_that_change_the_generated_text_cleaned() {
+    let dir = generated_repo();
+    let root = dir.path();
+
+    post(
+        root,
+        USE_CASE,
+        "status=&name=+Pay+by+card+&description=&narrative=Line+one%0D%0ALine+two%0D%0A",
+        false,
+    )
+    .await;
+
+    let narrative = Fields {
+        narrative: Some("Line one\nLine two".into()),
+        ..Fields::default()
+    };
+    assert_eq!(edits_saved(root), [(pay_by_card(), narrative)]);
+}
+
+// spec: SFM-11
+#[tokio::test]
+async fn emptying_the_only_edited_field_removes_the_edit() {
+    let dir = generated_repo();
+    let root = dir.path();
+    edit_name(root, &pay_invoice(), "Pay an invoice");
+
+    post(
+        root,
+        FEATURE,
+        "status=&name=&description=What+pay-invoice+does",
+        false,
+    )
+    .await;
+
+    assert_eq!(edits_saved(root), []);
+}
+
+// spec: SFM-5
+#[tokio::test]
+async fn the_back_button_removes_the_edit_and_saves_the_review_as_sent() {
+    let dir = generated_repo();
+    let root = dir.path();
+    edit_name(root, &pay_invoice(), "Pay an invoice");
+    let page = get(root, FEATURE).await;
+    assert!(
+        form_block(&page).contains("name=\"action\" value=\"revert\""),
+        "{page}"
+    );
+
+    post(
+        root,
+        FEATURE,
+        "status=wrong&comment=&name=Pay+an+invoice&description=What+pay-invoice+does&action=revert",
+        false,
+    )
+    .await;
+
+    assert_eq!(edits_saved(root), []);
+    assert_eq!(
+        reviews_saved(root),
+        [(pay_invoice(), Status::Wrong, String::new())]
+    );
+    let page = get(root, FEATURE).await;
+    assert!(!page.contains("Outdated review"), "{page}");
+}
+
+// spec: SFM-8
+#[tokio::test]
+async fn a_page_asked_after_a_save_says_it_is_saved() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let notice = "<p class=\"notice\" role=\"status\">Saved.</p>";
+    for path in PAGES {
+        let page = get(root, &format!("{path}?saved=1")).await;
+        assert!(form_block(&page).contains(notice), "{page}");
+        for other in ["review", "edit", "0"] {
+            let page = get(root, &format!("{path}?saved={other}")).await;
+            assert!(!page.contains("class=\"notice\""), "{page}");
+        }
+    }
+    std::fs::write(reviews::reviews_path(root), "{ not json").unwrap();
+    let page = get(root, &format!("{DOMAIN}?saved=1")).await;
+    assert!(!page.contains("class=\"notice\""), "{page}");
+}
+
+// spec: SFM-2
+#[tokio::test]
+async fn the_fields_of_the_text_unfold_for_a_section_marked_wrong() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let folded = "<details class=\"text-fields\">";
+    let page = get(root, FEATURE).await;
+    assert!(form_block(&page).contains(folded), "{page}");
+
+    reviews::record(root, &load(root), &pay_invoice(), Status::Wrong, "").unwrap();
+
+    let page = get(root, FEATURE).await;
+    assert!(
+        form_block(&page).contains("<details class=\"text-fields\" open>"),
+        "{page}"
+    );
+}
+
+// spec: SFM-2 (internal: the script runs in a browser; the test reads what the page loads)
+#[tokio::test]
+async fn choosing_wrong_unfolds_the_fields_of_the_text() {
+    let dir = generated_repo();
+    let script = get(dir.path(), "/assets/forms.js").await;
+    for part in [
+        "name !== \"status\"",
+        "value !== \"wrong\"",
+        "details.text-fields",
+        ".open = true",
+    ] {
+        assert!(script.contains(part), "{part} in {script}");
+    }
+}

@@ -66,8 +66,8 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
    preview kept) and `section_form.html` (replacing `review.html` and `edit_form.html`), the routes under `/edit`
    removed, `?saved=1`, one "Review" action, the remaining tests moved to the new form; the core tests in
    `tests/section_form.rs`; makes true SFM-1, SFM-3, SFM-6, SFM-7, SFM-9, SFM-12 to SFM-16. (autonomous)
-4. [ ] The remaining tests of `tests/section_form.rs` (SFM-2, SFM-4, SFM-5, SFM-8, SFM-10, SFM-11), the unfolding
-   on "wrong" in `forms.js`, the style of the form, before/after `just screenshots`.
+4. [x] The remaining tests of `tests/section_form.rs` (SFM-2, SFM-4, SFM-5, SFM-8, SFM-10, SFM-11), the unfolding
+   on "wrong" in `forms.js`, the style of the form, before/after `just screenshots`. (autonomous)
 5. [ ] Docs of the whole issue and fixes of the `high` review (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`,
    `docs/crates/docs.md`); spec set `accepted`.
 
@@ -129,4 +129,21 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
   forms.
 - Code review: no findings
 - not verified: the page in a browser (deliverable 4, screenshots).
+- decisions needed: none.
+
+## Deliverable 4
+- done: the remaining tests of the form (SFM-2, SFM-4, SFM-5, SFM-8, SFM-10, SFM-11), `forms.js` unfolds the fields
+  when "wrong" is chosen and no longer drops `?edit`, the style of the form (status chips, folded fields).
+- | check | result |
+  |---|---|
+  | tests | `cargo test -p retrodoc-web`: pass (`section_form.rs`: 17) |
+  | lint | clippy pedantic: clean |
+  | specs | `check-specs`: pass |
+  | docs | deferred to deliverable 5 (plan) |
+  | code review | low: no findings |
+  | screenshots | `one-form-after` against `after-fixed` (the two forms): one panel, chips, the fields folded, unfolded on a use case marked wrong |
+- red: SFM-2: `choosing_wrong_unfolds_the_fields_of_the_text` failed, `forms.js` held no handler of the status; the
+  other tests passed at once, the behaviour they prove came with deliverable 3.
+- Code review: no findings
+- not verified: the unfolding by the script in a browser click (the server-side unfolding was seen on the page).
 - decisions needed: none.
