@@ -17,6 +17,7 @@ use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::naming::normalize;
 use crate::request::Request;
+use crate::saved_slugs;
 use crate::surface::{Resource, Surface};
 
 /// Entities and resources listed in the prompt, the best connected first.
@@ -148,7 +149,10 @@ pub async fn build_domains_from_surface(
             domains: Vec::new(),
         });
 
-    let map = place(raw, surface);
+    let mut map = place(raw, surface);
+    if let Some(saved) = DomainMap::load(repo_root) {
+        keep_saved_slugs(&mut map, &saved);
+    }
     let layered = layer_named_domains(&map);
     if !layered.is_empty() {
         tracing::warn!(
@@ -161,6 +165,26 @@ pub async fn build_domains_from_surface(
     corrections::record_answered(&mut prints, answered, reviews);
     prints.save(repo_root)?;
     Ok(map)
+}
+
+/// Gives the domains of the model the slugs of the `saved` ones with the same resources (RER-13);
+/// the uncategorized domain, gathered by the code, neither takes nor gives one (RER-16).
+fn keep_saved_slugs(map: &mut DomainMap, saved: &DomainMap) {
+    let gathered = map
+        .domains
+        .iter()
+        .position(|d| d.slug == UNCATEGORIZED_SLUG)
+        .map(|position| (position, map.domains.remove(position)));
+    let saved: Vec<DomainCluster> = saved
+        .domains
+        .iter()
+        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+        .cloned()
+        .collect();
+    saved_slugs::keep_saved_slugs(&mut map.domains, &saved, |slug| slug == UNCATEGORIZED_SLUG);
+    if let Some((position, domain)) = gathered {
+        map.domains.insert(position, domain);
+    }
 }
 
 /// The model's domains with names resolved against the surface, the first placement kept, the files

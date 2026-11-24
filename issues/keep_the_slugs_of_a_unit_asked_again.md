@@ -54,8 +54,8 @@ Out of scope: listing the saved slugs in the prompt (HCR-8 unchanged, non-goal o
    domain in that slice, a slug held by another slice or domain left out; new tests in
    `features/from_surface/slug_tests.rs` (`from_surface.rs` and its `tests.rs` are over the file size limit: a few
    call lines only there); makes true RER-13, RER-14, RER-15 for the features. (autonomous)
-3. [ ] Saved slugs kept by the domains call: matched on their resources, `uncategorized` never matched; tests in
-   `domains/tests.rs`; makes true RER-13, RER-16; the spec set `accepted`.
+3. [x] Saved slugs kept by the domains call: matched on their resources, `uncategorized` never matched; tests in
+   `domains/tests.rs`; makes true RER-13, RER-16; the spec set `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -99,6 +99,23 @@ Code review: 1 findings
 - `others` could hold the earlier slices of the same domain, so a feature over two slices would not merge back: no
   change, `features` holds the domains before this one only (`domain_features` keeps this one's slices apart), which
   `the_part_of_a_feature_a_slice_writes_again_merges_back_under_its_slug` proves.
+
+not verified: no paid run.
+decisions needed: none
+
+## Deliverable 3: summary
+done: the domains call gives back the saved slug of a domain written again with the same resources, `uncategorized` left out of the match; `specs/rerun.md` accepted.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (`specs/rerun.md` accepted, RER-13 to RER-16 traced) |
+| docs | `docs/crates/pipeline.md` (Saved slugs), `docs/ARCHITECTURE.md` §5 |
+| code review | see below |
+
+red: RER-13, RER-16: `["order-taking", "invoicing", "hooks", "uncategorized"]` instead of `ordering`, `billing`; with `uncategorized` in the match, it took the saved slug `hooks`.
+Code review: no findings
 
 not verified: no paid run.
 decisions needed: none

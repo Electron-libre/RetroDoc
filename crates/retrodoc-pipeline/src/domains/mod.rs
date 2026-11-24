@@ -15,6 +15,8 @@ mod corrections_tests;
 mod from_surface;
 mod prompt;
 #[cfg(test)]
+mod slug_tests;
+#[cfg(test)]
 mod tests;
 
 use self::prompt::layer_named_domains;
