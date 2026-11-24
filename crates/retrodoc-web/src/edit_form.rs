@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::extract::{Path, State};
 use axum::response::{Html, IntoResponse, Response};
 use axum::Form;
-use retrodoc_docs::edits;
+use retrodoc_docs::edits::{self, Fields};
 use retrodoc_docs::GeneratedDocs;
 use serde::Deserialize;
 
@@ -35,6 +35,9 @@ pub struct EditFormView {
     pub edited: bool,
     /// Whether the fields are shown as a save sent them, which unfolds them (SFM-2).
     pub sent: bool,
+    /// The text the page shows, sent back in hidden fields, so that a save compares the fields
+    /// with what this page showed, not with an edit saved since by another page (SFM-3).
+    pub shown: Fields,
 }
 
 impl EditFormView {
@@ -42,52 +45,55 @@ impl EditFormView {
     /// preview's links resolved by `links`.
     #[must_use]
     pub(crate) fn of(docs: &GeneratedDocs, place: &Place, links: &NarrativeLinks) -> Self {
-        let shown = edits::fields_in(docs.sections(), &place.section()).unwrap_or_default();
-        let narrative = is_use_case(place).then(|| shown.narrative.unwrap_or_default());
+        let shown = shown_in(docs, place);
         Self {
             sent: false,
-            ..Self::new(
-                place,
-                shown.name.unwrap_or_default(),
-                shown.description.unwrap_or_default(),
-                narrative,
-                is_edited(docs, place),
-                links,
-            )
+            ..Self::new(place, shown.clone(), shown, is_edited(docs, place), links)
         }
     }
 
-    /// The fields as a save sent them, kept in the form that says why it failed (SFM-15).
+    /// The fields as a save sent them, kept in the form that says why it failed (SFM-15), with
+    /// the text the page that sent them showed.
     #[must_use]
     pub(crate) fn sent(
         place: &Place,
-        name: String,
-        description: String,
-        narrative: Option<&str>,
+        fields: Fields,
+        shown: Fields,
         edited: bool,
         links: &NarrativeLinks,
     ) -> Self {
-        let narrative = is_use_case(place).then(|| narrative.unwrap_or_default().to_string());
-        Self::new(place, name, description, narrative, edited, links)
+        Self::new(place, fields, shown, edited, links)
     }
 
     fn new(
         place: &Place,
-        name: String,
-        description: String,
-        narrative: Option<String>,
+        fields: Fields,
+        shown: Fields,
         edited: bool,
         links: &NarrativeLinks,
     ) -> Self {
+        let narrative = is_use_case(place).then(|| fields.narrative.unwrap_or_default());
         Self {
             preview: format!("/preview{}", place.href()),
-            name,
-            description,
+            name: fields.name.unwrap_or_default(),
+            description: fields.description.unwrap_or_default(),
             narrative_preview: preview_html(narrative.as_deref(), links),
             narrative,
             edited,
             sent: true,
+            shown,
         }
+    }
+}
+
+/// The text the page of the section at `place` of `docs` shows (SED-23), a narrative for a use
+/// case only.
+#[must_use]
+pub(crate) fn shown_in(docs: &GeneratedDocs, place: &Place) -> Fields {
+    let shown = edits::fields_in(docs.sections(), &place.section()).unwrap_or_default();
+    Fields {
+        narrative: is_use_case(place).then(|| shown.narrative.unwrap_or_default()),
+        ..shown
     }
 }
 

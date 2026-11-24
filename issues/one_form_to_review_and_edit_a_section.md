@@ -38,6 +38,9 @@ Read by someone taking an application over
 
 # Tracking
 
+Done: the five deliverables; the follow-up of the high review in
+`issues/keep_the_outdated_mark_of_untouched_edited_fields.md`.
+
 Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-24
 
 ## Understanding
@@ -68,8 +71,8 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
    `tests/section_form.rs`; makes true SFM-1, SFM-3, SFM-6, SFM-7, SFM-9, SFM-12 to SFM-16. (autonomous)
 4. [x] The remaining tests of `tests/section_form.rs` (SFM-2, SFM-4, SFM-5, SFM-8, SFM-10, SFM-11), the unfolding
    on "wrong" in `forms.js`, the style of the form, before/after `just screenshots`. (autonomous)
-5. [ ] Docs of the whole issue and fixes of the `high` review (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`,
-   `docs/crates/docs.md`); spec set `accepted`.
+5. [x] Docs of the whole issue and fixes of the `high` review (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`,
+   `docs/crates/docs.md`); spec set `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -146,4 +149,35 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
   other tests passed at once, the behaviour they prove came with deliverable 3.
 - Code review: no findings
 - not verified: the unfolding by the script in a browser click (the server-side unfolding was seen on the page).
+- decisions needed: none.
+
+## Deliverable 5
+- done: the docs of the whole issue (`docs/ARCHITECTURE.md`, `docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`,
+  `docs/crates/docs.md`, the wording of FIX-H2 and of a non-goal of WEB); SFM-H3 traced; `section-form.md` and
+  `web-ui.md` set `accepted`; the fixes of the `high` review.
+- | check | result |
+  |---|---|
+  | tests | `cargo test -p retrodoc-web`: pass (4 new) |
+  | lint | clippy pedantic: clean |
+  | specs | `check-specs`: pass, every SFM traced |
+  | docs | updated (above) |
+  | code review | high over the issue: 6 findings; low over this deliverable: 1 finding |
+- red: SFM-3, SFM-15, SFM-16: a validation from a page shown before another page's edit removed that edit; a refused
+  save that sent no text answered empty fields; a name with a line break saved alone wrote an edit; the revert
+  button was left enabled (`find button` takes the first button only).
+- High review, 6 findings:
+  1. a stale page overwrote another page's edit: fixed, the form sends back the text it showed (hidden fields).
+  2. the revert button stayed enabled while a save runs: fixed, `hx-disabled-elt="#review button"`.
+  3. the preview of a narrative cleared the page error (`forms.js` matched `/preview` exactly): fixed.
+  4. an outdated edit is recorded again, its untouched stale fields included, no longer outdated: pre-existing,
+     outside the requirements, filed as `issues/keep_the_outdated_mark_of_untouched_edited_fields.md`.
+  5. a refused save that sent no text answered empty fields: fixed, the text shown fills them.
+  6. a name with a line break, which an `<input>` drops, made a review alone write an edit: fixed, the name compared
+     without its line breaks.
+- Code review: 1 findings
+  1. `hx-disabled-elt="#review button"` would miss the form if `#review` did not wrap it: no change needed,
+     `id="review"` is the `<section>` that wraps the form, once per page (the SFM-1 test).
+- `tests/debt_page.rs` is over 800 lines (862 before, 903 now): not split here, a move of its own; its SFM-H3 test
+  needs its fixture of debt items.
+- not verified: the hidden fields in a browser round trip (the router tests send them).
 - decisions needed: none.

@@ -634,3 +634,76 @@ async fn choosing_wrong_unfolds_the_fields_of_the_text() {
         assert!(script.contains(part), "{part} in {script}");
     }
 }
+
+// spec: SFM-3
+#[tokio::test]
+async fn a_review_from_a_page_shown_before_an_edit_keeps_that_edit() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let page = get(root, FEATURE).await;
+    let block = form_block(&page);
+    assert!(
+        block.contains("<input type=\"hidden\" name=\"shown_name\" value=\"Feature pay-invoice\">"),
+        "{block}"
+    );
+    // Another tab saves a name while this page still shows the generated one.
+    edit_name(root, &pay_invoice(), "Pay an invoice");
+
+    post(
+        root,
+        FEATURE,
+        "status=validated&name=Feature+pay-invoice&description=What+pay-invoice+does\
+         &shown_name=Feature+pay-invoice&shown_description=What+pay-invoice+does",
+        false,
+    )
+    .await;
+
+    assert_eq!(edits_saved(root).len(), 1, "the other tab's edit is kept");
+    assert_eq!(
+        reviews_saved(root),
+        [(pay_invoice(), Status::Validated, String::new())]
+    );
+}
+
+// spec: SFM-15
+#[tokio::test]
+async fn a_refused_save_that_sent_no_text_answers_the_text_shown() {
+    let dir = generated_repo();
+    let root = dir.path();
+    edit_name(root, &pay_invoice(), "Pay an invoice");
+
+    let answer = post(root, FEATURE, "status=bogus", true).await;
+
+    assert_eq!(answer.status, StatusCode::BAD_REQUEST);
+    assert!(
+        answer
+            .body
+            .contains("<input name=\"name\" value=\"Pay an invoice\">"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer.body.contains(">What pay-invoice does</textarea>"),
+        "{}",
+        answer.body
+    );
+}
+
+// spec: SFM-3
+#[tokio::test]
+async fn a_name_a_browser_sends_without_its_line_breaks_is_unchanged() {
+    let dir = generated_repo();
+    let root = dir.path();
+    edit_name(root, &pay_invoice(), "Pay\nan invoice");
+    let before = both_files(root)[0].clone();
+
+    post(
+        root,
+        FEATURE,
+        "status=validated&name=Payan+invoice&description=What+pay-invoice+does",
+        false,
+    )
+    .await;
+
+    assert_eq!(both_files(root)[0], before);
+}

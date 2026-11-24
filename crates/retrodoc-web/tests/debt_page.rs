@@ -860,3 +860,44 @@ async fn each_item_of_a_section_offers_to_review_it() {
         assert_eq!(actions(folder), None, "a folder: {folder}");
     }
 }
+
+// spec: SFM-H3, SFM-7, SFM-3
+#[tokio::test]
+async fn a_debt_item_is_left_to_review_through_its_one_action() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let page = debt(root, "/debt").await;
+    let item = items(&page)
+        .into_iter()
+        .find(|item| actions(item).is_some())
+        .unwrap_or_else(|| panic!("no item with an action in {page}"));
+    let actions = actions(item).unwrap();
+    assert_eq!(actions.matches("<a ").count(), 1, "{actions}");
+    let link = &actions[actions.find("href=\"").unwrap() + "href=\"".len()..];
+    let href = &link[..link.find("#review\"").unwrap()];
+
+    let request = Request::post(href)
+        .header("host", "127.0.0.1:8730")
+        .header("origin", "http://127.0.0.1:8730")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from("status=to_review&comment=Check+it"))
+        .unwrap();
+    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let response = retrodoc_web::router(Project::default(), docs, DocLinks::default(), Vec::new())
+        .oneshot(request)
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::SEE_OTHER, "{href}");
+    let reviews = retrodoc_docs::reviews::load(root).unwrap();
+    let saved: Vec<_> = reviews
+        .reviews()
+        .iter()
+        .map(|r| (r.status, r.comment.as_str()))
+        .collect();
+    assert_eq!(
+        saved,
+        [(retrodoc_docs::reviews::Status::ToReview, "Check it")]
+    );
+    assert!(!retrodoc_docs::edits::edits_path(root).exists());
+}

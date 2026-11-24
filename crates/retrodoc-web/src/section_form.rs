@@ -11,14 +11,14 @@ use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
 use retrodoc_docs::corrections::{self, Correction, CorrectionError, EditChange};
-use retrodoc_docs::edits::{self, EditsError, Fields};
+use retrodoc_docs::edits::{self, EditsError, Field, Fields};
 use retrodoc_docs::reviews::Status;
 use retrodoc_docs::GeneratedDocs;
 use serde::Deserialize;
 
 use crate::collected::NarrativeLinks;
 use crate::edit::is_edited;
-use crate::edit_form::EditFormView;
+use crate::edit_form::{shown_in, EditFormView};
 use crate::pages::{blocking, form_answer, not_found, read_failed};
 use crate::review::{self as review_view, Place, ReviewView};
 use crate::texts::WebTexts;
@@ -35,6 +35,11 @@ pub struct SectionForm {
     name: Option<String>,
     description: Option<String>,
     narrative: Option<String>,
+    /// The text the page showed, its hidden fields: what the fields sent are compared with
+    /// (SFM-3); one left out is the text shown now.
+    shown_name: Option<String>,
+    shown_description: Option<String>,
+    shown_narrative: Option<String>,
     /// `revert` for the button that brings the generated text back (SFM-5).
     #[serde(default)]
     action: String,
@@ -95,43 +100,66 @@ fn clean(text: &str) -> String {
     text.replace("\r\n", "\n").trim().to_string()
 }
 
+/// A field as a browser sends it back: cleaned, and a name without its line breaks, which an
+/// `<input>` drops.
+fn as_sent(text: Option<&str>, single_line: bool) -> String {
+    let text = clean(text.unwrap_or_default());
+    if single_line {
+        text.replace('\n', "")
+    } else {
+        text
+    }
+}
+
+impl SectionForm {
+    /// The text the page that sent the form showed, the text shown now for a field it left out.
+    fn shown(&self, now: Fields) -> Fields {
+        Fields {
+            name: self.shown_name.clone().or(now.name),
+            description: self.shown_description.clone().or(now.description),
+            narrative: self.shown_narrative.clone().or(now.narrative),
+        }
+    }
+
+    /// The fields of the text it sends, a field it leaves out as `shown`.
+    fn fields(&self, shown: &Fields) -> Fields {
+        Fields {
+            name: self.name.clone().or_else(|| shown.name.clone()),
+            description: self
+                .description
+                .clone()
+                .or_else(|| shown.description.clone()),
+            narrative: self.narrative.clone().or_else(|| shown.narrative.clone()),
+        }
+    }
+}
+
 /// What `form` does to the edit of the section at `place` of `docs` (SFM-3, SFM-11): the revert
-/// removes it; fields sent as the page shows them keep it; else the fields that change the
+/// removes it; fields sent as the page showed them keep it; else the fields that change the
 /// generated text, cleaned, none removing it.
 fn edit_change(docs: &GeneratedDocs, place: &Place, form: &SectionForm) -> EditChange {
     if form.action == "revert" {
         return EditChange::Remove;
     }
-    let section = place.section();
-    let shown = edits::fields_in(docs.sections(), &section).unwrap_or_default();
-    let generated = edits::fields_in(docs.generated(), &section).unwrap_or_default();
-    let sent = |field: &Option<String>, shown: &Option<String>| {
-        clean(field.as_deref().or(shown.as_deref()).unwrap_or_default())
-    };
-    let pairs = [
-        (&form.name, &shown.name, &generated.name),
-        (
-            &form.description,
-            &shown.description,
-            &generated.description,
-        ),
-        (&form.narrative, &shown.narrative, &generated.narrative),
-    ];
-    let unchanged = pairs
-        .iter()
-        .all(|(field, shown, _)| sent(field, shown) == clean(shown.as_deref().unwrap_or_default()));
+    let shown = form.shown(shown_in(docs, place));
+    let sent = form.fields(&shown);
+    let generated = edits::fields_in(docs.generated(), &place.section()).unwrap_or_default();
+    let unchanged = Field::ALL.into_iter().all(|field| {
+        let single_line = field == Field::Name;
+        as_sent(sent.get(field), single_line) == as_sent(shown.get(field), single_line)
+    });
     if unchanged {
         return EditChange::Keep;
     }
-    let [name, description, narrative] = pairs.map(|(field, shown, generated)| {
-        let text = sent(field, shown);
-        (!text.is_empty() && text != clean(generated.as_deref().unwrap_or_default()))
+    let kept = |field: Field| {
+        let text = clean(sent.get(field).unwrap_or_default());
+        (!text.is_empty() && text != clean(generated.get(field).unwrap_or_default()))
             .then_some(text)
-    });
+    };
     let fields = Fields {
-        name,
-        description,
-        narrative,
+        name: kept(Field::Name),
+        description: kept(Field::Description),
+        narrative: kept(Field::Narrative),
     };
     if fields == Fields::default() {
         EditChange::Remove
@@ -148,7 +176,13 @@ fn write(site: &Site, docs: &GeneratedDocs, place: &Place, form: &SectionForm) -
     let refused = |code, error: String| {
         let current = ReviewView::of(docs, &review_view::load(docs), place);
         let review = current.refused(error, sent.flatten(), comment.clone());
-        let fields = sent_form(site, place, form, is_edited(docs, place));
+        let fields = sent_form(
+            site,
+            place,
+            form,
+            is_edited(docs, place),
+            shown_in(docs, place),
+        );
         Saved::Refused(code, Box::new((review, fields)))
     };
     let Some(status) = sent else {
@@ -181,17 +215,18 @@ fn write(site: &Site, docs: &GeneratedDocs, place: &Place, form: &SectionForm) -
     }
 }
 
-/// The fields of the text as `form` sent them, unfolded to show them.
-fn sent_form(site: &Site, place: &Place, form: &SectionForm, edited: bool) -> EditFormView {
+/// The fields of the text as `form` sent them, unfolded to show them; a field it left out, and
+/// the hidden text shown, as `now`, the text the page shows now (SFM-15).
+fn sent_form(
+    site: &Site,
+    place: &Place,
+    form: &SectionForm,
+    edited: bool,
+    now: Fields,
+) -> EditFormView {
     let links = NarrativeLinks::of(site, place);
-    EditFormView::sent(
-        place,
-        form.name.clone().unwrap_or_default(),
-        form.description.clone().unwrap_or_default(),
-        form.narrative.as_deref(),
-        edited,
-        &links,
-    )
+    let shown = form.shown(now);
+    EditFormView::sent(place, form.fields(&shown), shown, edited, &links)
 }
 
 async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: SectionForm) -> Response {
@@ -231,7 +266,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: SectionF
             let error = site.texts().errors.no_section.to_string();
             let sent = review_view::parse(form.status.trim()).flatten();
             let review = ReviewView::absent(&place, error, sent, form.comment.trim().into());
-            let edit_form = sent_form(&site, &place, &form, false);
+            let edit_form = sent_form(&site, &place, &form, false, Fields::default());
             refused(StatusCode::NOT_FOUND, review, edit_form)
         }
         Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,

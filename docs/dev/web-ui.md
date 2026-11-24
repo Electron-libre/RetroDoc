@@ -38,13 +38,13 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | button | `<button>` (or `.button` on a link) | primary: gold, the one action of a form |
 | | `class="secondary"` | on the surface: filter, show |
 | | `class="quiet"` | text only: revert, start over |
-| section actions | `{% call m::section_actions(href) %}` under the heading of a section page, on the rows of the debt list | a primary "Review" (`#review`) and a secondary "Edit" (`?edit=1#edit-form`, the form unfolded); on a row of a list (`in_list`), a secondary "Review" and a quiet "Edit", so that the gold stays rare |
+| section actions | `{% call m::section_actions(href, label, in_list) %}` under the heading of a section page, on the rows of the debt list | one "Review" (`#review`, the form of the section): primary under the heading, secondary on a row of a list (`in_list`), so that the gold stays rare |
 | field | `<label class="field"><span class="field-label">…</span> <control></label>`, `.hint` below | label above the control; `.field.wide` grows in a line of fields |
 | form layouts | `.filters` | fields on one line, the button at their foot |
 | | `form.compare` | the runs as `table.runs` with a `from` and a `to` radio per row, the compared rows lit, the swap link below |
 | filter | `{% call m::filter_fields(filters) %}` in `form.filters`, `{% call m::active_filters(n, reset) %}` atop the list | the kinds as `fieldset.chips` of `.chip` radios, the others as selects; the checked chip and a select off "All" lit gold; the button in `<noscript>` |
-| | `.edit-fields`, `form.ask` | fields in a column, `.actions` for the buttons |
-| | `section.review`, `section.edit-form` | a panel on the surface |
+| | `form.section-form`, `form.ask` | fields in a column, `.actions` for the buttons |
+| | `section.review` | a panel on the surface: the review above its form, the status as `fieldset.chips status`, the fields of the text folded in `details.text-fields`, unfolded on "wrong" |
 | table | `<table>`, `<thead>` | muted header, row lit on hover (not the heatmap nor the code) |
 | wide table | `<div class="wide">` around a table with more columns than a screen holds (heatmap, trends) | scrolls in its own frame (at most 80 % of the viewport high), never the page; its header and its row headers (`th[scope="row"]`) stay in sight |
 | brand | `a.brand` in the header | the logo (`assets/retrodoc.svg`, a copy of `docs/logo/retrodoc.svg`), "Retro" in silver and "Doc" in gold, then the name of the application after a rule |
@@ -67,15 +67,14 @@ add a variant class after the existing attributes.
 
 ## States of the forms
 
-Each form shows each state that applies to it; a cross marks the states it must show. Their behaviour is WEB-102 to
-WEB-106 and WAK-40; `assets/forms.js` swaps the error answers that name their swap (`HX-Reswap`), clears the errors of a form at each send and drops `?saved` from the address bar.
+Each form shows each state that applies to it; a cross marks the states it must show. Their behaviour is WEB-102, WEB-106,
+`specs/section-form.md` and WAK-40; `assets/forms.js` swaps the error answers that name their swap (`HX-Reswap`), clears the errors of a form at each send and drops `?saved` from the address bar.
 
 | form | page | rest | hover | focus | disabled | pending | saved | error |
 |---|---|---|---|---|---|---|---|---|
 | search (top bar) | every page | x | | x | | x | | |
 | ask (question, send, start over) | ask | x | x | x | x (a question runs) | x | | x |
-| review (status, comment, save) | domain, feature, use case | x | x | x | | x | x | x |
-| edit (name, description, narrative and its preview, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
+| section (status, comment, name, description, narrative and its preview, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
 | debt filters (kind chips, domain) | debt | x | x | x | | x | | |
 | rules filters (kind chips, domain, feature) | rules | x | x | x | | x | | |
 | run comparison (from, to, swap) | history | x | x | x | | x | | |

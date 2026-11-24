@@ -57,7 +57,7 @@
   // A request sent clears the errors of the one before: those of the page, those of its form. The
   // preview of a narrative being typed sends nothing to save: it leaves them (WEB-119).
   document.addEventListener("htmx:beforeRequest", function (event) {
-    if (event.detail.elt.getAttribute("hx-post") === "/preview") {
+    if ((event.detail.elt.getAttribute("hx-post") || "").startsWith("/preview/")) {
       return;
     }
     const notice = document.getElementById("page-error");

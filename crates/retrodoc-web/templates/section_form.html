@@ -11,7 +11,7 @@
 {% else %}
 <p><strong>{{ t.review.heading }}</strong> <span class="muted">{{ t.review.not_reviewed }}</span></p>
 {% endif %}
-<form class="section-form" method="post" action="{{ review.action }}" hx-post="{{ review.action }}" hx-target="closest section" hx-swap="outerHTML" hx-indicator="find .indicator" hx-disabled-elt="find button">
+<form class="section-form" method="post" action="{{ review.action }}" hx-post="{{ review.action }}" hx-target="closest section" hx-swap="outerHTML" hx-indicator="find .indicator" hx-disabled-elt="#review button">
   <fieldset class="chips status"><legend class="field-label">{{ t.review.status_label }}</legend>
     {% for option in review.options(t.review) %}<label class="chip"><input type="radio" name="status" value="{{ option.key }}"{% if option.selected %} checked{% endif %}> {{ option.label }}</label>
     {% endfor %}
@@ -25,6 +25,9 @@
   <div class="field"><span class="field-label">{{ t.edit.preview }}</span> <div class="preview narrative" id="narrative-preview" aria-live="polite">{{ edit_form.narrative_preview|safe }}</div></div>{% endif %}
   <p class="hint">{{ t.edit.form_hint }}</p>
   </details>
+  <input type="hidden" name="shown_name" value="{{ edit_form.shown.name.as_deref().unwrap_or_default() }}">
+  <input type="hidden" name="shown_description" value="{{ edit_form.shown.description.as_deref().unwrap_or_default() }}">
+  {% if let Some(narrative) = edit_form.shown.narrative %}<input type="hidden" name="shown_narrative" value="{{ narrative }}">{% endif %}
   {% call m::form_error(review.form_error) %}{% endcall %}
   {% call m::notice(review.saved, t.review.saved) %}{% endcall %}
   <div class="actions">

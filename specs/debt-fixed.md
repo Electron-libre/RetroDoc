@@ -52,7 +52,7 @@ settled.
   the number of items drops by one, and "Fixed" shows it wrong, "wrong actor", by the reviewer at the date of the
   review, having taken out "low confidence" and "marked wrong".
 - **FIX-H2** (happy; FIX-1, FIX-3, FIX-4) Given a feature marked wrong, when the reviewer corrects its description in
-  the edit form, then it stays under "Fixed", now also showing the edit, its author and its date.
+  the form of the section, then it stays under "Fixed", now also showing the edit, its author and its date.
 - **FIX-H3** (happy; FIX-1, FIX-3, FIX-4) Given a use case of low confidence, when the reviewer validates it, then
   "Fixed" shows it validated, by the reviewer, having taken out "low confidence".
 - (FIX-1) Given a section left `to_review`, then it is not fixed, edited or not.

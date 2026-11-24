@@ -1,6 +1,6 @@
 ---
 id: SFM
-status: draft
+status: accepted
 adrs: [0039, 0044, 0045]
 ---
 
@@ -79,6 +79,11 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
   shows it, and saves, then the review is written again, validated by B, and not outdated.
 - (SFM-3) Given a section whose edit is outdated, when the reader validates it without touching its fields, then the
   edit is left as it was, still outdated, and the review is not outdated.
+- (SFM-3) Given a page of a feature shown as generated, when another page saves an edit of its name and this page
+  then validates the feature, its fields untouched, then the edit of the other page is kept: the fields are compared
+  with the text this page showed, which the form sends back in hidden fields.
+- (SFM-3) Given a name holding a line break, which a browser drops from an `<input>`, when the form saves a review
+  alone, then no edit is written.
 - (SFM-3) Given a reviewed use case, when the form sends no status and its fields unchanged, then it has no review and
   its edit is as it was.
 - (SFM-11) Given a feature whose name is edited, when the form sends the name emptied, then the feature has no edit.

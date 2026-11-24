@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: draft
+status: accepted
 adrs: [0039, 0044, 0048]
 ---
 
@@ -424,7 +424,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
 - No LLM call without `--ask` (ADR 0048, `specs/web-ask.md`): a review records a judgement and leaves the docs as they are; an edit (`specs/section-form.md`) is an overlay over the
   generated text, which the artifacts keep (`specs/section-edit.md`).
-- The edit form changes the name, the description and the narrative only: no steps, business rules nor glossary
+- The form of a section (`specs/section-form.md`) changes the name, the description and the narrative only: no steps, business rules nor glossary
   (`specs/section-edit.md`); no button per field brings one field back: emptying it does.
 - No authentication of the reviewer: the author of a review is the `user.name` of the repository (REV-4), whoever
   sends the form.

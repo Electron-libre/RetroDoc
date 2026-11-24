@@ -135,8 +135,9 @@ async fn the_forms_that_write_show_that_they_are_sent_and_disable_their_buttons(
         let page = get(root, path).await;
         let form = form(&page, "<form class=\"section-form\"");
         assert_indicator(form, "Saving…");
+        // Every button of the form, the revert included: `find` would take the first alone.
         assert!(
-            opening(form).contains("hx-disabled-elt=\"find button\""),
+            opening(form).contains("hx-disabled-elt=\"#review button\""),
             "{form}"
         );
     }
