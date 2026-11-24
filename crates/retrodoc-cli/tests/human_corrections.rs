@@ -343,3 +343,40 @@ fn a_validated_use_case_is_given_with_its_narrative() {
     assert!(asked.contains("validated"), "{asked}");
     assert!(asked.contains("The customer lists the orders."), "{asked}");
 }
+
+// spec: RER-H1, RER-13
+#[test]
+fn a_use_case_written_again_under_a_new_slug_keeps_its_saved_one() {
+    let app = App {
+        stack: "Ruby",
+        source_extensions: vec!["rb"],
+        chunk_boundaries: Vec::new(),
+        business: "app/",
+        entry: "app/orders_controller.rb",
+        model: "app/order.rb",
+    };
+    // Asked again, the model renames the use case of the same entry point.
+    let llm = FakeLlm::start(move |call| {
+        let answer = app.answer(call);
+        if call.pass == "use-cases" && call.user.contains("Human corrections") {
+            answer.replacen("\"list-orders\"", "\"browse-orders\"", 1)
+        } else {
+            answer
+        }
+    });
+    let dir = shop(&llm);
+    succeeds(&generate(dir.path()));
+    review_the_use_case(
+        dir.path(),
+        "wrong",
+        "Only the orders of the customer are listed.",
+        "2026-11-24T10:00:00Z",
+    );
+
+    succeeds(&generate(dir.path()));
+
+    let use_cases =
+        std::fs::read_to_string(dir.path().join(".retrodoc/cache/use-cases.yaml")).unwrap();
+    assert!(use_cases.contains("slug: list-orders"), "{use_cases}");
+    assert!(!use_cases.contains("browse-orders"), "{use_cases}");
+}

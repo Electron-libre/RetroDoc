@@ -44,6 +44,7 @@ mod request;
 mod response;
 pub mod roles;
 pub mod rules;
+mod saved_slugs;
 pub mod slices;
 pub mod source_hashes;
 pub mod sources;

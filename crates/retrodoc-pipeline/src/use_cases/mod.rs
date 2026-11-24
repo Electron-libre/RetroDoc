@@ -34,6 +34,7 @@ use crate::features::{entry_point_id, file_ranges, unique_slug};
 use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
 use crate::per_feature::{self, FeaturePass, Plan, Unit};
 use crate::roles::load_splitter;
+use crate::saved_slugs::keep_saved_slugs;
 use crate::slices::CodeIndex;
 use crate::walked::WalkedFiles;
 
@@ -249,9 +250,18 @@ impl FeaturePass for UseCasesPass<'_> {
         answers: Self::Answer,
         done: &mut Vec<UseCase>,
     ) -> Result<bool, PipelineError> {
-        let Some(produced) = ground_slices(feature, &requests, answers, done, self.actors)? else {
+        let Some(mut produced) = ground_slices(feature, &requests, answers, done, self.actors)?
+        else {
             return Ok(false);
         };
+        // The answer holds every use case of the feature: no other section holds their slugs.
+        let saved: Vec<UseCase> = self
+            .previous
+            .iter()
+            .filter(|u| u.feature_slug == feature.slug)
+            .cloned()
+            .collect();
+        keep_saved_slugs(&mut produced, &saved, |_| false);
         done.extend(produced);
         Ok(true)
     }

@@ -53,6 +53,13 @@ Behaviors that span passes:
   answered (`pending`) asks its unit again, and the reviews a unit answered are kept in `Fingerprints::answered`
   (`<pass>:<unit key>`, recorded by `per_feature::run` from `Unit::reviews`, and by `SliceCorrections::answered` for a
   slice of features).
+- **Saved slugs** (`saved_slugs.rs`, `specs/rerun.md` RER-13 to RER-16): a unit asked again for any reason (a
+  changed input, a review `wrong`) writes all its sections again, and the model may rename one it writes the same.
+  `keep_saved_slugs` gives a section of the answer the slug of the saved section of its unit with exactly the same
+  entry points, one to one: not when the slug is held elsewhere, when the section already holds a saved slug of its
+  unit, or when two sections (of the answer or saved) have those entry points; a split or a merge keeps the answer's
+  slugs. So the edits and the reviews of the sibling sections still name them. Applied by the use cases pass to the
+  use cases of a feature, against its saved ones.
 - **Model per pass** (ADR 0023): `[llm.passes.<name>]` (`PassLlmConfig`, the keys of `[llm]`, names in `config::PASS_NAMES`, unknown name or key = config error) overrides `[llm]` for one pass: `LlmConfig::for_pass`. A pass that changes `provider` without `api_key_env` takes that provider's key variable; an empty `base_url` drops the global one. A removed setting (`domains_from = "files"`, `batch_chars`, `[llm.passes.repo-map]`, `body_lines`) stops the load with a message naming it (`REMOVED_KEYS`, `removed_setting`, SET-4, SET-8). The CLI's `PassProviders::open` builds one provider per distinct configuration (shared between passes with equal settings, opened before any call so a missing key names its pass; `generate` opens only the passes it calls: those of its path minus those turned off, `generate::passes_off`, which the estimate shares, SET-9), `get(pass)` hands it out.
 - **Additive readings**: `build_glossary` and `build_entry_points` take a `Retention`: `OnlyRead` (what `generate`, `glossary` and `entry-points` use today) rebuilds the inventory from the files read now, `Others` also keeps the saved entries of the other files that still exist, which is how a repository is read in several runs, one context at a time (`issues/done/business_files_cap_on_large_application.md`, step 4). The joint reading (`business_read`) already only adds.
 - **Resumable**: every pass saves after each answer or batch (the readings, the features per domain, the use cases and the rules per feature, the confidence scores per request;
