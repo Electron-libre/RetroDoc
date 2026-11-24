@@ -11,6 +11,7 @@ use retrodoc_docs::reviews::Reviews;
 use retrodoc_docs::GeneratedDocs;
 use tokio::task::JoinError;
 
+use crate::ask::Probe;
 use crate::assets::MERMAID;
 use crate::audit::{audit_page, AuditPage};
 use crate::code::{code_page, Asked, CodePage};
@@ -282,6 +283,8 @@ pub(crate) fn read_failed(err: &JoinError) -> Response {
 
 pub async fn domain(
     State(site): State<Arc<Site>>,
+    State(probe): State<Probe>,
+    headers: HeaderMap,
     Path(slug): Path<String>,
     RawQuery(query): RawQuery,
 ) -> Response {
@@ -292,7 +295,11 @@ pub async fn domain(
             let (reviews, review) = reviews_of(docs, &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let (review, edit_form) = (after.shown(review), EditFormView::of(docs, &place, &links));
+            let review = ReviewView {
+                settle: probe.settle_button(&headers, &place.section()),
+                ..after.shown(review)
+            };
+            let edit_form = EditFormView::of(docs, &place, &links);
             domain_page(docs, site.links(), &reviews, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -347,6 +354,8 @@ fn reviews_of(docs: &GeneratedDocs, place: &Place) -> (Reviews, ReviewView) {
 
 pub async fn feature(
     State(site): State<Arc<Site>>,
+    State(probe): State<Probe>,
+    headers: HeaderMap,
     Path((domain, slug)): Path<(String, String)>,
     RawQuery(query): RawQuery,
 ) -> Response {
@@ -360,7 +369,11 @@ pub async fn feature(
             let (reviews, review) = reviews_of(docs, &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let (review, edit_form) = (after.shown(review), EditFormView::of(docs, &place, &links));
+            let review = ReviewView {
+                settle: probe.settle_button(&headers, &place.section()),
+                ..after.shown(review)
+            };
+            let edit_form = EditFormView::of(docs, &place, &links);
             feature_page(docs, site.links(), &reviews, &domain, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -385,6 +398,8 @@ pub async fn feature(
 
 pub async fn use_case(
     State(site): State<Arc<Site>>,
+    State(probe): State<Probe>,
+    headers: HeaderMap,
     Path((domain, feature, slug)): Path<(String, String, String)>,
     RawQuery(query): RawQuery,
 ) -> Response {
@@ -399,7 +414,11 @@ pub async fn use_case(
             let review = ReviewView::of(docs, &review::load(docs), &place);
             let links = NarrativeLinks::of(site, &place);
             let edit = EditView::of(docs, &place, site.texts(), &links);
-            let (review, edit_form) = (after.shown(review), EditFormView::of(docs, &place, &links));
+            let review = ReviewView {
+                settle: probe.settle_button(&headers, &place.section()),
+                ..after.shown(review)
+            };
+            let edit_form = EditFormView::of(docs, &place, &links);
             use_case_page(docs, site.links(), &domain, &feature, &slug, &links)
                 .map(|page| (page, edit, review, edit_form))
         })

@@ -16,8 +16,9 @@ and ends on a proposed review and correction that the reader puts in the form an
 
 ### Behaviour
 
-- **STL-1** (deterministic) With `--ask`, the form of a domain, a feature or a use case (SFM-1) must hold a button
-  "Settle with the agent" that starts a settling of its section; without `--ask`, the form holds none.
+- **STL-1** (deterministic) With `--ask`, the review of a domain, a feature or a use case (`#review`, SFM-1) must hold,
+  under its form, a button "Settle with the agent" that starts a settling of its section; without `--ask`, it holds
+  none.
 - **STL-2** (deterministic) Starting a settling must empty the exchanges and the conversation of the ask session, as
   WAK-22 does, send the settling message of the section (STL-4) as its first question, and show the page `/ask`
   following it (WAK-30).
@@ -47,8 +48,9 @@ and ends on a proposed review and correction that the reader puts in the form an
 ### Contract
 
 - **STL-10** (deterministic) A settling must start by a `POST` to `/ask/settle` with the fields `kind` (`domain`,
-  `feature` or `use_case`) and `id`, answered as a question is (WAK-14), and its session found or started as a
-  question's (WAK-18).
+  `feature` or `use_case`) and `id`, its session found or started as a question's (WAK-18), answered before the
+  model answers: with the header `HX-Request`, with the header `HX-Redirect` naming `/ask`, else with a redirect
+  `303` to `/ask`.
 - **STL-11** (deterministic) A start of a settling must be refused, the session left as it was and no LLM call made,
   with the status 404 for a section the last run does not have, 400 for another kind, and 409 while a question of
   the session runs (WAK-29); without `--ask`, `/ask/settle` is answered as `/ask` is (WAK-2).

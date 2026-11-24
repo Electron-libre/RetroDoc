@@ -4,7 +4,8 @@
 {% block content %}
 <h1>{{ t.ask.link }}</h1>
 <p class="muted">{{ t.ask.intro }}</p>
-<div id="exchanges" hx-on::after-settle="document.querySelector('form.ask button').disabled = this.querySelector('.running') !== null">
+{% if let Some(settled) = settling %}<p class="settling">{{ t.settle.settling }} <a href="{{ settled.href }}">{{ settled.name }}</a></p>
+{% endif %}<div id="exchanges" hx-on::after-settle="document.querySelector('form.ask button').disabled = this.querySelector('.running') !== null">
 {% for exchange in exchanges %}{% include "exchange.html" %}
 {% endfor %}
 {% if let Some(running) = running %}{% include "running.html" %}{% endif %}

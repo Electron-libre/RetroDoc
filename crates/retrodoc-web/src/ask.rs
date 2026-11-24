@@ -28,6 +28,10 @@ use crate::texts::{AskTexts, WebTexts};
 use crate::view::{code_href, Shell, Site};
 use crate::LiveSite;
 
+mod settle;
+pub(crate) use settle::Probe;
+pub use settle::{SettleButton, SettledView};
+
 /// The sessions kept in memory; a new one past them drops the one used least recently (WAK-20).
 pub const MAX_SESSIONS: usize = 32;
 
@@ -66,7 +70,10 @@ struct Progress {
 /// A question running in a task of the server.
 struct Running {
     number: u64,
+    /// The question as the page shows it.
     question: String,
+    /// What is sent to the model: the question, or the first message of a settling (STL-4).
+    message: String,
     progress: watch::Sender<Progress>,
 }
 
@@ -245,16 +252,18 @@ fn with_cookie(mut response: Response, id: &str, new: bool) -> Response {
 
 /// The routes of the ask page over `site`.
 pub(crate) fn routes(site: LiveSite, asking: Asking, in_flight: InFlight) -> Router {
+    let sessions = site.1 .0.clone().unwrap_or_default();
     let state = AskState {
         site,
         asking: Arc::new(asking),
-        sessions: Arc::default(),
+        sessions,
         docs: Arc::default(),
         in_flight,
     };
     Router::new()
         .route("/ask", get(page).post(question))
         .route("/ask/reset", post(reset))
+        .route("/ask/settle", post(settle::settle))
         .route("/ask/questions/{number}", get(ended))
         .route("/ask/questions/{number}/events", get(events))
         .with_state(state)
@@ -360,6 +369,8 @@ struct AskPage<'a> {
     running: Option<RunningView>,
     /// The questions suggested to a conversation with no exchange (WAK-43); empty otherwise.
     suggestions: Vec<String>,
+    /// The section the session settles, if a settling started it (STL-3).
+    settling: Option<SettledView>,
 }
 
 /// How many domains of the last run the suggested questions name (WAK-43).
@@ -419,7 +430,7 @@ async fn page(State(state): State<AskState>, headers: HeaderMap) -> Response {
     let site: Arc<Site> = state.site.0.current();
     let texts = site.texts();
     // A page with no session shows none and keeps none: only a question starts one.
-    let (exchanges, running) = state
+    let (exchanges, running, settling) = state
         .sessions()
         .get(cookie(&headers).as_deref())
         .map(|session| {
@@ -428,7 +439,8 @@ async fn page(State(state): State<AskState>, headers: HeaderMap) -> Response {
                 .iter()
                 .map(|exchange| ExchangeView::of(exchange, &texts.ask))
                 .collect();
-            (exchanges, session.running.as_deref().map(RunningView::of))
+            let running = session.running.as_deref().map(RunningView::of);
+            (exchanges, running, SettledView::of(&site, session))
         })
         .unwrap_or_default();
     let suggestions = if exchanges.is_empty() && running.is_none() {
@@ -442,6 +454,7 @@ async fn page(State(state): State<AskState>, headers: HeaderMap) -> Response {
         exchanges,
         running,
         suggestions,
+        settling,
     };
     render(StatusCode::OK, &page)
 }
@@ -507,6 +520,7 @@ async fn question(
         session.asked += 1;
         let running = Arc::new(Running {
             number: session.asked,
+            message: question.clone(),
             question,
             progress: watch::Sender::new(Progress::default()),
         });
@@ -514,15 +528,7 @@ async fn question(
         (id, new, running, session.conversation.clone())
     };
     let mut progress = running.progress.subscribe();
-    let started = state.in_flight.start();
-    tokio::spawn(run(
-        started,
-        state,
-        id.clone(),
-        Arc::clone(&running),
-        conversation,
-        docs,
-    ));
+    launch(state, id.clone(), Arc::clone(&running), conversation, docs);
     let response = if htmx {
         render(
             StatusCode::OK,
@@ -537,6 +543,18 @@ async fn question(
         (StatusCode::SEE_OTHER, [(header::LOCATION, "/ask")]).into_response()
     };
     with_cookie(response, &id, new)
+}
+
+/// Runs the question `running` of the session `id` in a task of its own, counted in flight.
+fn launch(
+    state: AskState,
+    id: String,
+    running: Arc<Running>,
+    conversation: Conversation,
+    docs: Arc<Docs>,
+) {
+    let started = state.in_flight.start();
+    tokio::spawn(run(started, state, id, running, conversation, docs));
 }
 
 /// Asks the question `running` of the session `id` after its `conversation`, telling its progress
@@ -560,13 +578,7 @@ async fn run(
     // The calls of the question alone, counted as the recap counts them (WAK-37).
     let llm = UsageProvider::new(Arc::clone(&state.asking.llm), free.counted.clone());
     let outcome = conversation
-        .ask_observed(
-            &llm,
-            docs,
-            &running.question,
-            state.asking.max_rounds,
-            &tell,
-        )
+        .ask_observed(&llm, docs, &running.message, state.asking.max_rounds, &tell)
         .await
         .map_err(|error| error.to_string());
     free.keep(outcome, Some(conversation));
@@ -736,57 +748,4 @@ async fn reset(State(state): State<AskState>, headers: HeaderMap) -> Response {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // spec: WAK-11 (internal: a use case outside the run is named only by artifacts of an older run)
-    #[test]
-    fn a_use_case_whose_id_names_no_domain_has_no_link() {
-        let texts = &WebTexts::ENGLISH.ask;
-        let source = |id: &str| Source {
-            kind: SourceKind::UseCase,
-            id: id.into(),
-        };
-
-        let orphan = source_link(&source("pay-invoice/by-card"), texts);
-        let placed = source_link(&source("billing/pay-invoice/by-card"), texts);
-
-        assert_eq!(orphan.href, None);
-        assert_eq!(
-            placed.href.as_deref(),
-            Some("/domains/billing/pay-invoice/by-card")
-        );
-    }
-
-    // spec: WAK-20 (internal: 33 sessions through the router would only count cookies)
-    #[test]
-    fn past_the_bound_the_session_used_least_recently_is_dropped() {
-        let mut sessions = Sessions::default();
-        let (first, _) = sessions.open(None);
-        let (second, _) = sessions.open(None);
-        for _ in 2..MAX_SESSIONS {
-            sessions.open(None);
-        }
-        // The first, used again, is no longer the least recent: the second goes.
-        assert!(sessions.get(Some(&first)).is_some());
-        sessions.open(None);
-
-        assert!(sessions.get(Some(&first)).is_some());
-        assert!(sessions.get(Some(&second)).is_none());
-        assert!(sessions.open(Some(&second)).1);
-        assert_eq!(sessions.0.len(), MAX_SESSIONS);
-    }
-
-    // spec: WAK-27 (internal: the link builder alone decides the encoding of a cited path)
-    #[test]
-    fn a_file_source_links_to_its_path_percent_encoded() {
-        let file = Source {
-            kind: SourceKind::File,
-            id: "app/my order#1.rb".into(),
-        };
-
-        let link = source_link(&file, &WebTexts::ENGLISH.ask);
-
-        assert_eq!(link.href.as_deref(), Some("/code/app/my%20order%231.rb"));
-    }
-}
+mod tests;

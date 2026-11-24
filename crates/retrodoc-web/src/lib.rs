@@ -30,6 +30,7 @@ pub mod review;
 pub mod rules;
 pub mod search;
 mod section_form;
+pub mod settle_texts;
 pub mod texts;
 pub mod trends;
 pub mod view;
@@ -84,7 +85,14 @@ impl Project {
 /// (`specs/section-edit.md` SED-27): a handler that asks for the `Arc<Site>` state gets the site
 /// with the edits saved at its request.
 #[derive(Clone)]
-pub(crate) struct LiveSite(Arc<Live<Site>>);
+/// The probe of the ask sessions goes with it, for the forms of the sections (STL-1).
+pub(crate) struct LiveSite(Arc<Live<Site>>, pub(crate) ask::Probe);
+
+impl FromRef<LiveSite> for ask::Probe {
+    fn from_ref(live: &LiveSite) -> Self {
+        live.1.clone()
+    }
+}
 
 impl FromRef<LiveSite> for Arc<Site> {
     fn from_ref(live: &LiveSite) -> Self {
@@ -100,6 +108,11 @@ impl LiveSite {
         collected: Vec<ExistingDoc>,
         ask: bool,
     ) -> Self {
+        let probe = if ask {
+            ask::Probe::asking()
+        } else {
+            ask::Probe::default()
+        };
         let root = docs
             .as_ref()
             .and_then(GeneratedDocs::repo_root)
@@ -114,12 +127,15 @@ impl LiveSite {
             )
             .with_ask_link(ask)
         };
-        Self(Arc::new(Live::new(
-            site,
-            root.as_deref(),
-            |site: &Site| site.docs().map(GeneratedDocs::edits),
-            rebuild,
-        )))
+        Self(
+            Arc::new(Live::new(
+                site,
+                root.as_deref(),
+                |site: &Site| site.docs().map(GeneratedDocs::edits),
+                rebuild,
+            )),
+            probe,
+        )
     }
 }
 

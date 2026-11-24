@@ -177,6 +177,7 @@ pub struct WebTexts {
     pub review: ReviewTexts,
     pub edit: EditTexts,
     pub ask: AskTexts,
+    pub settle: crate::settle_texts::SettleTexts,
     /// Why a form was refused, shown beside its fields.
     pub errors: ErrorTexts,
     /// The lines a page of a file shows: from, to, of how many.
@@ -819,6 +820,7 @@ impl WebTexts {
             revert: "Back to the generated text",
             revert_confirm: "Remove the edit and show the generated text again?",
         },
+        settle: crate::settle_texts::SettleTexts::ENGLISH,
         ask: AskTexts {
             link: "Ask",
             hint: "Ask a question about the application; the answer reads the docs with an LLM",
@@ -1230,6 +1232,7 @@ impl WebTexts {
             revert: "Revenir au texte généré",
             revert_confirm: "Supprimer la correction et revenir au texte généré ?",
         },
+        settle: crate::settle_texts::SettleTexts::FRENCH,
         ask: AskTexts {
             link: "Demander",
             hint: "Poser une question sur l’application ; la réponse lit la doc avec un LLM",

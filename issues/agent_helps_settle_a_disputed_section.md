@@ -60,10 +60,10 @@ Out of scope: transcript kept with the review, choice buttons, settling from `ch
    contradictions), the verification system prompt, the `propose_verdict` tool and `Answer::proposal`, the proposal in the
    kept turn; tests in a new `crates/retrodoc-agent/src/settle_tests.rs` with the scripted `FakeLlm` (~650 lines); commits
    the spec and ADR 0057 drafts; makes true STL-4, STL-5, STL-6, STL-13, STL-14, STL-15. (autonomous)
-2. [ ] Web start of a settling: button in the section form with its conditional confirmation, `POST /ask/settle`
+2. [x] Web start of a settling: button in the section form with its conditional confirmation, `POST /ask/settle`
    (refusals 400/404/409, reset then first question streamed as WAK-30), the settled section named on `/ask`; code in a new
    `crates/retrodoc-web/src/settle.rs` (texts in `settle_texts.rs`, `texts.rs` being over the file size limit), tests in a
-   new `crates/retrodoc-web/tests/settle_page.rs` (~700 lines); makes true STL-1, STL-2, STL-3, STL-10, STL-11, STL-12.
+   new `crates/retrodoc-web/tests/settle_page.rs` (~700 lines); makes true STL-1, STL-2, STL-3, STL-10, STL-11, STL-12. (autonomous)
 3. [ ] Web proposal: the proposal shown in its exchange with "Fill the form", the section page filled from
    `?proposal=<n>` with its notice, nothing written before the save (~500 lines); makes true STL-7, STL-8, STL-9, STL-16;
    sets the spec `accepted`.
@@ -96,5 +96,31 @@ red: STL-4, STL-5, STL-6, STL-13, STL-14, STL-15: the tests did not compile befo
 Code review: no findings
 
 not verified: none
+
+decisions needed: none
+
+## Deliverable 2: web start of a settling
+
+done: `form.settle` under the form of a section with `ui --ask` (confirmation over exchanges), `POST /ask/settle`
+(400/404/409, the session emptied, the first message sent, answered at once), the settled section named on `/ask`;
+the ask sessions shared with the pages (`ask::Probe`); the inline tests of `ask.rs` moved to `ask/tests.rs` (file size).
+STL-1 and STL-10 reworded: the button is a form of its own under the section form (no nested form), and the start is
+answered at once with `HX-Redirect`/303 to `/ask` rather than as a question (WAK-14 waits for the answer without htmx).
+
+| check | result |
+|---|---|
+| tests | `project-check` green; `tests/settle_page.rs`: 4 new |
+| lint | clippy pedantic clean |
+| specs | `check-specs` clean for STL (draft) |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md` |
+| file size | `texts.rs` was over the limit before (1525 → 1528, one field and two lines of instances): the texts live in `settle_texts.rs` |
+| code review | low, see below |
+
+red: STL-1, STL-2, STL-3, STL-4, STL-10, STL-11, STL-12: no settle form on the page (`expect("a settle form")`), `/ask/settle` answered 404.
+
+Code review: 1 findings
+- nit, `ask/settle.rs`: a panic building the first message sent an empty message to the model: fixed, answered 500 (`read_failed`) before the session is touched.
+
+not verified: the look of `form.settle` and `p.settling` (no screenshots shot, the CSS is two rules).
 
 decisions needed: none

@@ -16,6 +16,7 @@ use retrodoc_docs::reviews::Status;
 use retrodoc_docs::GeneratedDocs;
 use serde::Deserialize;
 
+use crate::ask::Probe;
 use crate::collected::NarrativeLinks;
 use crate::edit::is_edited;
 use crate::edit_form::{shown_in, EditFormView};
@@ -57,24 +58,34 @@ struct FormFragment {
 
 pub async fn domain(
     State(site): State<Arc<Site>>,
+    State(probe): State<Probe>,
     Path(slug): Path<String>,
     headers: HeaderMap,
     Form(form): Form<SectionForm>,
 ) -> Response {
-    save(site, Place::Domain(slug), &headers, form).await
+    save(site, &probe, Place::Domain(slug), &headers, form).await
 }
 
 pub async fn feature(
     State(site): State<Arc<Site>>,
+    State(probe): State<Probe>,
     Path((domain, slug)): Path<(String, String)>,
     headers: HeaderMap,
     Form(form): Form<SectionForm>,
 ) -> Response {
-    save(site, Place::Feature { domain, slug }, &headers, form).await
+    save(
+        site,
+        &probe,
+        Place::Feature { domain, slug },
+        &headers,
+        form,
+    )
+    .await
 }
 
 pub async fn use_case(
     State(site): State<Arc<Site>>,
+    State(probe): State<Probe>,
     Path((domain, feature, slug)): Path<(String, String, String)>,
     headers: HeaderMap,
     Form(form): Form<SectionForm>,
@@ -84,7 +95,7 @@ pub async fn use_case(
         feature,
         slug,
     };
-    save(site, place, &headers, form).await
+    save(site, &probe, place, &headers, form).await
 }
 
 /// What a save came to.
@@ -229,7 +240,13 @@ fn sent_form(
     EditFormView::sent(place, form.fields(&shown), shown, edited, &links)
 }
 
-async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: SectionForm) -> Response {
+async fn save(
+    site: Arc<Site>,
+    probe: &Probe,
+    place: Place,
+    headers: &HeaderMap,
+    form: SectionForm,
+) -> Response {
     let htmx = headers.contains_key("HX-Request");
     let (at, sent) = (place.clone(), form.clone());
     let saved = blocking(&site, move |site| {
@@ -272,6 +289,10 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: SectionF
         Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,
         Ok(Saved::Refused(code, form)) => {
             let (review, edit_form) = *form;
+            let review = ReviewView {
+                settle: probe.settle_button(headers, &place.section()),
+                ..review
+            };
             refused(code, review, edit_form)
         }
         Err(err) => read_failed(&err),

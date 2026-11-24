@@ -36,4 +36,8 @@
     <span class="indicator" role="status">{{ t.saving }}</span>
   </div>
 </form>
+{% if let Some(settle) = review.settle %}<form class="settle" method="post" action="/ask/settle" hx-post="/ask/settle" hx-swap="none" hx-disabled-elt="find button">
+  <input type="hidden" name="kind" value="{{ settle.kind }}"><input type="hidden" name="id" value="{{ settle.id }}">
+  <button type="submit" class="secondary"{% if settle.confirm %} data-confirm="{{ t.settle.confirm }}"{% endif %}>{{ t.settle.button }}</button>
+</form>{% endif %}
 </section>

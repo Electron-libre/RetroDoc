@@ -217,6 +217,8 @@ pub struct ReviewView {
     pub selected: Option<Status>,
     /// Why the review no longer vouches for the section as it is now.
     pub outdated: Option<OutdatedView>,
+    /// The button that settles the section with the agent, with `ui --ask` only (STL-1).
+    pub settle: Option<crate::ask::SettleButton>,
 }
 
 impl ReviewView {
@@ -261,6 +263,7 @@ impl ReviewView {
             absent: false,
             selected: Some(review.status),
             outdated: outdated.as_ref().map(OutdatedView::of),
+            settle: None,
         }
     }
 
