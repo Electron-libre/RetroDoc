@@ -7,13 +7,15 @@
 //! MCP server of `retrodoc-mcp` and the `ask` agent of `retrodoc-agent` (ADR 0047) offer the same
 //! tools; [`Docs::source_named`] and [`Docs::warnings_of`] check the sources of an answer. The
 //! lexical search ([`SearchIndex`]) is also exposed alone by `retrodoc search`, to judge retrieval
-//! quality. The stores of the human reviews ([`reviews`]) and edits ([`edits`]), the run history
+//! quality. The stores of the human reviews ([`reviews`]) and edits ([`edits`]), saved together by the
+//! form of a section ([`corrections`]), the run history
 //! ([`history`]), the debt view ([`debt`]) and the audit ([`audit`]) serve the web interface and
 //! the CLI.
 
 pub mod audit;
 pub mod catalog;
 pub mod corpus;
+pub mod corrections;
 pub mod debt;
 pub mod edits;
 pub mod freshness;

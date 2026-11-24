@@ -149,7 +149,7 @@ it and no `generate` loses it.
 - No history of the edits: a new edit replaces the former one; git keeps the history of a versioned file.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (SED-12), not
   both.
-- The form that writes an edit: `specs/web-ui.md` (WEB-93 to WEB-99).
+- The form that writes an edit: `specs/section-form.md`.
 - No mark of an edit in the lists of sections of the Markdown (a domain's features, `llms.txt`), and no word of an
   outdated edit there: the web page shows both (WEB-92, WEB-100).
 - No merge of an outdated edit with the new generated text: the team rewrites or drops it, the new text written

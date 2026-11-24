@@ -276,7 +276,7 @@ pub fn record(
 }
 
 /// Refuses a narrative outside a use case, no field and a blank one.
-fn check(section: &Section, fields: &Fields) -> Result<(), EditsError> {
+pub(crate) fn check(section: &Section, fields: &Fields) -> Result<(), EditsError> {
     if fields.narrative.is_some() && section.kind != SectionKind::UseCase {
         return Err(EditsError::NoNarrative(section.clone()));
     }

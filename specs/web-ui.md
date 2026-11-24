@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -31,8 +31,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-11** (deterministic) The pages must load their scripts, stylesheet and images from the interface itself,
   under `/assets/`, and from no other host.
 - **WEB-12** (deterministic) Serving the pages must not write any file in the repository other than
-  `.retrodoc/reviews.json`, which only a review sent from a page (WEB-81) writes, and `.retrodoc/edits.json`, which
-  only an edit sent from a page (WEB-93) writes, and, with `--ask`, the usage history of its calls (WAK-23).
+  `.retrodoc/reviews.json` and `.retrodoc/edits.json`, which only the form of a section sent from its page writes
+  (`specs/section-form.md` SFM-3), and, with `--ask`, the usage history of its calls (WAK-23).
 - **WEB-13** (deterministic) A request whose `Host` names neither `localhost` nor an IP address must be refused with the
   status 403.
 - **WEB-14** (deterministic) With a `--bind` address that is not a loopback one, `retrodoc ui` must warn that the docs
@@ -191,24 +191,17 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-80** (deterministic) Each row of a list of sections must show the status of its review as a badge beside its
   confidence, and no badge when it has no review: the domains of the home page, the features of the page of a domain,
   the use cases of the page of a feature.
-- **WEB-81** (deterministic) The page of a domain, a feature or a use case must hold a form, sent with `htmx`, that
-  sends by a `POST` to the URL of the page a status (`validated`, `wrong`, `to_review`, or none) and a comment; a
-  status records the review of the section with the comment (REV-12), none removes its review (REV-13).
+- **WEB-81** (deterministic) withdrawn: moved to SFM-1, SFM-3 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-82** (deterministic) The reviews must be read from `.retrodoc/reviews.json` at each request, so that a page
   shows a review sent before it without a restart of `retrodoc ui`.
-- **WEB-83** (deterministic) A review `POST` with the header `HX-Request` must be answered with the review of the
-  section and its form alone, swapped in place of the former ones; any other with a redirect `303` to the page
-  followed by `?saved=review`.
+- **WEB-83** (deterministic) withdrawn: moved to SFM-9 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-84** (deterministic) A `POST` must be refused with the status 403, and nothing saved, unless its `Origin`
   header, else with no `Origin` its `Referer`, is `http://` followed by the value of its `Host` header.
-- **WEB-85** (deterministic) A review `POST` to a section the last run does not have, or before a first run, must be
-  answered with the status 404, and nothing saved.
-- **WEB-86** (deterministic) A review `POST` whose status is not one of the four of WEB-81 must be answered with the
-  status 400, and nothing saved.
+- **WEB-85** (deterministic) withdrawn: moved to SFM-12 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-86** (deterministic) withdrawn: moved to SFM-13 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-87** (deterministic) The page of a section must show, in place of its review, the error of a
   `.retrodoc/reviews.json` that cannot be read or is of a later format (REV-10).
-- **WEB-88** (deterministic) A review `POST` must be answered with the status 500 and the error when
-  `.retrodoc/reviews.json` cannot be read or is of a later format, the file left as it was (REV-11).
+- **WEB-88** (deterministic) withdrawn: moved to SFM-14 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-89** (deterministic) The review of a section on its page must be flagged outdated when it is (REV-20,
   REV-21), with its reasons: the section rewritten since the review, the files changed since the review.
 - **WEB-90** (deterministic) The badge of a review in a list of sections (WEB-80) must say when the review is
@@ -219,45 +212,24 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-92** (deterministic) The edit of a section on its page must be flagged outdated when it is (SED-34, SED-35),
   with its reasons as WEB-89 says, and show, beside each field the edit changes, the text the last run generated for
   it: folded under the edit when the edit is not outdated, unfolded when it is.
-- **WEB-93** (deterministic) The page of a domain, a feature or a use case must hold a form, sent with `htmx`, that
-  sends by a `POST` to `/edit` followed by the URL of the page (`/edit/domains/<domain>`, a path no page has) its name,
-  its description and, for a use case, its narrative, each filled with the text the page shows (SED-23).
-- **WEB-94** (deterministic) A field the edit form sends must be saved with its surrounding whitespace trimmed and
-  the carriage return of each line end a browser sends (CR LF) dropped.
-- **WEB-95** (deterministic) A field of the edit form must be left out of the edit (SED-2) when it is sent empty or
-  equal, once trimmed (WEB-94), to the text the last run generated for it, so that a form that leaves every field out
-  removes the edit of the section (SED-16).
-- **WEB-96** (deterministic) The edit form of an edited section must hold a button that brings the generated text
-  back: it removes the edit of the section (SED-16).
-- **WEB-97** (deterministic) An edit `POST` saved with the header `HX-Request` must be answered with the header
-  `HX-Redirect` naming the page followed by `?saved=edit`, so that the whole page shows the edit; any other with a
-  redirect `303` to the same URL.
-- **WEB-98** (deterministic) An edit `POST` to a section the last run does not have, or before a first run, must be
-  answered with the status 404, and nothing saved; one that sends a narrative for a domain or a feature, with the
-  status 400 (SED-3), and nothing saved.
-- **WEB-99** (deterministic) An edit `POST` must be answered with the status 500 and the error when
-  `.retrodoc/edits.json` cannot be read or is of a later format, the file left as it was (SED-14); with the header
-  `HX-Request`, as the edit form of the section alone, the fields as sent, swapped in place of the former
-  ones.
+- **WEB-93** (deterministic) withdrawn: moved to SFM-1, SFM-9 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-94** (deterministic) withdrawn: moved to SFM-10 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-95** (deterministic) withdrawn: moved to SFM-11 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-96** (deterministic) withdrawn: moved to SFM-5 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-97** (deterministic) withdrawn: moved to SFM-9 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-98** (deterministic) withdrawn: moved to SFM-12, SFM-13 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-99** (deterministic) withdrawn: moved to SFM-14, SFM-15 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-100** (deterministic) Each row of a list of sections (WEB-80) must show a mark when its section holds a human
   edit, and none when it holds none.
 - **WEB-101** (deterministic) The header of every page must link to the ask page, `/ask` (`specs/web-ask.md`), when
   `retrodoc ui` was started with `--ask`, and only then.
-- **WEB-102** (deterministic) The review form, the edit form and the ask form must each hold an indicator that says,
+- **WEB-102** (deterministic) The form of a section (`specs/section-form.md` SFM-16) and the ask form must each hold an indicator that says,
   in the language of the interface, that the form is being sent, shown while its request runs (`hx-indicator`), and
   disable their buttons while it runs (`hx-disabled-elt`); the search form of the header and the filters of the debt
   and rules pages likewise hold such an indicator, their controls kept enabled.
-- **WEB-103** (deterministic) The answer of WEB-83 to a review saved must hold, in the form, a notice that says the
-  review is saved (`role="status"`); the review form of a page asked without `?saved=review` holds none.
-- **WEB-104** (deterministic) The page of a domain, a feature or a use case asked with `?saved=review` must show the
-  notice of WEB-103 in its review form, and asked with `?saved=edit`, a notice in its edit form that says the edit is
-  saved; another value of `saved`, or none, shows no notice, nor does a review form that shows instead the error of
-  WEB-87.
-- **WEB-105** (deterministic) A review or an edit `POST` with the header `HX-Request` that is refused (WEB-85,
-  WEB-86, WEB-98) or fails (WEB-88, WEB-99) must be answered, with its status, as the form of the section alone, the
-  fields as sent, the error inside the form above its buttons (`role="alert"`), and the header `HX-Reswap`, swapped
-  in place of the former form; the review form shows above it the review of the section as it is saved, when the run
-  has the section.
+- **WEB-103** (deterministic) withdrawn: moved to SFM-8 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-104** (deterministic) withdrawn: moved to SFM-8 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-105** (deterministic) withdrawn: moved to SFM-15 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-106** (deterministic) Every page must swap an error answer (4xx, 5xx) to an `htmx` request when it names
   its swap with the header `HX-Reswap` (WEB-105, WAK-40), and show any other error answer in a notice of the page
   that names its status, and its text when it is not HTML, leaving the form as it was; a request sent clears the
@@ -284,14 +256,9 @@ over browses its domains, features and use cases rather than reading the Markdow
   link of the active option, and with none submits the box; Escape, and a click outside the box and the panel, close
   the panel.
 
-- **WEB-113** (deterministic) The page of a domain, a feature or a use case must show, right under its heading, its
-  actions: a primary button "Review" that links to the review form of the page (`#review`) and a secondary button
-  "Edit" that links to the page with `?edit=1` at its edit form (`?edit=1#edit-form`).
-- **WEB-114** (deterministic) The page of a domain, a feature or a use case asked with `?edit=1` must show its edit
-  form unfolded; with another value of `edit`, or none, folded unless WEB-104 or an error unfolds it.
-- **WEB-115** (deterministic) Each item of the debt page whose section is a domain, a feature or a use case of the
-  run must offer the actions "Review" and "Edit", links to that section as WEB-113 gives them, the group of the two
-  labelled with the name of the section; an item of a rule, a folder or a section the run does not have offers none.
+- **WEB-113** (deterministic) withdrawn: moved to SFM-6 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-114** (deterministic) withdrawn: moved to SFM-2 (`specs/section-form.md`), one form to review and edit a section.
+- **WEB-115** (deterministic) withdrawn: moved to SFM-7 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-116** (deterministic) The home page must show, under its heading and purpose, a primary button to the debt
   page labelled with the number of its items when the run has some, to the map page when it has none, and no button
   when the run has no domain (WEB-117 says what to do).
@@ -301,7 +268,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-118** (deterministic) The page of a use case must show its narrative, and the narrative the last run
   generated for its edit (WEB-92), rendered from Markdown by the rules of a collected doc: its raw HTML shown as
   text (WEB-49), a link or an image whose URL has an unsafe scheme shown as its text alone (WEB-50).
-- **WEB-119** (deterministic) The edit form of a use case must hold a preview of its narrative, filled with the
+- **WEB-119** (deterministic) The form of a use case (`specs/section-form.md` SFM-1) must hold a preview of its narrative, filled with the
   narrative the form holds rendered as WEB-118, that the form asks again with `htmx` by a `POST` to `/preview`
   followed by the URL of the page of the use case (`/preview/domains/<d>/<f>/<u>`) of its field `narrative` when that field changes (`hx-trigger="input changed delay:500ms"`), the answer swapped into
   the preview; the form of a domain or of a feature holds none.
@@ -309,8 +276,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   the `narrative` it sends rendered as the narrative of that use case (WEB-118), without the layout of a page, empty
   when the narrative is empty or absent, with no file written (WEB-12); the status 404 when the last run has no such
   use case.
-- **WEB-121** (deterministic) The button of the edit form that brings the generated text back (WEB-96) must ask for
-  a confirmation before it is sent (its `data-confirm`, read by `forms.js`), in a text that says the edit is removed.
+- **WEB-121** (deterministic) withdrawn: moved to SFM-5 (`specs/section-form.md`), one form to review and edit a section.
 - **WEB-122** (deterministic) A heading of a narrative rendered as WEB-118 must carry no `id` and be shown two
   levels below its Markdown level, under the `h2` of its section: `#` as an `h3`, `##` as an `h4`, any deeper level
   as an `h6`.
@@ -415,27 +381,14 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-79) Given a review with no author (no `user.name`), then the page shows its status, comment and date only.
 - (WEB-80) Given a feature marked `wrong`, then its row on the page of its domain carries the badge, and its use
   cases' rows on its own page carry none.
-- (WEB-81) Given a feature validated, when the form sends `wrong` with the comment "misses the refunds", then
-  `reviews.json` holds one review of it, wrong, with that comment.
-- (WEB-81) Given a reviewed use case, when the form sends no status, then the use case has no review and the other
-  reviews are kept.
 - (WEB-84) Given a page of another site posting a form to `http://127.0.0.1:8730/domains/billing`, then its `Origin`
   names that site and the request is refused; one with neither `Origin` nor `Referer` is refused too.
 - (WEB-84) Given `Origin: null` (a sandboxed frame, a `file://` page), then the request is refused.
-- (WEB-87, WEB-88) Given a `reviews.json` holding invalid JSON, then the pages of the sections are still served, naming it.
+- (WEB-87) Given a `reviews.json` holding invalid JSON, then the pages of the sections are still served, naming it.
 - (WEB-92) Given a use case whose narrative is edited, when a later run rewrites it, then its page shows the edited
   narrative, the edit outdated as "rewritten" and the new generated narrative.
-- (WEB-95) Given a use case shown as generated, when the form sends its name and description unchanged and a new
-  narrative, then the edit holds the narrative only.
-- (WEB-95) Given a feature whose name is edited, when the form sends the name emptied, then the feature has no edit.
-- (WEB-94) Given a narrative of two lines typed in a textarea, ending with a line end, then the edit holds the two
-  lines joined by a line feed alone, with no line end after them.
-- (WEB-104) Given a section with no review, when its page is asked with `?saved=review`, then the form shows the
-  notice: the parameter says a save happened, the page does not check it.
-- (WEB-105) Given an edit form whose name and description were changed, when the save fails, then the form answered
-  holds the changed name and description, not the text of the page.
-- (WEB-89) Given an outdated review, when the form saves the same status again, then the review is no longer flagged
-  outdated (REV-22).
+- (WEB-89) Given an outdated review, when the form saves the same status again (SFM-3), then the review is no longer
+  flagged outdated (REV-22).
 
 - (WEB-118, WEB-120) Given a narrative holding `<script>alert(1)</script>`, then the page and the preview show it as
   text.
@@ -469,7 +422,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   its source stays in the page.
 - The rules page has no free-text filter: the search covers the rules (WEB-40).
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
-- No LLM call without `--ask` (ADR 0048, `specs/web-ask.md`): a review records a judgement and leaves the docs as they are; an edit (WEB-93) is an overlay over the
+- No LLM call without `--ask` (ADR 0048, `specs/web-ask.md`): a review records a judgement and leaves the docs as they are; an edit (`specs/section-form.md`) is an overlay over the
   generated text, which the artifacts keep (`specs/section-edit.md`).
 - The edit form changes the name, the description and the narrative only: no steps, business rules nor glossary
   (`specs/section-edit.md`); no button per field brings one field back: emptying it does.

@@ -272,8 +272,21 @@ pub fn record(
     status: Status,
     comment: &str,
 ) -> Result<Review, ReviewsError> {
-    let fingerprint =
-        fingerprint(docs, section).ok_or_else(|| ReviewsError::UnknownSection(section.clone()))?;
+    record_in(repo_root, docs, docs.sections(), section, status, comment)
+}
+
+/// Records the review of `section` as `shown` show it, the files it cites in `docs`: the sections
+/// with an edit `docs` do not show yet, saved with the review (SFM-4).
+pub(crate) fn record_in(
+    repo_root: &Path,
+    docs: &GeneratedDocs,
+    shown: &Sections,
+    section: &Section,
+    status: Status,
+    comment: &str,
+) -> Result<Review, ReviewsError> {
+    let fingerprint = fingerprint_in(shown, section)
+        .ok_or_else(|| ReviewsError::UnknownSection(section.clone()))?;
     // Read before the lock: the saves of the process wait on it.
     let review = Review {
         section: section.clone(),
