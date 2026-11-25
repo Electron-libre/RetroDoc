@@ -41,21 +41,30 @@ fn a_review_saved_with_an_edit_is_not_outdated_by_it() {
 fn an_outdated_edit_confirmed_is_no_longer_outdated() {
     let dir = repo("A");
     let root = dir.path();
-    let mut edit = edits::record(root, &docs(), &feature_pay(), name("Payments")).unwrap();
-    edit.fingerprint = "an older run".into();
-    let mut held = edits::Edits::default();
-    held.set(edit.clone());
-    let outdated = docs().with_edits(held);
-    assert!(edits::outdated(&outdated, &edit).is_some());
+    let before = crate::reviews::tests::docs_with("Before.");
+    edits::record(root, &before, &refund(), name("Refunds")).unwrap();
+    edits::record(
+        root,
+        &docs().with_edits(edits::load(root).unwrap()),
+        &refund(),
+        name("Refunds"),
+    )
+    .unwrap();
+    let outdated = shown(root);
+    let edit = edits::load(root).unwrap().get(&refund()).unwrap().clone();
+    assert!(
+        edits::outdated(&outdated, &edit).is_some(),
+        "kept as outdated"
+    );
     let correction = Correction {
-        edit: EditChange::Confirm(name("Payments")),
+        edit: EditChange::Confirm(name("Refunds")),
         review: None,
     };
 
-    let saved = save(root, &outdated, &feature_pay(), &correction).unwrap();
+    let saved = save(root, &outdated, &refund(), &correction).unwrap();
 
     let confirmed = saved.edit.unwrap();
-    assert_eq!(confirmed.fields, name("Payments"));
+    assert_eq!(confirmed.fields, name("Refunds"));
     assert_eq!(edits::outdated(&shown(root), &confirmed), None);
 }
 

@@ -151,24 +151,28 @@ impl SectionForm {
 /// What `form` does to the edit of the section at `place` of `docs` (SFM-3, SFM-11, SFM-17): the
 /// revert removes it; fields sent as the page showed them keep it, unless an outdated edit is
 /// confirmed; else the fields that change the generated text, cleaned, none removing it, written
-/// confirmed when an outdated edit is.
+/// confirmed when an outdated edit is. A field sent as the page showed it is taken as `docs` show
+/// it now, so that it keeps an edit saved since by another page and the base of its text (SED-15).
 fn edit_change(docs: &GeneratedDocs, place: &Place, form: &SectionForm) -> EditChange {
     if form.action == "revert" {
         return EditChange::Remove;
     }
-    let shown = form.shown(shown_in(docs, place));
+    let now = shown_in(docs, place);
+    let shown = form.shown(now.clone());
     let sent = form.fields(&shown);
     let generated = edits::fields_in(docs.generated(), &place.section()).unwrap_or_default();
-    let unchanged = Field::ALL.into_iter().all(|field| {
+    let untouched = |field: Field| {
         let single_line = field == Field::Name;
         as_sent(sent.get(field), single_line) == as_sent(shown.get(field), single_line)
-    });
+    };
+    let unchanged = Field::ALL.into_iter().all(untouched);
     let confirmed = !form.confirm.is_empty() && is_outdated(docs, place);
     if unchanged && !confirmed {
         return EditChange::Keep;
     }
     let kept = |field: Field| {
-        let text = clean(sent.get(field).unwrap_or_default());
+        let text = if untouched(field) { &now } else { &sent }.get(field);
+        let text = clean(text.unwrap_or_default());
         (!text.is_empty() && text != clean(generated.get(field).unwrap_or_default()))
             .then_some(text)
     };

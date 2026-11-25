@@ -146,3 +146,47 @@ async fn confirming_with_a_field_corrected_brings_every_field_up_to_date() {
     assert_eq!(edit.fields.name.as_deref(), Some("Payments"));
     assert_eq!(edits::outdated(&load(root), &edit), None);
 }
+
+/// The edit of `pay-invoice` saved by another page, its description `description`.
+fn saved_by_another_page(root: &Path, name: &str, description: &str) {
+    let fields = Fields {
+        name: Some(name.into()),
+        description: Some(description.into()),
+        ..Fields::default()
+    };
+    edits::record(root, &load(root), &pay_invoice(), fields).unwrap();
+}
+
+// spec: SFM-3, SFM-17
+#[tokio::test]
+async fn confirming_from_a_page_shown_before_another_edit_keeps_that_edit() {
+    let dir = outdated_edit();
+    let root = dir.path();
+    saved_by_another_page(root, "New", "OldD");
+
+    let form = "status=&shown_name=Pay+an+invoice&shown_description=OldD&name=Pay+an+invoice&description=OldD&confirm=1";
+    let status = post(root, FEATURE, form).await;
+
+    assert_eq!(status, StatusCode::OK);
+    let edit = saved(root);
+    assert_eq!(edit.fields.name.as_deref(), Some("New"));
+    assert_eq!(edits::outdated(&load(root), &edit), None);
+}
+
+// spec: SFM-3, SED-15
+#[tokio::test]
+async fn a_field_left_untouched_keeps_the_text_another_page_saved_since() {
+    let dir = outdated_edit();
+    let root = dir.path();
+    saved_by_another_page(root, "Pay an invoice", "NewD");
+
+    let form =
+        "status=&shown_name=Pay+an+invoice&shown_description=OldD&name=Payments&description=OldD";
+    let status = post(root, FEATURE, form).await;
+
+    assert_eq!(status, StatusCode::OK);
+    let edit = saved(root);
+    assert_eq!(edit.fields.name.as_deref(), Some("Payments"));
+    assert_eq!(edit.fields.description.as_deref(), Some("NewD"));
+    assert_eq!(edits::outdated(&load(root), &edit), None);
+}

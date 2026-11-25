@@ -640,6 +640,25 @@ fn a_field_kept_from_an_outdated_edit_stays_outdated() {
     assert_eq!(load(root).unwrap().get(&refund()), Some(&edit));
 }
 
+// spec: SED-15 (internal: an edit written by hand, its text not cleaned as the form cleans it)
+#[test]
+fn a_field_kept_is_compared_cleaned() {
+    let dir = repo("A");
+    let root = dir.path();
+    record(
+        root,
+        &docs_citing(root, "Before."),
+        &refund(),
+        narrative("OldN\r\n"),
+    )
+    .unwrap();
+    let rewritten = docs_citing(root, "After.").with_edits(load(root).unwrap());
+
+    let edit = record(root, &rewritten, &refund(), narrative("OldN")).unwrap();
+
+    assert_eq!(edit.field_bases.keys().collect::<Vec<_>>(), ["narrative"]);
+}
+
 // spec: SED-15, SED-36 (internal: the rule the pages, the debt and the MCP answers read)
 #[test]
 fn a_field_kept_from_an_edit_up_to_date_holds_no_base_of_its_own() {

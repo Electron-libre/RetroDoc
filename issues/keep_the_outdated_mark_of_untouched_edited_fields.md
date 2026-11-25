@@ -55,6 +55,7 @@ each field), merging with the new generated text.
    that file left out, a precedent `settle_texts.rs` exists if it grows), a save with it checked writing the edit as
    sent confirmed, an unchanged one included. Verified by tests in a new `crates/retrodoc-web/tests/edit_confirm.rs`
    (`section_form.rs` is at 709 lines); makes true SFM-17; sets both specs `accepted`. ~250 lines. (autonomous)
+3. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -63,6 +64,8 @@ each field), merging with the new generated text.
   40 requirements (`spec_max_requirements`).
 - A field "kept" is one whose text, cleaned, equals the former edit's; only a base that is outdated at save time is
   stored, so an edit that was not outdated stores none (SED-36 unchanged for it).
+- `edits.json` keeps `VERSION` 1 with `field_bases` (`high` review): a bump would make every older binary refuse the
+  whole file (SED-13), a heavier loss than the per-field mark an older binary drops when it saves.
 - Questions of step 2: 1 a (a checkbox `confirm` in the form, shown only when the edit is outdated), 2 a (SED-15 and
   SED-36 amended, no new id).
 
@@ -105,5 +108,27 @@ Code review: no findings
 
 not verified: the look of the checkbox (no screenshots shot); the checkbox kept checked in the form answered to a
 refused save (SFM-15) has no test
+
+decisions needed: none
+
+## Deliverable 3 summary (docs and `high` review fixes)
+done: a field the page left untouched is taken as the docs show it now (a concurrent edit kept, its base with it);
+the kept fields compared cleaned; the former edit judged before the lock; tests tightened.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | high: 7 findings; low on the fixes |
+
+red: SFM-3, SFM-17, SED-15: a confirmation from a stale page wrote its old name over the edit saved since (`high` review findings 1, 2)
+
+Code review: 7 findings (high): 1, 2 fixed (untouched fields taken as shown now); 3 not fixed (see Decisions:
+`VERSION`); 4 fixed (judged before the lock, again under it only when the edit changed since); 5 fixed (compared
+cleaned); 6, 7 fixed (tests).
+
+not verified: the look of the checkbox (no screenshots)
 
 decisions needed: none

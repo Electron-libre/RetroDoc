@@ -330,6 +330,15 @@ fn save(
         .ok_or_else(|| EditsError::UnknownSection(section.clone()))?;
     check(section, &fields)?;
     // Read before the lock: the saves of the process wait on it.
+    let former = if confirmed {
+        None
+    } else {
+        load(repo_root)?.get(section).cloned()
+    };
+    let field_bases = former
+        .as_ref()
+        .map(|former| kept_bases(docs, former, &fields))
+        .unwrap_or_default();
     let mut edit = Edit {
         section: section.clone(),
         fields,
@@ -337,27 +346,31 @@ fn save(
         edited_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
         fingerprint,
         files: reviews::cited_hashes(repo_root, docs, section),
-        field_bases: BTreeMap::new(),
+        field_bases,
     };
     Ok(store(repo_root).change(|edits| {
-        if !confirmed {
-            if let Some(former) = edits.get(section) {
-                edit.field_bases = kept_bases(docs, former, &edit.fields);
-            }
+        // A former edit replaced since it was read: its bases are judged again, under the lock.
+        if !confirmed && edits.get(section) != former.as_ref() {
+            edit.field_bases = edits
+                .get(section)
+                .map(|former| kept_bases(docs, former, &edit.fields))
+                .unwrap_or_default();
         }
         edits.set(edit.clone());
         (true, edit)
     })?)
 }
 
-/// The base `former` held for each field `fields` keep as it gave it, when that base is outdated
-/// in `docs` (SED-15).
+/// The base `former` held for each field `fields` keep as it gave it (compared cleaned, as the
+/// form cleans them), when that base is outdated in `docs` (SED-15).
 fn kept_bases(docs: &GeneratedDocs, former: &Edit, fields: &Fields) -> BTreeMap<String, Base> {
+    let same = |field: Field| match (fields.get(field), former.fields.get(field)) {
+        (Some(new), Some(old)) => clean(new) == clean(old),
+        _ => false,
+    };
     Field::ALL
         .into_iter()
-        .filter(|field| {
-            fields.get(*field).is_some() && fields.get(*field) == former.fields.get(*field)
-        })
+        .filter(|field| same(*field))
         .map(|field| (field, former.base(field)))
         .filter(|(_, base)| {
             reviews::judge(
@@ -371,6 +384,11 @@ fn kept_bases(docs: &GeneratedDocs, former: &Edit, fields: &Fields) -> BTreeMap<
         })
         .map(|(field, base)| (field.key().to_string(), base))
         .collect()
+}
+
+/// `text` trimmed, with `\n` line ends.
+fn clean(text: &str) -> String {
+    text.replace("\r\n", "\n").trim().to_string()
 }
 
 /// Refuses a narrative outside a use case, no field and a blank one.

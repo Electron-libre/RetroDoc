@@ -46,7 +46,7 @@ fn use_case(slug: &str, feature: &str, narrative: &str) -> UseCase {
     }
 }
 
-fn docs_with(narrative: &str) -> GeneratedDocs {
+pub(crate) fn docs_with(narrative: &str) -> GeneratedDocs {
     GeneratedDocs::new(
         vec![domain("billing"), domain("a")],
         vec![feature("pay", "billing"), feature("a", "a")],
