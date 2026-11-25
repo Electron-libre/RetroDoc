@@ -1,6 +1,6 @@
 ---
 id: STL
-status: draft
+status: accepted
 adrs: [0047, 0048, 0049, 0057]
 ---
 
@@ -93,7 +93,7 @@ and ends on a proposed review and correction that the reader puts in the form an
 - **STL-18** (deterministic) The last request of a settling question (ASK-6, ASK-22) must offer the tool
   `propose_verdict` alone, unlike the last request of a question no settling started; a call of it that the table
   of STL-13 accepts ends the question with its proposal as STL-14 says; a call it refuses, or of another tool, ends
-  the question on the text of that message, with no proposal.
+  the question on the text of that message, with no proposal, that text blank on the `comment` of the refused call.
 - **STL-19** (deterministic) Each question of a settling conversation that ended must write, after its line of
   STL-17, one line to the log of `ui` (stdout) naming the kind and id of the section, the number of the question in
   its settling and each tool call of the question in order, its tool and what it reads (ASK-25), or `none`.
@@ -138,7 +138,8 @@ and ends on a proposed review and correction that the reader puts in the form an
   asked with `?proposal=2`, then its form is as without it.
 - (STL-18) Given a settling question that used its rounds, when the model calls `propose_verdict` in the last
   request, then the question ends with that proposal; when it calls it with a comment of 401 characters, or calls
-  `read_source`, then the question ends on the text of that message with no proposal.
+  `read_source`, then the question ends on the text of that message with no proposal, on the comment of 401
+  characters when that text is blank.
 - (STL-18) Given a question of a conversation no settling started that used its rounds, then its last request offers
   no tool.
 - (STL-5) Given `--max-rounds 3`, then the system prompt of a settling question states 3 rounds.

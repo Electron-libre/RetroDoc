@@ -419,7 +419,7 @@ async fn answer_after(
     let mut system = offered.system_prompt();
     if let Some(section) = settled {
         tools.push(settle::propose_verdict_spec());
-        system.push_str(&settle::settling_prompt(section));
+        system.push_str(&settle::settling_prompt(section, max_rounds));
     }
     let mut messages = vec![ChatMessage::new(Role::System, system)];
     for turn in earlier {
@@ -439,22 +439,25 @@ async fn answer_after(
                 ..Default::default()
             }
         } else {
-            CompletionRequest {
-                messages: vec![
-                    messages[0].clone(),
-                    ChatMessage::new(Role::User, {
-                        let mut text = folded(earlier, question, &called, &answer.tool_results);
-                        if settled.is_some() {
-                            text.push_str(settle::SETTLING_LAST_ROUND);
-                        }
-                        text
-                    }),
-                ],
-                ..Default::default()
-            }
+            let folded = folded(earlier, question, &called, &answer.tool_results);
+            last_request(messages[0].clone(), folded, settled.is_some())
         };
         let response = llm.complete(request).await?;
-        if !offer || response.tool_calls.is_empty() {
+        if !offer {
+            let ended = match settled {
+                Some(section) => {
+                    settle::last_answer(section, &response.tool_calls, response.content)
+                }
+                None => settle::LastAnswer::Text(response.content),
+            };
+            return Ok(match ended {
+                settle::LastAnswer::Proposed(proposal, text) => {
+                    proposed(answer, proposal, text, earlier, &docs).await
+                }
+                settle::LastAnswer::Text(text) => answered(answer, text, earlier, &docs).await,
+            });
+        }
+        if response.tool_calls.is_empty() {
             return Ok(answered(answer, response.content, earlier, &docs).await);
         }
         answer.rounds += 1;
@@ -497,6 +500,21 @@ async fn answer_after(
             answer.tool_results.push(result);
             called.push(call);
         }
+    }
+}
+
+/// The last request of a question (ASK-22): the `system` message and the `folded` user message,
+/// no tool, but `propose_verdict` alone in a `settling` (STL-18).
+fn last_request(system: ChatMessage, mut folded: String, settling: bool) -> CompletionRequest {
+    let mut tools = Vec::new();
+    if settling {
+        folded.push_str(settle::SETTLING_LAST_ROUND);
+        tools.push(settle::propose_verdict_spec());
+    }
+    CompletionRequest {
+        messages: vec![system, ChatMessage::new(Role::User, folded)],
+        tools,
+        ..Default::default()
     }
 }
 

@@ -8,8 +8,8 @@ use retrodoc_llm::{Role, ToolCall};
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 
 use super::{
-    proposal_of, propose_verdict_spec, Disagreement, Disputed, Proposal, PROPOSE_VERDICT,
-    SETTLING_LAST_ROUND, SETTLING_PROMPT,
+    proposal_of, propose_verdict_spec, Disagreement, Disputed, Proposal, MAX_COMMENT_CHARS,
+    PROPOSE_VERDICT, SETTLING_LAST_ROUND, SETTLING_PROMPT,
 };
 use crate::{Conversation, DEFAULT_MAX_ROUNDS};
 
@@ -368,25 +368,47 @@ async fn the_kept_answer_of_a_proposal_holds_it_as_text() {
         .contains("Proposed verdict: wrong\nComment: The customer pays.\nEvidence: `app/invoice.rb`.\nName: Pay online"));
 }
 
-// spec: STL-5 (internal: the requests of the model are seen through the fake provider only)
-#[tokio::test]
-async fn the_last_round_of_a_settling_asks_the_verdict_as_text() {
+/// A settling of `pay-invoice` with one round, its tool calls then `last`, the answer of its last
+/// request.
+async fn after_its_one_round(last: FakeTurn) -> (FakeLlm, crate::Answer) {
     let llm = FakeLlm::scripted(vec![
         calls(
             "",
             vec![call("c1", "get_feature", r#"{"slug":"pay-invoice"}"#)],
         ),
-        FakeTurn::Text("Wrong: the customer pays.".into()),
+        last,
     ]);
     let answer = Conversation::settling(feature())
         .ask(&llm, docs(), "Help me settle it.", 1)
         .await
         .unwrap();
-    assert_eq!(answer.proposal, None);
+    (llm, answer)
+}
+
+// spec: STL-18 (internal: the requests of the model are seen through the fake provider only)
+#[tokio::test]
+async fn the_last_request_of_a_settling_offers_propose_verdict_alone() {
+    let (llm, answer) = after_its_one_round(calls(
+        "Settled.",
+        vec![call(
+            "p1",
+            PROPOSE_VERDICT,
+            r#"{"status":"wrong","comment":"The customer pays.","evidence":"`app/invoice.rb`","description":"The customer pays."}"#,
+        )],
+    ))
+    .await;
+    assert_eq!(llm.tools().last(), Some(&vec![PROPOSE_VERDICT.to_string()]));
     let last = llm.messages().pop().unwrap();
-    let asked = &last.last().unwrap().content;
-    assert!(asked.ends_with(SETTLING_LAST_ROUND), "{asked}");
-    assert_eq!(llm.tools().last().map(Vec::len), Some(0));
+    assert_eq!(last.len(), 2, "the system prompt and one user message");
+    assert!(
+        last[1].content.ends_with(SETTLING_LAST_ROUND),
+        "{}",
+        last[1].content
+    );
+    let proposal = answer.proposal.expect("the proposal of the last request");
+    assert_eq!(proposal.status, Status::Wrong);
+    assert_eq!(answer.text, "Settled.");
+    assert_eq!(answer.rounds, 1);
 
     let plain = FakeLlm::scripted(vec![
         calls(
@@ -399,6 +421,55 @@ async fn the_last_round_of_a_settling_asks_the_verdict_as_text() {
         .ask(&plain, docs(), "?", 1)
         .await
         .unwrap();
+    assert_eq!(plain.tools().last().map(Vec::len), Some(0));
     let last = plain.messages().pop().unwrap();
     assert!(!last.last().unwrap().content.contains(SETTLING_LAST_ROUND));
+}
+
+// spec: STL-18 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn a_refused_proposal_or_another_tool_in_the_last_request_ends_on_its_text() {
+    let long = "x".repeat(MAX_COMMENT_CHARS + 1);
+    let refused = format!(r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#);
+    for (last, expected) in [
+        (
+            calls(
+                "Wrong: the customer pays.",
+                vec![call("p1", PROPOSE_VERDICT, &refused)],
+            ),
+            "Wrong: the customer pays.",
+        ),
+        (
+            calls(
+                "Who pays?",
+                vec![call("r1", "read_source", r#"{"path":"app/invoice.rb"}"#)],
+            ),
+            "Who pays?",
+        ),
+        (FakeTurn::Text("Who pays?".into()), "Who pays?"),
+        (
+            calls("", vec![call("p1", PROPOSE_VERDICT, &refused)]),
+            &long,
+        ),
+    ] {
+        let (llm, answer) = after_its_one_round(last).await;
+        assert_eq!(answer.proposal, None);
+        assert_eq!(answer.text, expected);
+        assert_eq!(llm.calls(), 2, "no round after the last request");
+    }
+}
+
+// spec: STL-5 (internal: the system prompt is seen through the fake provider only)
+#[tokio::test]
+async fn the_settling_prompt_states_the_rounds_of_the_question() {
+    let llm = FakeLlm::scripted(vec![FakeTurn::Text("Who pays?".into())]);
+    Conversation::settling(feature())
+        .ask(&llm, docs(), "Help me settle it.", 3)
+        .await
+        .unwrap();
+    let prompt = &llm.system_prompts()[0];
+    assert!(
+        prompt.contains("You have 3 rounds of tool calls"),
+        "{prompt}"
+    );
 }

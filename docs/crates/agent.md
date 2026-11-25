@@ -41,9 +41,11 @@ ask page can show it as it runs (ASK-25); `Conversation::ask` is it with an obse
 question is `Disputed::message`, the answer of the detail tool of the section (its text as shown, its review, its
 edit) then the contradictions of the project's docs the caller gives as `Disagreement`s (STL-4); each of its
 questions goes with the system prompt of `ask` and a paragraph of verification that names the section
-(`settle::settling_prompt`, so a turn trimmed from the memory does not lose it), and offers one more tool,
-`propose_verdict` (STL-5, STL-6); the last request of a question, with no tool, asks the verdict as text
-(`SETTLING_LAST_ROUND`). The paragraph and the tool ask a short comment for a reader who is not a developer, the
+(`settle::settling_prompt`, so a turn trimmed from the memory does not lose it) and states its `max_rounds`,
+asking to propose or ask before they run out, and offers one more tool, `propose_verdict` (STL-5, STL-6); the last
+request of a question offers `propose_verdict` alone (`last_request`, `SETTLING_LAST_ROUND`): a valid call ends the
+question on its proposal, a refused one or another tool on the text of the message, blank replaced by the comment
+of the refused call, no round following (`settle::last_answer`, STL-18). The paragraph and the tool ask a short comment for a reader who is not a developer, the
 evidence (files, commits, the reader's answers) apart, and say which status fits. A call of it whose arguments are
 refused (a status other than the three of a review, no comment, a comment over `MAX_COMMENT_CHARS` (400 characters),
 no evidence, `validated` with a corrected field, a narrative for a domain or a feature) gets the error as its result

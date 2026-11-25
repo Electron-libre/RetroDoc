@@ -57,9 +57,9 @@ first). The measure again needs the user's go (cents on DeepSeek).
 ## Plan
 1. [x] Log the tool calls of a settling question: one line per question after its usage line; verified by a unit
    test of the line and the settling page test; makes true STL-19. (autonomous)
-2. [ ] Propose within the rounds: the settling prompt states `max_rounds` and asks to propose or ask before they run
+2. [x] Propose within the rounds: the settling prompt states `max_rounds` and asks to propose or ask before they run
    out; the last request of a settling offers `propose_verdict` alone, a valid call ends on the proposal, a refused
-   one or another tool on the text; verified by agent tests with the fake provider; makes true STL-5, STL-18.
+   one or another tool on the text; verified by agent tests with the fake provider; makes true STL-5, STL-18. (autonomous)
 3. [ ] Measure again (paid, cents, after the user's go): same copy and three sections as the ledger's line of
    `e4334139`, usage and tool lines read from the `ui` log; findings section 4 item 5 and the ledger updated.
 
@@ -83,4 +83,27 @@ done: each settling question logs a second line after its usage line, its tool c
 red: STL-19: `one line per settling question: [...] left: 0 right: 2` (no tool line logged)
 Code review: no findings
 not verified: none
+decisions needed: none
+
+## Deliverable 2
+done: the settling prompt states the rounds of a question and asks to propose or ask before they run out; the last
+request of a settling offers `propose_verdict` alone, a valid call ends on its proposal, a refused one or another tool
+on the text. The spec is `accepted` again.
+
+| check | result |
+|---|---|
+| tests | pass (`retrodoc-agent`, workspace) |
+| lint | pass |
+| specs | pass (STL-5, STL-18 traced, spec `accepted`) |
+| docs | `docs/crates/agent.md` |
+| code review | see below |
+
+red: STL-5, STL-18: `left: Some([]) right: Some(["propose_verdict"])` (last request offered no tool); the prompt held
+no "You have 3 rounds of tool calls"
+Follow-up: `issues/ask_page_session_test_awaits_its_first_question.md`, a flaky test of the ask page met on the way
+(2 runs of 15), unrelated to this change.
+Code review: 1 finding
+- `lib.rs`: a proposal refused in the last request, its message text blank, ended on an empty answer: fixed, the
+  answer is then the comment of the refused call (STL-18 amended, test extended).
+not verified: what DeepSeek does with the last request (deliverable 3).
 decisions needed: none

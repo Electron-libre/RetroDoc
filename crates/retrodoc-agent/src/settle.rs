@@ -6,7 +6,7 @@ use std::fmt::Write as _;
 
 use retrodoc_docs::reviews::{Section, SectionKind, Status};
 use retrodoc_docs::Docs;
-use retrodoc_llm::ToolSpec;
+use retrodoc_llm::{ToolCall, ToolSpec};
 use serde_json::{json, Value};
 
 /// The name of the tool that proposes a verdict.
@@ -30,21 +30,26 @@ could not be settled.";
 /// The longest comment of a proposal, in characters: the evidence goes apart (STL-13).
 pub const MAX_COMMENT_CHARS: usize = 400;
 
-/// The last request of a settling question offers no tool: the model gives its verdict as text.
-pub(crate) const SETTLING_LAST_ROUND: &str = " You cannot call propose_verdict now: if the section is \
-settled, give your verdict and the corrected text in your answer; otherwise say what is left to settle.";
+/// The last request of a settling question offers `propose_verdict` alone (STL-18).
+pub(crate) const SETTLING_LAST_ROUND: &str = " You can call no other tool now: if the section is \
+settled, call propose_verdict; otherwise say what is left to settle and ask the reader your \
+questions.";
 
-/// The settling system prompt for `section` (STL-5): it names the section, which the later turns of
-/// the conversation, trimmed to its memory, may no longer hold.
-pub(crate) fn settling_prompt(section: &Section) -> String {
+/// The settling system prompt for `section`, whose questions have `max_rounds` rounds of tool calls
+/// (STL-5): it names the section, which the later turns of the conversation, trimmed to its memory,
+/// may no longer hold.
+pub(crate) fn settling_prompt(section: &Section, max_rounds: usize) -> String {
     let tool = match section.kind {
         SectionKind::Domain => "get_domain",
         SectionKind::Feature => "get_feature",
         SectionKind::UseCase => "get_use_case",
     };
     format!(
-        "{SETTLING_PROMPT} The section being settled is the {} `{}`: read it again with {tool} when \
-         the conversation no longer shows it.",
+        "{SETTLING_PROMPT} You have {max_rounds} rounds of tool calls for each message of the \
+         reader: spend them on what settles the section, and call propose_verdict, or ask your \
+         questions, before they run out; after the last round only propose_verdict is left. The \
+         section being settled is the {} `{}`: read it again with {tool} when the conversation no \
+         longer shows it.",
         kind_name(section.kind),
         section.id
     )
@@ -254,6 +259,33 @@ pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal
         description,
         narrative,
     })
+}
+
+/// What the last request of a settling question ended on (STL-18).
+pub(crate) enum LastAnswer {
+    /// A proposal the table accepts, with the text of the message that made it.
+    Proposed(Proposal, String),
+    /// No proposal: the text of the message.
+    Text(String),
+}
+
+/// What the last request of the settling of `section` ended on, its message holding `calls` and
+/// `text`: the proposal of its first call of `propose_verdict` if the table accepts it, no round
+/// following to correct it; else the text, blank replaced by the comment of a refused call.
+pub(crate) fn last_answer(section: &Section, calls: &[ToolCall], text: String) -> LastAnswer {
+    let Some(call) = calls.iter().find(|call| call.name == PROPOSE_VERDICT) else {
+        return LastAnswer::Text(text);
+    };
+    if let Ok(proposal) = proposal_of(section, &call.arguments) {
+        return LastAnswer::Proposed(proposal, text);
+    }
+    if !text.trim().is_empty() {
+        return LastAnswer::Text(text);
+    }
+    let comment = serde_json::from_str::<Value>(&call.arguments)
+        .ok()
+        .and_then(|arguments| Some(arguments.get("comment")?.as_str()?.trim().to_string()));
+    LastAnswer::Text(comment.unwrap_or(text))
 }
 
 #[cfg(test)]
