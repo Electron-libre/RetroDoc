@@ -48,6 +48,7 @@ fn edited(docs: GeneratedDocs, section: &reviews::Section, at: &str) -> Generate
         edited_at: at.into(),
         fingerprint: reviews::fingerprint_in(docs.generated(), section).unwrap(),
         files: BTreeMap::new(),
+        field_bases: BTreeMap::new(),
     });
     docs.with_edits(edits)
 }

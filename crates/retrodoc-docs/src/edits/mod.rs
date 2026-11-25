@@ -52,6 +52,20 @@ pub struct Edit {
     /// edit written by hand.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub files: BTreeMap<String, String>,
+    /// By the key of a field ([`Field::key`]), the base of a field kept as an outdated former
+    /// edit gave it (SED-15), still outdated when it was saved; a field absent has the base of the
+    /// edit.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub field_bases: BTreeMap<String, Base>,
+}
+
+/// What a field of an edit corrects: the fingerprint of its section as generated and the hashes
+/// of the files it cited when the field was written (SED-8, SED-9).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Base {
+    pub fingerprint: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub files: BTreeMap<String, String>,
 }
 
 impl Record for Edit {
@@ -99,6 +113,19 @@ impl Fields {
 }
 
 impl Edit {
+    /// The base of `field`: its own when it was kept from an outdated former edit, else the
+    /// edit's.
+    #[must_use]
+    pub fn base(&self, field: Field) -> Base {
+        self.field_bases
+            .get(field.key())
+            .cloned()
+            .unwrap_or_else(|| Base {
+                fingerprint: self.fingerprint.clone(),
+                files: self.files.clone(),
+            })
+    }
+
     /// The fields it changes as the readers show them, in the order of [`Field::ALL`]: a blank
     /// one (SED-33) and a narrative outside a use case, which a file written by hand may hold,
     /// left out.
@@ -202,16 +229,32 @@ pub fn apply(mut shown: Sections, edits: &Edits) -> Sections {
 
 /// Why `edit` no longer corrects its section as `docs` generated it and the files of their
 /// repository are now (SED-34, SED-35), `None` when it does: the rule of the reviews
-/// ([`reviews::outdated`]), against the section as generated, the edits left out.
+/// ([`reviews::outdated`]), against the section as generated, the edits left out, for the edit and
+/// for each field it kept from an outdated former edit (SED-15), the reasons merged.
 #[must_use]
 pub fn outdated(docs: &GeneratedDocs, edit: &Edit) -> Option<Outdated> {
-    reviews::judge(
-        docs,
-        docs.generated(),
-        &edit.section,
-        &edit.fingerprint,
-        &edit.files,
-    )
+    let judge = |fingerprint: &str, files: &BTreeMap<String, String>| {
+        reviews::judge(docs, docs.generated(), &edit.section, fingerprint, files)
+    };
+    let mut merged: Option<Outdated> = None;
+    let found = std::iter::once(judge(&edit.fingerprint, &edit.files)).chain(
+        edit.field_bases
+            .values()
+            .map(|base| judge(&base.fingerprint, &base.files)),
+    );
+    for outdated in found.flatten() {
+        let into = merged.get_or_insert_with(|| Outdated {
+            rewritten: false,
+            changed: Vec::new(),
+        });
+        into.rewritten |= outdated.rewritten;
+        into.changed.extend(outdated.changed);
+    }
+    merged.map(|mut outdated| {
+        outdated.changed.sort_by(|a, b| a.0.cmp(&b.0));
+        outdated.changed.dedup_by(|a, b| a.0 == b.0);
+        outdated
+    })
 }
 
 /// The text the run generated for each field `edit` changes ([`Edit::changed`]), empty for a use
@@ -245,7 +288,8 @@ pub fn fields_in(sections: &Sections, section: &Section) -> Option<Fields> {
 }
 
 /// Records the edit of `section` in `docs`, replacing its former one; its fingerprint is taken on
-/// the section as generated, the edits `docs` shows left out (SED-25).
+/// the section as generated, the edits `docs` shows left out (SED-25); a field it keeps as an
+/// outdated former edit gave it keeps the base it had there (SED-15).
 ///
 /// # Errors
 ///
@@ -257,22 +301,76 @@ pub fn record(
     section: &Section,
     fields: Fields,
 ) -> Result<Edit, EditsError> {
+    save(repo_root, docs, section, fields, false)
+}
+
+/// Records the edit of `section` in `docs` confirmed: as [`record`], each field, one kept from
+/// the former edit included, on the base of the edit (SED-36).
+///
+/// # Errors
+///
+/// As [`record`].
+pub fn record_confirmed(
+    repo_root: &Path,
+    docs: &GeneratedDocs,
+    section: &Section,
+    fields: Fields,
+) -> Result<Edit, EditsError> {
+    save(repo_root, docs, section, fields, true)
+}
+
+fn save(
+    repo_root: &Path,
+    docs: &GeneratedDocs,
+    section: &Section,
+    fields: Fields,
+    confirmed: bool,
+) -> Result<Edit, EditsError> {
     let fingerprint = reviews::fingerprint_in(docs.generated(), section)
         .ok_or_else(|| EditsError::UnknownSection(section.clone()))?;
     check(section, &fields)?;
     // Read before the lock: the saves of the process wait on it.
-    let edit = Edit {
+    let mut edit = Edit {
         section: section.clone(),
         fields,
         author: user_name(repo_root),
         edited_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
         fingerprint,
         files: reviews::cited_hashes(repo_root, docs, section),
+        field_bases: BTreeMap::new(),
     };
     Ok(store(repo_root).change(|edits| {
+        if !confirmed {
+            if let Some(former) = edits.get(section) {
+                edit.field_bases = kept_bases(docs, former, &edit.fields);
+            }
+        }
         edits.set(edit.clone());
         (true, edit)
     })?)
+}
+
+/// The base `former` held for each field `fields` keep as it gave it, when that base is outdated
+/// in `docs` (SED-15).
+fn kept_bases(docs: &GeneratedDocs, former: &Edit, fields: &Fields) -> BTreeMap<String, Base> {
+    Field::ALL
+        .into_iter()
+        .filter(|field| {
+            fields.get(*field).is_some() && fields.get(*field) == former.fields.get(*field)
+        })
+        .map(|field| (field, former.base(field)))
+        .filter(|(_, base)| {
+            reviews::judge(
+                docs,
+                docs.generated(),
+                &former.section,
+                &base.fingerprint,
+                &base.files,
+            )
+            .is_some()
+        })
+        .map(|(field, base)| (field.key().to_string(), base))
+        .collect()
 }
 
 /// Refuses a narrative outside a use case, no field and a blank one.

@@ -579,7 +579,7 @@ fn an_edit_with_no_file_hashes_judges_no_file() {
 
 // spec: SED-36 (internal: the rule the pages, the debt and the MCP answers read)
 #[test]
-fn an_outdated_edit_saved_again_is_no_longer_outdated() {
+fn an_outdated_edit_saved_again_confirmed_is_no_longer_outdated() {
     let dir = repo("A");
     let root = dir.path();
     let edit = record(
@@ -592,10 +592,112 @@ fn an_outdated_edit_saved_again_is_no_longer_outdated() {
     let rewritten = docs_citing(root, "After.").with_edits(load(root).unwrap());
     assert!(outdated(&rewritten, &edit).is_some());
 
-    let again = record(root, &rewritten, &refund(), edit.fields.clone()).unwrap();
+    let again = record_confirmed(root, &rewritten, &refund(), edit.fields.clone()).unwrap();
 
     let shown = docs_citing(root, "After.").with_edits(load(root).unwrap());
     assert_eq!(outdated(&shown, &again), None);
+    assert!(again.field_bases.is_empty());
+}
+
+fn narrative(text: &str) -> Fields {
+    Fields {
+        narrative: Some(text.into()),
+        ..Fields::default()
+    }
+}
+
+// spec: SED-15, SED-34 (internal: the rule the pages, the debt and the MCP answers read; the form drives it through the router)
+#[test]
+fn a_field_kept_from_an_outdated_edit_stays_outdated() {
+    let dir = repo("A");
+    let root = dir.path();
+    record(
+        root,
+        &docs_citing(root, "Before."),
+        &refund(),
+        narrative("OldN"),
+    )
+    .unwrap();
+    let rewritten = docs_citing(root, "After.").with_edits(load(root).unwrap());
+    let fields = Fields {
+        name: Some("Refunds".into()),
+        narrative: Some("OldN".into()),
+        ..Fields::default()
+    };
+
+    let edit = record(root, &rewritten, &refund(), fields.clone()).unwrap();
+
+    let shown = docs_citing(root, "After.").with_edits(load(root).unwrap());
+    assert_eq!(edit.fields, fields);
+    assert_eq!(
+        outdated(&shown, &edit),
+        Some(Outdated {
+            rewritten: true,
+            changed: Vec::new(),
+        })
+    );
+    assert_eq!(edit.field_bases.keys().collect::<Vec<_>>(), ["narrative"]);
+    assert_eq!(load(root).unwrap().get(&refund()), Some(&edit));
+}
+
+// spec: SED-15, SED-36 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn a_field_kept_from_an_edit_up_to_date_holds_no_base_of_its_own() {
+    let dir = repo("A");
+    let root = dir.path();
+    record(root, &docs(), &feature_pay(), name("Payments")).unwrap();
+    let fields = Fields {
+        name: Some("Payments".into()),
+        description: Some("Settle what is due.".into()),
+        ..Fields::default()
+    };
+
+    let edit = record(
+        root,
+        &docs().with_edits(load(root).unwrap()),
+        &feature_pay(),
+        fields,
+    )
+    .unwrap();
+
+    assert!(edit.field_bases.is_empty());
+    let saved = std::fs::read_to_string(edits_path(root)).unwrap();
+    assert!(!saved.contains("field_bases"), "{saved}");
+    assert_eq!(
+        outdated(&docs().with_edits(load(root).unwrap()), &edit),
+        None
+    );
+}
+
+// spec: SED-15, SED-35 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn a_field_kept_after_its_cited_file_changed_stays_outdated_naming_it() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    record(root, &docs, &refund(), name("Refund")).unwrap();
+    std::fs::write(root.join("app/refund.rb"), "edited").unwrap();
+    let fields = Fields {
+        name: Some("Refund".into()),
+        description: Some("Give the money back.".into()),
+        ..Fields::default()
+    };
+
+    let edit = record(
+        root,
+        &docs.clone().with_edits(load(root).unwrap()),
+        &refund(),
+        fields,
+    )
+    .unwrap();
+
+    assert_eq!(
+        outdated(&docs, &edit),
+        Some(Outdated {
+            rewritten: false,
+            changed: vec![("app/refund.rb".into(), FileState::Modified)],
+        })
+    );
 }
 
 fn hand_written(kind: SectionKind, id: &str, fields: Fields) -> Edit {
@@ -606,6 +708,7 @@ fn hand_written(kind: SectionKind, id: &str, fields: Fields) -> Edit {
         edited_at: "2026-11-05T10:00:00Z".into(),
         fingerprint: "f".into(),
         files: BTreeMap::new(),
+        field_bases: BTreeMap::new(),
     }
 }
 

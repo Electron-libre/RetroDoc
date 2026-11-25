@@ -1,6 +1,6 @@
 ---
 id: SFM
-status: accepted
+status: draft
 adrs: [0039, 0044, 0045]
 ---
 
@@ -25,7 +25,7 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
   the form, or when the form answers a save refused or failed (SFM-14).
 - **SFM-3** (deterministic) A save must write the edit of the section, then its review: the edit only when a field
   sent differs, cleaned (SFM-10), from the text the page shows, an edit left as it was otherwise, an outdated one
-  included (SED-34); the review as sent, a status recording it with the comment (REV-12), none removing it (REV-13).
+  included (SED-34), unless its confirmation is checked (SFM-17); the review as sent, a status recording it with the comment (REV-12), none removing it (REV-13).
 - **SFM-4** (deterministic) A review saved with an edit must not be outdated by that edit: it holds the fingerprint
   of the section with the edit just saved applied (SED-26).
 - **SFM-5** (deterministic) The form of an edited section must hold a button that brings the generated text back:
@@ -39,6 +39,11 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
 - **SFM-8** (deterministic) The page of a section asked with `?saved=1` must show in its form a notice that says the
   section is saved (`role="status"`); another value of `saved`, or none, shows no notice, nor does a form whose
   reviews cannot be read (WEB-87).
+
+- **SFM-17** (deterministic) The form of a section whose edit is outdated (SED-34, SED-35) must hold an unchecked
+  checkbox `confirm` that says, in the language of the interface, that the edited text still holds over the new
+  generated text; a save with it checked writes the edit as sent confirmed (SED-36), an edit equal to the former one
+  included; the form of a section whose edit is not outdated, or that has none, holds no such checkbox.
 
 ### Contract
 
@@ -79,6 +84,11 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
   shows it, and saves, then the review is written again, validated by B, and not outdated.
 - (SFM-3) Given a section whose edit is outdated, when the reader validates it without touching its fields, then the
   edit is left as it was, still outdated, and the review is not outdated.
+- (SFM-3, SED-15) Given a use case whose edit of its description is outdated, when the reader corrects its name only
+  and saves, then the edit holds both fields and is still outdated.
+- (SFM-17) Given a section whose edit is outdated, when the reader checks the confirmation without touching its
+  fields and saves, then the edit is the same text and no longer outdated.
+- (SFM-17) Given a section whose edit is not outdated, then its form holds no confirmation.
 - (SFM-3) Given a page of a feature shown as generated, when another page saves an edit of its name and this page
   then validates the feature, its fields untouched, then the edit of the other page is kept: the fields are compared
   with the text this page showed, which the form sends back in hidden fields.
@@ -113,4 +123,7 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
   path (WEB-119, WEB-120).
 - No authentication of the reviewer: the author of the review and of the edit is the `user.name` of the repository
   (REV-4, SED-6).
-- No word of an outdated review or edit in the form: the page shows them above it (WEB-89, WEB-92).
+- No word of an outdated review in the form, and of an outdated edit only its confirmation (SFM-17): the page shows
+  them above it (WEB-89, WEB-92).
+- No mark of which field of an outdated edit is stale: the page shows the generated text beside each field the edit
+  changes (WEB-92).

@@ -31,3 +31,57 @@ Read by someone taking an application over
 # Resources
 * `crates/retrodoc-web/src/section_form.rs` (`edit_change`), `crates/retrodoc-docs/src/edits/mod.rs` (`record`,
   `outdated`), `crates/retrodoc-docs/src/corrections/mod.rs`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-25
+
+## Understanding
+A save that keeps a field of an outdated edit as it was keeps, for that field, the fingerprint and file hashes the
+former edit held for it, so it stays outdated; the form offers a checkbox to confirm an outdated edit, which re-bases
+every field. Out of scope: marking which field is stale on the page (WEB-92 already shows the generated text beside
+each field), merging with the new generated text.
+
+## Plan
+1. [x] Per-field base of an edit (`retrodoc-docs`): `Edit` gains an optional map, per field kept from an outdated
+   former edit, of its fingerprint and file hashes (absent from the file otherwise, format version unchanged);
+   `edits::record` keeps them for a field whose text equals the former edit's unless saved confirmed;
+   `edits::outdated` judges the edit and each field base, reasons merged; `corrections::Correction` carries the
+   confirmation. Verified by internal tests in `edits/tests.rs` and `corrections/tests.rs` and a test of the form
+   through the router (name corrected, outdated description kept: still outdated); makes true SED-15, SED-34, SED-35,
+   SED-36 (amended), SFM-3 (amended). ~350 lines. (autonomous)
+2. [ ] Confirmation in the form (`retrodoc-web`): an unchecked checkbox `confirm` in the form of a section whose
+   edit is outdated, its label in English and French (a field of `EditTexts` in `texts.rs`, +4 lines; the split of
+   that file left out, a precedent `settle_texts.rs` exists if it grows), a save with it checked writing the edit as
+   sent confirmed, an unchanged one included. Verified by tests in a new `crates/retrodoc-web/tests/edit_confirm.rs`
+   (`section_form.rs` is at 709 lines); makes true SFM-17; sets both specs `accepted`. ~250 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 80809f28ccec21efb9a4de0660124ea3e305969d
+- The rule is amended into SED-15 and SED-36 rather than new requirements: `specs/section-edit.md` is at the bound of
+  40 requirements (`spec_max_requirements`).
+- A field "kept" is one whose text, cleaned, equals the former edit's; only a base that is outdated at save time is
+  stored, so an edit that was not outdated stores none (SED-36 unchanged for it).
+- Questions of step 2: 1 a (a checkbox `confirm` in the form, shown only when the edit is outdated), 2 a (SED-15 and
+  SED-36 amended, no new id).
+
+## Deliverable 1 summary
+done: `Edit::field_bases` keeps the base of a field kept from an outdated former edit; `edits::record_confirmed` and
+`EditChange::Confirm` re-base every field; `edits::outdated` merges the reasons of the edit and its field bases.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (SED, SFM `draft`) |
+| docs | `docs/crates/docs.md` |
+| code review | low, no findings |
+
+red: SED-15, SED-34, SED-35: `left: None, right: Some(Outdated { rewritten: true, .. })` (the kept field lost its base)
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none

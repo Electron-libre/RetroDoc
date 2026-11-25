@@ -14,8 +14,11 @@ use crate::GeneratedDocs;
 pub enum EditChange {
     /// Left as it is, an outdated edit included.
     Keep,
-    /// Replaced by an edit of these fields.
+    /// Replaced by an edit of these fields, a field kept as an outdated former edit gave it
+    /// still outdated (SED-15).
     Set(Fields),
+    /// Replaced by an edit of these fields confirmed: none outdated (SED-36).
+    Confirm(Fields),
     /// Removed: the section shows the generated text.
     Remove,
 }
@@ -72,7 +75,7 @@ pub fn save(
     if reviews::fingerprint(docs, section).is_none() {
         return Err(ReviewsError::UnknownSection(section.clone()).into());
     }
-    if let EditChange::Set(fields) = &correction.edit {
+    if let EditChange::Set(fields) | EditChange::Confirm(fields) = &correction.edit {
         edits::check(section, fields)?;
     }
     edits::load(repo_root)?;
@@ -82,6 +85,14 @@ pub fn save(
         EditChange::Keep => {}
         EditChange::Set(fields) => {
             shown.set(edits::record(repo_root, docs, section, fields.clone())?);
+        }
+        EditChange::Confirm(fields) => {
+            shown.set(edits::record_confirmed(
+                repo_root,
+                docs,
+                section,
+                fields.clone(),
+            )?);
         }
         EditChange::Remove => {
             edits::remove(repo_root, section)?;

@@ -1,6 +1,6 @@
 ---
 id: SED
-status: accepted
+status: draft
 adrs: [0044, 0045]
 ---
 
@@ -52,9 +52,10 @@ it and no `generate` loses it.
   when it is unset or the folder is not a git repository.
 - **SED-7** (deterministic) An edit must hold the date it was made in RFC 3339, in UTC, to the second.
 - **SED-8** (deterministic) An edit must hold the fingerprint of its section as generated (REV-6), the edits left
-  out, when the edit was made.
+  out, when the edit was made; a field it keeps from an outdated former edit holds its own (SED-15).
 - **SED-9** (deterministic) An edit must hold the hash of the content of each file its section cites (as REV-19
-  lists them), as the file was when the edit was made; a file that cannot be read gets no hash.
+  lists them), as the file was when the edit was made; a file that cannot be read gets no hash; a field it keeps
+  from an outdated former edit holds its own (SED-15).
 - **SED-10** (deterministic) The edits must be saved in one file, `.retrodoc/edits.json`, outside `.retrodoc/cache/`.
 - **SED-11** (deterministic) A `generate`, `--force` included, must not delete nor rewrite `.retrodoc/edits.json`.
 - **SED-12** (deterministic) A save must write the whole file aside then rename it over the former one, so that no
@@ -64,7 +65,9 @@ it and no `generate` loses it.
 - **SED-14** (deterministic) A save must not overwrite a file that cannot be read or is of a later format: it fails
   and leaves the file as it was.
 - **SED-15** (deterministic) An edit of a section must replace the previous edit of the same section whole, a field
-  the new edit leaves out included.
+  the new edit leaves out included, but for a field whose text it leaves as an outdated former edit gave it (SED-34,
+  SED-35): that field keeps the fingerprint and the hashes the former edit held for that field, so that it stays outdated, unless the
+  edit is saved confirmed (SED-36); a field it writes anew holds those of the edit (SED-8, SED-9).
 - **SED-16** (deterministic) Removing the edit of a section must leave the section with no edit, the other edits
   kept.
 - **SED-17** (deterministic) An absent file must load as no edit.
@@ -92,14 +95,15 @@ it and no `generate` loses it.
 - **SED-33** (deterministic) A blank field of an edit written by hand in `.retrodoc/edits.json` must be left out by
   the readers, the generated text shown in its place.
 - **SED-34** (deterministic) An edit must be outdated, with the reason "rewritten", when the fingerprint of its
-  section as generated, the edits left out, differs from the one it holds (SED-8): a later `generate` rewrote the text
-  it corrects.
-- **SED-35** (deterministic) An edit must be outdated, with the files that changed, when a file it holds a hash of
-  (SED-9) and its section still cites was modified or deleted since the edit; a file it holds no hash of is not
+  section as generated, the edits left out, differs from the one it holds (SED-8) or from the one a field of it holds
+  (SED-15): a later `generate` rewrote the text it corrects.
+- **SED-35** (deterministic) An edit must be outdated, with the files that changed, when a file it, or a field of
+  it (SED-15), holds a hash of (SED-9) and its section still cites was modified or deleted since the edit; a file it holds no hash of is not
   judged, and an edit of docs that carry no repository judges no file.
 - **SED-36** (deterministic) Whether an edit is outdated must be judged when the edit is read, never saved, by the
-  rule of the reviews (REV-20 to REV-22): an edit saved again over the same generated section and files is no longer
-  outdated.
+  rule of the reviews (REV-20 to REV-22): an edit saved again over the same generated section and files, each of its
+  fields written anew or the edit saved confirmed, is no longer outdated: saved confirmed, each field, one kept from
+  the former edit included, holds the fingerprint and the hashes of the edit (SED-8, SED-9).
 
 ## Scenarios
 
@@ -132,6 +136,12 @@ it and no `generate` loses it.
   as "rewritten" and the feature still shows the edited name.
 - (SED-34) Given a feature whose name is edited, when its description is edited next, then the edit is not outdated:
   the generated feature is the same.
+- (SED-15) Given a use case whose description is edited "OldD", when a later run rewrites its description and the
+  description is kept "OldD" while its name is edited, then the edit holds the name and "OldD" and is still outdated
+  as "rewritten".
+- (SED-15) Given an edit that is not outdated, when a field is edited and the others kept, then no field holds a
+  fingerprint of its own.
+- (SED-36) Given the outdated edit of the scenario above, when it is saved again confirmed, then it is no longer outdated.
 - (SED-35) Given a use case edited, when a file one of its steps cites is deleted, then the edit is outdated with the
   file deleted.
 - (SED-39, SED-40) Given a run whose feature `list-orders`, undocumented, is renamed "Browse the orders" by an edit
