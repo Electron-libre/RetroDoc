@@ -126,7 +126,13 @@ pub async fn run(
     } = *options;
     let (workspace, mut ingest, corrections) = open::open_workspace(path, force, options.estimate)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
-    *printed = Some(estimate::print(repo_root, config, options, &ingest));
+    *printed = Some(estimate::print(
+        repo_root,
+        config,
+        options,
+        &ingest,
+        &corrections,
+    ));
     if options.estimate {
         return Ok(());
     }

@@ -1,16 +1,17 @@
 //! The estimate `generate` prints before its first LLM call (`specs/run-estimate.md`): what the run knows
 //! then (the source files within the budget, those changed since the last complete run, the saved artifacts
-//! of the fixed passes, the passes it turns off), given to `retrodoc_pipeline::estimate`.
+//! of the fixed passes, the passes it turns off, the units a review `wrong` asks again), given to `retrodoc_pipeline::estimate`.
 
 use std::path::{Path, PathBuf};
 
 use retrodoc_core::artifacts::estimate::RunEstimate;
+use retrodoc_core::artifacts::items::load_use_cases;
 use retrodoc_core::artifacts::SourceHashes;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_pipeline::estimate::{estimate, render, EstimateInputs, RatioTable, ReviewedUnits};
-use retrodoc_pipeline::RoleRules;
+use retrodoc_pipeline::{Corrections, RoleRules};
 
 use super::super::passes;
 use super::{passes_of, passes_off, Confidence, GenerateOptions};
@@ -32,6 +33,7 @@ pub(super) fn print(
     config: &Config,
     options: &GenerateOptions,
     ingest: &IngestResult,
+    corrections: &Corrections,
 ) -> RunEstimate {
     let contexts = config.pipeline.domains_from == DomainsFrom::Contexts;
     let passes = passes_of(config.pipeline.domains_from);
@@ -80,13 +82,32 @@ pub(super) fn print(
         off: &off,
         unmeasured,
         confidence_sample,
-        reviewed: ReviewedUnits::default(),
+        reviewed: reviewed(repo_root, options, corrections),
     };
     let table = RatioTable::embedded();
     let models = pass_models(config, &passes);
     let estimate = estimate(&inputs, table);
     print!("{}", render(&estimate, &models, table));
     estimate
+}
+
+/// The units the reviews `wrong` not yet answered ask again, on a rerun without `--force` (EST-12): `--force`
+/// reads every file again, the reviews included.
+fn reviewed(
+    repo_root: &Path,
+    options: &GenerateOptions,
+    corrections: &Corrections,
+) -> ReviewedUnits {
+    if options.force {
+        return ReviewedUnits::default();
+    }
+    let saved = load_use_cases(repo_root).unwrap_or_default();
+    ReviewedUnits::pending(repo_root, corrections, |feature| {
+        saved
+            .iter()
+            .filter(|use_case| use_case.feature_slug.as_str() == feature)
+            .count()
+    })
 }
 
 /// Whether the run reads the business files once for the glossary and the entry points: on, and one model

@@ -44,9 +44,9 @@ rules and confidence of the rewritten feature; no cascade below a domains call, 
    reviewed features, features of reviewed use cases, from `Fingerprints::answered`), and `estimate` costs them per
    unit and cascade, in a new module `estimate/reviews.rs` (estimate.rs is at 625 lines); verified by internal tests
    of EST-12 and EST-13; ~350 lines. (autonomous)
-2. [ ] CLI: `generate --estimate` loads the corrections (edits.json refused as HCR-11), the CLI estimate gives the
+2. [x] CLI: `generate --estimate` loads the corrections (edits.json refused as HCR-11), the CLI estimate gives the
    pending units and the saved use cases per feature; verified by binary tests EST-H1, EST-12 (answered review at
-   zero), EST-14; docs (`docs/crates/pipeline.md`, `docs/findings.md` §15 note); ~250 lines.
+   zero), EST-14; docs (`docs/crates/pipeline.md`, `docs/findings.md` §15 note); ~250 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -62,3 +62,12 @@ rules and confidence of the rewritten feature; no cascade below a domains call, 
 - red: EST-12, EST-13: the four estimate tests left every pass at zero (`left: [("domains", 0, 0), ...]`).
 - Code review: 1 findings: the CLI passes `ReviewedUnits::default()`: deliberate, deliverable 2 wires it.
 - not verified: the binary path (deliverable 2).
+
+## Summary of deliverable 2
+- done: `generate` and `generate --estimate` read the corrections and give the estimate the units pending reviews ask
+  again (none with `--force`); spec `accepted`; README, CLI and pipeline docs, findings §15 note.
+- checks: tests ok, lint ok, specs ok (accepted), docs ok, code review no findings.
+- red: EST-H1, EST-12, EST-13, EST-14: the estimate of a rerun with a use case marked wrong read `LLM estimate: 0
+  call(s)`; `generate --estimate` succeeded on an unreadable `edits.json`.
+- Code review: no findings
+- not verified: a paid rerun on the smoke repository (the 13 calls of findings §15 against the new estimate).

@@ -197,25 +197,80 @@ fn a_review_to_do_a_blank_field_and_an_unknown_section_reach_no_request() {
     }
 }
 
-// spec: HCR-11
+// spec: HCR-11, EST-14
 #[test]
 fn generate_refuses_an_unreadable_file_of_edits_before_any_call() {
+    for args in [&["generate"][..], &["generate", "--estimate"]] {
+        let llm = fake_llm();
+        let dir = shop(&llm);
+        let retrodoc = dir.path().join(".retrodoc");
+        std::fs::create_dir_all(&retrodoc).unwrap();
+        std::fs::write(retrodoc.join("edits.json"), "{ not json").unwrap();
+
+        let output = run(dir.path(), args);
+
+        assert!(!output.status.success(), "{args:?}");
+        let said = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(said.contains("edits.json"), "{args:?}: {said}");
+        assert_eq!(llm.calls().len(), 0);
+    }
+}
+
+/// The estimate block `generate` printed, and the line of the pass `pass` in it.
+fn estimated<'a>(out: &'a str, pass: &str) -> (&'a str, &'a str) {
+    let start = out.find("LLM estimate: ").expect("an estimate");
+    let block = &out[start..];
+    let line = block
+        .lines()
+        .find(|line| line.trim_start().starts_with(&format!("{pass} ")))
+        .unwrap_or_else(|| panic!("{pass}: {block}"));
+    (block.lines().next().unwrap(), line)
+}
+
+// spec: EST-H1, EST-12, EST-13
+#[test]
+fn the_estimate_counts_the_units_a_use_case_marked_wrong_asks_again_until_answered() {
     let llm = fake_llm();
     let dir = shop(&llm);
-    let retrodoc = dir.path().join(".retrodoc");
-    std::fs::create_dir_all(&retrodoc).unwrap();
-    std::fs::write(retrodoc.join("edits.json"), "{ not json").unwrap();
+    succeeds(&generate(dir.path()));
+    review_the_use_case(
+        dir.path(),
+        "wrong",
+        "The customer pays on delivery, not online.",
+        "2026-11-24T10:00:00Z",
+    );
 
     let output = generate(dir.path());
+    succeeds(&output);
 
-    assert!(!output.status.success());
-    let said = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
+    let out = String::from_utf8_lossy(&output.stdout);
+    let (total, use_cases) = estimated(&out, "use-cases");
+    assert!(!total.starts_with("LLM estimate: 0 call(s)"), "{out}");
+    // At least one call, whatever the measured table says of its cost.
+    let asks = |line: &str| {
+        line.contains("call(s)") && !line.contains(" 0 call(s)") && !line.contains(" 0-")
+    };
+    assert!(asks(use_cases), "{use_cases}");
+    assert!(asks(estimated(&out, "rules").1), "{out}");
+    for pass in ["brief", "domains", "features"] {
+        let (_, line) = estimated(&out, pass);
+        assert!(line.contains("reused from the cache"), "{line}");
+    }
+
+    // The review answered: nothing is asked again.
+    let output = run(dir.path(), &["generate", "--estimate"]);
+    succeeds(&output);
+    let out = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        estimated(&out, "use-cases")
+            .0
+            .starts_with("LLM estimate: 0 call(s)"),
+        "{out}"
     );
-    assert!(said.contains("edits.json"), "{said}");
-    assert_eq!(llm.calls().len(), 0);
 }
 
 // spec: HCR-11

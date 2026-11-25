@@ -85,7 +85,8 @@ Run `retrodoc <command> --help` for the details.
 ### Controlling cost on a large repo
 
 Before its first LLM call, `generate` prints an estimate of the calls and tokens of each pass and in total, a range
-extrapolated from runs measured on other applications (a rerun with nothing changed is estimated at zero);
+extrapolated from runs measured on other applications (a rerun with nothing changed is estimated at zero, plus the
+units a review `wrong` not yet answered asks again);
 `generate --estimate` prints it and stops, with no LLM call and nothing written. Tokens only, no price. The recap
 at the end of the run sets each pass against its range (within it, or the miss in percent), and `.retrodoc/cache/usage.json`
 keeps both.
