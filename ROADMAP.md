@@ -38,3 +38,4 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [keep_the_slugs_of_a_unit_asked_again](issues/done/keep_the_slugs_of_a_unit_asked_again.md)
   - [keep_the_outdated_mark_of_untouched_edited_fields](issues/keep_the_outdated_mark_of_untouched_edited_fields.md)
   - [estimate_counts_the_units_a_wrong_review_asks](issues/estimate_counts_the_units_a_wrong_review_asks.md)
+  - [settling_proposal_in_the_readers_words](issues/settling_proposal_in_the_readers_words.md)
