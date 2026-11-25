@@ -389,7 +389,7 @@ Steps, each shippable:
      twice, the judge changed 1 verdict of 13 (an answer missing the profile switch of the Wayback Machine).
    - Cost: about $0.19 (agent $0.16, judge $0.03). One run per variant: a sample, not a spread.
 4. Interactive `chat` with conversation memory; code and git history tools.
-5. Settling a disputed section from its form (`issues/agent_helps_settle_a_disputed_section.md`,
+5. Settling a disputed section from its form (`issues/done/agent_helps_settle_a_disputed_section.md`,
    `specs/section-settle.md`). Measured (2026-11-25, at `5fd7ef85`, hosted `deepseek-chat`, `retrodoc ui --ask`): on
    a copy of the default smoke repository's saved run that carries two sections reviewed `wrong` (a domain, a use
    case); its `generate` at HEAD made no call. The project's author played the reader on three sections.

@@ -34,7 +34,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [one_form_to_review_and_edit_a_section](issues/done/one_form_to_review_and_edit_a_section.md)
   - [debt_lists_fixed_items_apart](issues/done/debt_lists_fixed_items_apart.md)
   - [human_edits_and_reviews_guide_the_next_run](issues/done/human_edits_and_reviews_guide_the_next_run.md)
-  - [agent_helps_settle_a_disputed_section](issues/agent_helps_settle_a_disputed_section.md)
+  - [agent_helps_settle_a_disputed_section](issues/done/agent_helps_settle_a_disputed_section.md)
   - [keep_the_slugs_of_a_unit_asked_again](issues/done/keep_the_slugs_of_a_unit_asked_again.md)
   - [keep_the_outdated_mark_of_untouched_edited_fields](issues/keep_the_outdated_mark_of_untouched_edited_fields.md)
   - [estimate_counts_the_units_a_wrong_review_asks](issues/estimate_counts_the_units_a_wrong_review_asks.md)
