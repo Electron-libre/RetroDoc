@@ -15,6 +15,10 @@ use serde::Deserialize;
 use retrodoc_core::artifacts::estimate::{Basis, PassEstimate, Range, RunEstimate};
 use retrodoc_core::text::thousands;
 
+mod reviews;
+
+pub use reviews::ReviewedUnits;
+
 /// The table of measured ratios, as `retrodoc-bench` writes it (the fields the estimate reads).
 #[derive(Debug, Clone, Deserialize)]
 pub struct RatioTable {
@@ -124,6 +128,8 @@ pub struct EstimateInputs<'a> {
     pub unmeasured: &'a [&'a str],
     /// `--confidence-sample N`: the use cases asked as a second opinion besides those the checks don't settle.
     pub confidence_sample: Option<usize>,
+    /// The units the reviews `wrong` not yet answered ask again, counted on a rerun without `--force` only.
+    pub reviewed: ReviewedUnits,
 }
 
 /// The estimate in the form of the recap printed at the end of a run (`usage_log::recap`): the total, then
@@ -165,7 +171,7 @@ pub fn render(estimate: &RunEstimate, models: &[(&str, String)], table: &RatioTa
             Basis::Cached => "reused from the cache".to_string(),
             Basis::NoCall => "no call measured".to_string(),
             Basis::Unmeasured => "not measured, counted as zero".to_string(),
-            Basis::PerRun | Basis::PerSourceFile => format!(
+            Basis::PerRun | Basis::PerSourceFile | Basis::Reviewed => format!(
                 "{:>13} call(s)  {:>19} in  {:>17} out",
                 span(pass.calls),
                 span(pass.prompt_tokens),
@@ -180,7 +186,12 @@ pub fn render(estimate: &RunEstimate, models: &[(&str, String)], table: &RatioTa
     let estimated: Vec<&str> = estimate
         .passes
         .iter()
-        .filter(|p| matches!(p.basis, Basis::PerRun | Basis::PerSourceFile))
+        .filter(|p| {
+            matches!(
+                p.basis,
+                Basis::PerRun | Basis::PerSourceFile | Basis::Reviewed
+            )
+        })
         .map(|p| p.pass.as_str())
         .collect();
     for (pass, model) in models {
@@ -221,7 +232,7 @@ pub fn estimate(inputs: &EstimateInputs, table: &RatioTable) -> RunEstimate {
     let passes: Vec<PassEstimate> = inputs
         .passes
         .iter()
-        .map(|&name| estimate_pass(name, files, inputs, table))
+        .map(|&name| reviews::add(estimate_pass(name, files, inputs, table), inputs, table))
         .collect();
     let (mut calls, mut prompt_tokens, mut completion_tokens) = Default::default();
     for pass in &passes {
@@ -277,20 +288,13 @@ fn estimate_pass(
     if times == 0 {
         return zero(Basis::Cached);
     }
-    #[allow(clippy::cast_precision_loss)]
-    let times = times as f64;
-    // Rounded to a millionth first, so that a product such as 0.7 x 100 is not taken past 70.
-    let exact = |value: f64| (value * times * 1e6).round() / 1e6;
-    let range = |s: Spread| Range {
-        low: bound(exact(s.min).floor()),
-        high: bound(exact(s.max).ceil()),
-    };
+    let scaled = scaled(spread, times);
     let mut pass = PassEstimate {
         pass: name.to_string(),
         basis,
-        calls: range(spread.calls),
-        prompt_tokens: range(spread.prompt_tokens),
-        completion_tokens: range(spread.completion_tokens),
+        calls: scaled.calls,
+        prompt_tokens: scaled.prompt_tokens,
+        completion_tokens: scaled.completion_tokens,
     };
     // A saved artifact is reused while its fingerprint holds, which the estimate can't tell: from nothing.
     if measured.fixed && inputs.saved_fixed.contains(&name) {
@@ -308,6 +312,23 @@ fn estimate_pass(
         }
     }
     pass
+}
+
+/// `spread` applied `times`: its lowest and its highest product, as counts.
+fn scaled(spread: PerUnit<Spread>, times: usize) -> PerUnit<Range> {
+    #[allow(clippy::cast_precision_loss)]
+    let times = times as f64;
+    // Rounded to a millionth first, so that a product such as 0.7 x 100 is not taken past 70.
+    let exact = |value: f64| (value * times * 1e6).round() / 1e6;
+    let range = |s: Spread| Range {
+        low: bound(exact(s.min).floor()),
+        high: bound(exact(s.max).ceil()),
+    };
+    PerUnit {
+        calls: range(spread.calls),
+        prompt_tokens: range(spread.prompt_tokens),
+        completion_tokens: range(spread.completion_tokens),
+    }
 }
 
 /// The prompt and completion tokens of one call of the application whose calls cost the most (the indicative

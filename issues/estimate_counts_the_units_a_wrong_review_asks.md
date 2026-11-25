@@ -29,3 +29,36 @@ Read by someone taking an application over
 # Resources
 * `crates/retrodoc-pipeline/src/estimate.rs`, `crates/retrodoc-pipeline/src/corrections.rs`,
   `crates/retrodoc-cli/src/commands/generate/estimate.rs`, ADR 0056.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-25
+
+## Understanding
+The estimate printed before the first call counts the units a review `wrong` not yet answered asks again (domains
+call, features call of a domain, use cases call of a feature) at the measured cost per unit of their pass, plus the
+rules and confidence of the rewritten feature; no cascade below a domains call, nothing for reconcile (EST-12 to 14).
+
+## Plan
+1. [x] Pipeline: `corrections` tells the units a pending review asks again (`ReviewedUnits`: domains, domains of
+   reviewed features, features of reviewed use cases, from `Fingerprints::answered`), and `estimate` costs them per
+   unit and cascade, in a new module `estimate/reviews.rs` (estimate.rs is at 625 lines); verified by internal tests
+   of EST-12 and EST-13; ~350 lines. (autonomous)
+2. [ ] CLI: `generate --estimate` loads the corrections (edits.json refused as HCR-11), the CLI estimate gives the
+   pending units and the saved use cases per feature; verified by binary tests EST-H1, EST-12 (answered review at
+   zero), EST-14; docs (`docs/crates/pipeline.md`, `docs/findings.md` §15 note); ~250 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 6ef92ae6ffef9c1706eb7363c5813d61bd633f94
+- A domain review counts the domains call only, no cascade (1 a).
+- Features counted per domain holding a reviewed feature, not per slice (2 a).
+- `--estimate` fails on an unreadable `edits.json`, as `generate` (3 a).
+
+## Summary of deliverable 1
+- done: `ReviewedUnits` (pending reviews read from the corrections and `Fingerprints::answered`) costed per unit in
+  `estimate`, `Basis::Reviewed`; spec amended (EST-12 to EST-14, EST-H1); pipeline doc.
+- checks: tests ok, lint ok, specs ok (draft), docs ok, code review 1 finding.
+- red: EST-12, EST-13: the four estimate tests left every pass at zero (`left: [("domains", 0, 0), ...]`).
+- Code review: 1 findings: the CLI passes `ReviewedUnits::default()`: deliberate, deliverable 2 wires it.
+- not verified: the binary path (deliverable 2).

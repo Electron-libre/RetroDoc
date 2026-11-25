@@ -100,8 +100,13 @@ Behaviors that span passes:
 - `estimate.rs`: the pre-run estimate (`specs/run-estimate.md`), no LLM: `estimate` gives each pass of the run a
   low and a high bound of calls, prompt and completion tokens from `EstimateInputs` (the source files to read, those
   changed since the last complete run, the fixed passes whose artifact is saved, the passes turned off or run
-  otherwise than measured, `--confidence-sample`) and the table above, embedded (`RatioTable::embedded`): a scaling
+  otherwise than measured, `--confidence-sample`, the units a review asks again) and the table above, embedded (`RatioTable::embedded`): a scaling
   pass at its cost per source file, a fixed one at its cost per run (from zero when its artifact is saved, all zero
   when no file changed), between the lowest and the highest application; a pass the table doesn't know is
-  `Basis::Unmeasured`, at zero. The estimate's types are core's (`retrodoc_core::artifacts::estimate`); `render` shows the models that answered the measured runs next to
+  `Basis::Unmeasured`, at zero. `estimate/reviews.rs` adds, on a rerun without `--force`, the units the reviews
+  `wrong` not yet answered ask again (`ReviewedUnits::pending`, read from the corrections and
+  `Fingerprints::answered` as the passes read them, EST-12): the domains call, one features call per domain holding
+  a reviewed feature, one use cases call per feature holding a reviewed use case, plus their rules and the
+  confidence of their saved use cases (EST-13), each at the pass's cost per unit (`Basis::Reviewed` when the cache
+  would have saved the pass). The estimate's types are core's (`retrodoc_core::artifacts::estimate`); `render` shows the models that answered the measured runs next to
   those the run asks, without comparing them (a server may answer under another name).

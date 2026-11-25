@@ -9,7 +9,7 @@ use retrodoc_core::artifacts::SourceHashes;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_ingest::{FileKind, IngestResult};
-use retrodoc_pipeline::estimate::{estimate, render, EstimateInputs, RatioTable};
+use retrodoc_pipeline::estimate::{estimate, render, EstimateInputs, RatioTable, ReviewedUnits};
 use retrodoc_pipeline::RoleRules;
 
 use super::super::passes;
@@ -80,6 +80,7 @@ pub(super) fn print(
         off: &off,
         unmeasured,
         confidence_sample,
+        reviewed: ReviewedUnits::default(),
     };
     let table = RatioTable::embedded();
     let models = pass_models(config, &passes);

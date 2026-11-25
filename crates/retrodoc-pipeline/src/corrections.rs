@@ -61,7 +61,7 @@ impl Correction {
     }
 
     /// The key a review `wrong` is answered under: its section, its date and its comment.
-    fn wrong_key(&self) -> Option<String> {
+    pub(crate) fn wrong_key(&self) -> Option<String> {
         match &self.verdict {
             Some(Verdict::Wrong {
                 comment,
@@ -123,6 +123,20 @@ impl Corrections {
                 .or_default()
                 .push(correction);
         }
+    }
+
+    /// The corrections of the features, by the slug of their domain.
+    pub(crate) fn features(&self) -> impl Iterator<Item = (&str, &[Correction])> {
+        self.features
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_slice()))
+    }
+
+    /// The corrections of the use cases, by the slug of their feature.
+    pub(crate) fn use_cases(&self) -> impl Iterator<Item = (&str, &[Correction])> {
+        self.use_cases
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_slice()))
     }
 
     /// The corrections of the use cases of the feature `feature` (HCR-6, HCR-7).

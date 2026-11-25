@@ -87,6 +87,9 @@ pub enum Basis {
     PerSourceFile,
     /// Its measured cost per run.
     PerRun,
+    /// Its measured cost per unit, times the units the reviews `wrong` not yet answered ask again or
+    /// cascade into (`specs/run-estimate.md`, EST-12, EST-13).
+    Reviewed,
     /// The run turns it off.
     Off,
     /// The cache saves it: no file changed, or its artifact is saved.
