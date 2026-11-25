@@ -66,9 +66,9 @@ Out of scope: the paid measure of the ledger's queue (asked apart, after the iss
    `propose_verdict`, the settling prompt and the tool's descriptions say which status fits; the exchange shows the
    evidence folded, the form takes the comment alone, the kept answer holds the evidence; verified by agent unit
    tests and `settle_page.rs`; makes true STL-5, STL-7, STL-8, STL-13, STL-15 (~450 lines). (autonomous)
-2. [ ] Log of each settling question: one `tracing` line at its end (section, question number, rounds, tool calls,
+2. [x] Log of each settling question: one `tracing` line at its end (section, question number, rounds, tool calls,
    LLM calls and tokens, proposed status, settling sums), the code in `ask/settle.rs` (`ask.rs` is at 781 lines of
-   800: only the call goes there); verified by a web test capturing the log; makes true STL-17 (~200 lines).
+   800: only the call goes there); verified by a web test capturing the log; makes true STL-17 (~200 lines). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -96,5 +96,31 @@ red: STL-5, STL-7, STL-8, STL-13, STL-15: `struct Proposal has no field named ev
 Code review: no findings
 
 not verified: what the model writes with the new prompt (a paid measure, after the issue).
+
+decisions needed: none
+
+## Deliverable 2: log of each settling question
+
+done: each settling question that ends logs one line on the stdout of `ui` (section, its number in the settling,
+rounds, tool calls, LLM calls and tokens, proposed status, the settling's sums); `section-settle` is `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (`section-settle` accepted, every requirement traced) |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/dev/commands.md` |
+| code review | 1 finding, fixed |
+
+red: STL-17: `one line per settling question: []` (no line logged)
+
+Note: the log test installs a global subscriber writing per thread, as a scoped one missed the line when another
+test reached the call site first.
+
+Code review: 1 finding
+- The question number read the exchanges kept, stuck at 50 past 50: fixed, numbered from `settling_from`, the number
+  of the settling's first question, kept when a dropped session is started again; a second review found nothing.
+
+not verified: the line in the log of a real `ui --ask` (a paid measure, after the issue).
 
 decisions needed: none

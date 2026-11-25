@@ -8,10 +8,11 @@ use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
-use retrodoc_agent::{Conversation, Disagreement, Disputed, Proposal};
+use retrodoc_agent::{Answer, Conversation, Disagreement, Disputed, Proposal};
 use retrodoc_core::reconcile::ItemKind;
-use retrodoc_docs::reviews::{Section, SectionKind};
+use retrodoc_docs::reviews::{Section, SectionKind, Status};
 use retrodoc_docs::GeneratedDocs;
+use retrodoc_llm::CallTotals;
 use serde::Deserialize;
 use tokio::sync::watch;
 
@@ -159,6 +160,64 @@ impl ProposalView {
 pub(super) fn proposal_href(site: &Site, proposal: &Proposal, number: u64) -> Option<String> {
     let found = find(site.docs()?, &proposal.section)?;
     Some(format!("{}?proposal={number}#review", found.href))
+}
+
+/// The line the log of `ui` gets when the question `number` of the settling of `section` ends
+/// with `outcome` after `tool_calls` calls of tools, its LLM calls `cost` and those of the
+/// settling so far `settling` (STL-17).
+pub(super) fn usage_line(
+    section: &Section,
+    number: u64,
+    outcome: &Result<Answer, String>,
+    tool_calls: usize,
+    cost: &CallTotals,
+    settling: &CallTotals,
+) -> String {
+    let answer = outcome.as_ref().ok();
+    let rounds = answer.map_or(0, |answer| answer.rounds);
+    let proposed = match answer.and_then(|answer| answer.proposal.as_ref()) {
+        Some(proposal) => match proposal.status {
+            Status::Validated => "validated",
+            Status::Wrong => "wrong",
+            Status::ToReview => "to_review",
+        },
+        None => "none",
+    };
+    let kind = match section.kind {
+        SectionKind::Domain => "domain",
+        SectionKind::Feature => "feature",
+        SectionKind::UseCase => "use case",
+    };
+    format!(
+        "settling of the {kind} `{}`, question {number}: {}, {}, {}, proposed {proposed}; \
+         settling: {}",
+        section.id,
+        counted(rounds as u64, "round"),
+        counted(tool_calls as u64, "tool call"),
+        calls(cost),
+        calls(settling),
+    )
+}
+
+/// The LLM calls of `totals` and their tokens, as the log line of a settling says them.
+fn calls(totals: &CallTotals) -> String {
+    format!(
+        "{} ({} without usage), {} tokens in ({} cached), {} out",
+        counted(totals.calls, "LLM call"),
+        totals.calls_without_usage,
+        totals.prompt_tokens,
+        totals.cached_tokens,
+        totals.completion_tokens
+    )
+}
+
+/// `n` `what`, in the plural but for one.
+fn counted(n: u64, what: &str) -> String {
+    if n == 1 {
+        format!("1 {what}")
+    } else {
+        format!("{n} {what}s")
+    }
 }
 
 /// The button of the form of a section that starts its settling.
@@ -318,6 +377,7 @@ pub(super) async fn settle(
         *session = Session {
             conversation: Conversation::settling(disputed.section.clone()),
             asked: session.asked + 1,
+            settling_from: session.asked + 1,
             ..Session::default()
         };
         let running = Arc::new(Running {
@@ -325,6 +385,7 @@ pub(super) async fn settle(
             question: (texts.settle.question)(&found.name),
             message,
             settled: Some(disputed.section.clone()),
+            settling_from: session.asked,
             progress: watch::Sender::new(Progress::default()),
         });
         session.running = Some(Arc::clone(&running));

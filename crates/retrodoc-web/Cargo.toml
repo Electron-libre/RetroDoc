@@ -20,6 +20,7 @@ axum.workspace = true
 futures-util.workspace = true
 getrandom.workspace = true
 tokio = { workspace = true, features = ["net", "rt", "sync"] }
+tracing.workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
@@ -27,3 +28,4 @@ tokio = { workspace = true, features = ["test-util"] }
 retrodoc-pipeline = { workspace = true, features = ["testing"] }
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
+tracing-subscriber.workspace = true

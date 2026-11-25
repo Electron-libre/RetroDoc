@@ -200,7 +200,11 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   the session of the cookie proposing for that section fills the form (`ReviewView::selected`, `draft` (the comment alone, not its evidence), `proposed`
   for its notice; the fields of `EditFormView` it gives, unfolded by `sent` only when it gives one, the preview
   rendered from the proposed narrative, `EditFormView::proposed`), anything else leaves the form as it
-  is; nothing is written until the form is saved. `assets/ask.js`, loaded by `ask.html`, makes the form a composer: Enter sends (through
+  is; nothing is written until the form is saved. Each question of a settling that ends logs one line on stdout
+  (`settle::usage_line`, written by `Free::keep`, STL-17): the section, the number of the question in the settling
+  (from `Running::settling_from`, the number of its first question), its rounds, tool calls, LLM calls and tokens, the proposed status
+  or `none`, and the sums of the settling (`Session::spent`, emptied when the settling starts); a measure reads them
+  from the log of `ui`. `assets/ask.js`, loaded by `ask.html`, makes the form a composer: Enter sends (through
   `requestSubmit`, so `htmx` sends it), Shift+Enter, a running input method composition or a touch device
   (`pointer: coarse`, whose keyboard has no Shift+Enter) does not; the field grows
   with its text (`field-sizing: content` in `style.css`, the script's fallback elsewhere, capped at 12 lines); once a

@@ -536,3 +536,107 @@ async fn a_contradicted_section_settled_from_the_code_alone_ends_on_a_proposal_a
     assert!(proposal.contains("Validated"), "{proposal}");
     assert!(proposal.contains("lists them for the clerk"), "{proposal}");
 }
+
+thread_local! {
+    /// What the server logged on this thread.
+    static LOGGED: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Writes the log to the buffer of the thread that logs.
+struct ThreadLog;
+
+impl std::io::Write for ThreadLog {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        LOGGED.with(|logged| logged.borrow_mut().extend_from_slice(bytes));
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// The lines the server logs while `test` runs, the tasks it spawns on this thread included. The
+/// subscriber is global, as a scoped one misses the log lines a test without it reached first.
+async fn logged<F: std::future::Future<Output = ()>>(test: F) -> Vec<String> {
+    static INSTALLED: std::sync::Once = std::sync::Once::new();
+    INSTALLED.call_once(|| {
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(|| ThreadLog)
+            .with_ansi(false)
+            .without_time()
+            .finish();
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+    });
+    LOGGED.with(|logged| logged.borrow_mut().clear());
+    test.await;
+    let written = LOGGED.with(|logged| String::from_utf8(logged.borrow().clone()).unwrap());
+    written.lines().map(str::to_string).collect()
+}
+
+// spec: STL-17
+#[tokio::test]
+async fn each_question_of_a_settling_logs_its_rounds_calls_and_tokens_and_the_settlings_sums() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::scripted(vec![
+        FakeTurn::Calls {
+            text: String::new(),
+            calls: vec![retrodoc_llm::ToolCall {
+                id: "r1".into(),
+                name: "read_source".into(),
+                arguments: r#"{"path":"app/order.rb"}"#.into(),
+            }],
+        },
+        FakeTurn::Text("Who sees the orders?".into()),
+        propose(r#"{"status":"wrong","comment":"The customer sees them.","evidence":"e"}"#),
+        FakeTurn::Fail,
+        FakeTurn::Text("Orders.".into()),
+    ]));
+    let router = router(dir.path(), Some(llm));
+    let lines = logged(async {
+        let cookie = session_cookie(&settle(&router, FEATURE, None).await).unwrap();
+        send(&router, get_request("/ask/questions/1", Some(&cookie))).await;
+        ask(&router, Some(&cookie)).await;
+        ask(&router, Some(&cookie)).await;
+        send(&router, post_request("/ask/reset", "", Some(&cookie), true)).await;
+        ask(&router, Some(&cookie)).await;
+    })
+    .await;
+    let settling: Vec<&String> = lines
+        .iter()
+        .filter(|line| line.contains("settling of the feature `list-orders`"))
+        .collect();
+    assert_eq!(
+        settling.len(),
+        3,
+        "one line per settling question: {lines:#?}"
+    );
+    assert!(
+        settling[0].contains(
+            "question 1: 1 round, 1 tool call, 2 LLM calls (2 without usage), \
+             0 tokens in (0 cached), 0 out, proposed none; \
+             settling: 2 LLM calls (2 without usage), 0 tokens in (0 cached), 0 out"
+        ),
+        "{}",
+        settling[0]
+    );
+    assert!(
+        settling[1].contains("question 2: 1 round, 1 tool call, 1 LLM call (1 without usage)")
+            && settling[1].contains("proposed wrong; settling: 3 LLM calls (3 without usage)"),
+        "{}",
+        settling[1]
+    );
+    assert!(
+        settling[2].contains("question 3: 0 rounds, 0 tool calls, 0 LLM calls")
+            && settling[2].contains("proposed none"),
+        "a failed question logs its line too: {}",
+        settling[2]
+    );
+    assert!(
+        !lines
+            .iter()
+            .skip_while(|l| !l.contains("question 3"))
+            .skip(1)
+            .any(|l| l.contains("settling")),
+        "a question no settling started logs no line: {lines:#?}"
+    );
+}

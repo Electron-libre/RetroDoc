@@ -61,6 +61,7 @@ fn a_settling_session_started_again_still_settles_its_section() {
             question: "Help me settle it.".into(),
             message: "Help me settle it.".into(),
             settled,
+            settling_from: 2,
             progress: watch::Sender::new(Progress::default()),
         })
     };
@@ -68,6 +69,10 @@ fn a_settling_session_started_again_still_settles_its_section() {
 
     let settling = sessions.reopen("a", &running(Some(section.clone())));
     assert_eq!(settling.conversation.settled(), Some(&section));
+    assert_eq!(
+        settling.settling_from, 2,
+        "its questions keep their numbers"
+    );
     assert_eq!(settling.asked, 3);
     let plain = sessions.reopen("b", &running(None));
     assert_eq!(plain.conversation.settled(), None);
