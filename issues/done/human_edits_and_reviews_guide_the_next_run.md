@@ -124,7 +124,7 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
   56 calls for the baseline, 13 for the guided rerun (~$0.01), 0 for the rerun after; the use case marked wrong
   fixed with its slug kept, 2 of its 3 siblings renamed; the domain marked wrong reworded, not re-placed; the
   estimate missed the calls. Follow-ups: `issues/done/keep_the_slugs_of_a_unit_asked_again.md`,
-  `issues/estimate_counts_the_units_a_wrong_review_asks.md`.
+  `issues/done/estimate_counts_the_units_a_wrong_review_asks.md`.
 - red: none (a measure, no test).
 - Code review: no findings.
 - not verified: the edits on a real rewrite (their units were not asked by this run, by design).
@@ -140,7 +140,7 @@ writing to `edits.json`/`reviews.json`, other passes, any change of the outdated
   - Validated use case without its narrative (important): fixed, `shown_narrative`.
   - Quotes of a human text not escaped: fixed, quoted as JSON strings.
   - Blank line splitting a list of `docs/crates/pipeline.md`: fixed.
-  - Estimate blind to pending reviews `wrong`: not fixed, `issues/estimate_counts_the_units_a_wrong_review_asks.md`.
+  - Estimate blind to pending reviews `wrong`: not fixed, `issues/done/estimate_counts_the_units_a_wrong_review_asks.md`.
   - Corrections added after the prompt budget: not fixed, they are the few sections of one unit; a cap would cut a
     human's text.
   - `Fingerprints::answered` never pruned: not fixed, a few keys per corrected unit, cleared by `--force`.

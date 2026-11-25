@@ -889,5 +889,5 @@ store, its own Node runtime, telemetry on by default) indexed the checkouts of t
   domains one.
 - **An edit and a validation ask nothing**: their units were not asked, the edits stay an overlay (HCR-5).
 - **The estimate printed before the run counted 0 calls**: it does not know a review `wrong` asks its unit again.
-  Since `issues/estimate_counts_the_units_a_wrong_review_asks.md` it counts those units and their rules and
+  Since `issues/done/estimate_counts_the_units_a_wrong_review_asks.md` it counts those units and their rules and
   confidence, not the cascade of a domains call (EST-12, EST-13).
