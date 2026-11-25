@@ -373,7 +373,7 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     let llm = Arc::new(FakeLlm::scripted(vec![
         FakeTurn::Text("Who sees the orders, the clerk or the customer?".into()),
         propose(
-            r#"{"status":"wrong","comment":"The customer sees them, `app/order.rb`.","description":"The customer sees their orders"}"#,
+            r#"{"status":"wrong","comment":"The customer sees them.","evidence":"`app/order.rb` filters by customer.","description":"The customer sees their orders"}"#,
         ),
     ]));
     let router = router(dir.path(), Some(llm));
@@ -390,8 +390,16 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     let proposal = &exchange[exchange.find("class=\"proposal\"").expect(&exchange)..];
     assert!(proposal.contains("Wrong"), "{proposal}");
     assert!(
-        proposal.contains("The customer sees them, `app/order.rb`."),
+        proposal.contains("<p class=\"comment\">The customer sees them.</p>"),
         "{proposal}"
+    );
+    let evidence = &proposal[proposal
+        .find("<details class=\"evidence\">")
+        .expect(proposal)..];
+    assert!(
+        evidence[..evidence.find("</details>").unwrap()]
+            .contains("`app/order.rb` filters by customer."),
+        "the evidence is folded under the comment: {proposal}"
     );
     assert!(
         proposal.contains("The customer sees their orders"),
@@ -416,9 +424,10 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     let form = review_form(&page);
     assert!(form.contains("value=\"wrong\" checked"), "{form}");
     assert!(
-        form.contains(">The customer sees them, `app/order.rb`.</textarea>"),
-        "{form}"
+        form.contains(">The customer sees them.</textarea>"),
+        "the comment alone, without its evidence: {form}"
     );
+    assert!(!form.contains("filters by customer"), "{form}");
     assert!(
         form.contains(">The customer sees their orders</textarea>"),
         "{form}"
@@ -451,7 +460,7 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
 async fn a_proposal_parameter_naming_no_proposal_of_the_section_is_left_out() {
     let dir = generated_repo();
     let llm = Arc::new(FakeLlm::scripted(vec![
-        propose(r#"{"status":"validated","comment":"Right."}"#),
+        propose(r#"{"status":"validated","comment":"Right.","evidence":"e"}"#),
         FakeTurn::Text("No proposal.".into()),
     ]));
     let router = router(dir.path(), Some(llm));
@@ -511,7 +520,9 @@ async fn a_contradicted_section_settled_from_the_code_alone_ends_on_a_proposal_a
                 arguments: r#"{"path":"app/order.rb"}"#.into(),
             }],
         },
-        propose(r#"{"status":"validated","comment":"`app/order.rb` lists them for the clerk."}"#),
+        propose(
+            r#"{"status":"validated","comment":"The clerk lists them.","evidence":"`app/order.rb` lists them for the clerk."}"#,
+        ),
     ]));
     let router = router(dir.path(), Some(llm.clone()));
     let cookie = session_cookie(&settle(&router, FEATURE, None).await).unwrap();

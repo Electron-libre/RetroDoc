@@ -12,6 +12,7 @@
     <h3>{{ t.settle.proposed }}</h3>
     <p><span class="badge review">{{ proposal.status }}</span></p>
     <p class="comment">{{ proposal.comment }}</p>
+    <details class="evidence"><summary>{{ t.settle.evidence }}</summary><p>{{ proposal.evidence }}</p></details>
     {% if !proposal.fields.is_empty() %}<dl>{% for field in proposal.fields %}<dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>{% endfor %}</dl>{% endif %}
     {% if let Some(href) = proposal.href %}<p><a class="button" href="{{ href }}">{{ t.settle.fill }}</a></p>{% endif %}
   </section>

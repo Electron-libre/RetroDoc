@@ -406,6 +406,8 @@ form.ask-reset { margin: 0 0 var(--space-4); }
 p.settling { font-weight: 600; }
 section.proposal { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); }
 section.proposal h3 { margin-top: 0; }
+section.proposal details.evidence { margin: var(--space-2) 0; color: var(--text-muted); font-size: 0.9rem; }
+section.proposal details.evidence > summary { cursor: pointer; width: fit-content; }
 p.proposed { color: var(--gold-light); }
 /* The question field starts at one line and grows with its text up to 12 lines (WAK-42); ask.js
    grows it where `field-sizing` is not supported. */

@@ -16,6 +16,8 @@ pub struct SettleTexts {
     pub unknown_kind: &'static str,
     /// The heading of the proposal of an exchange (STL-7).
     pub proposed: &'static str,
+    /// The fold of the evidence of a proposal, under its comment (STL-7).
+    pub evidence: &'static str,
     /// The link of a proposal to the form of its section, filled with it.
     pub fill: &'static str,
     /// The notice of a form filled with a proposal (STL-8).
@@ -31,6 +33,7 @@ impl SettleTexts {
         question: |name| format!("Help me settle “{name}”."),
         unknown_kind: "Only a domain, a feature or a use case can be settled.",
         proposed: "Proposed verdict",
+        evidence: "Evidence",
         fill: "Fill the form",
         filled:
             "Filled with the verdict the agent proposed: nothing is saved until you save the form.",
@@ -43,6 +46,7 @@ impl SettleTexts {
         question: |name| format!("Aide-moi à trancher « {name} »."),
         unknown_kind: "Seuls un domaine, une fonctionnalité ou un cas d’usage peuvent être tranchés.",
         proposed: "Verdict proposé",
+        evidence: "Preuves",
         fill: "Remplir le formulaire",
         filled: "Rempli avec le verdict proposé par l’agent : rien n’est enregistré avant que vous enregistriez le formulaire.",
     };

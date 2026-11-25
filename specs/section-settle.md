@@ -1,6 +1,6 @@
 ---
 id: STL
-status: accepted
+status: draft
 adrs: [0047, 0048, 0049, 0057]
 ---
 
@@ -32,16 +32,18 @@ and ends on a proposed review and correction that the reader puts in the form an
 - **STL-5** (deterministic) Each question of a settling conversation, its first and the answers of the reader that
   follow it, must be sent with the settling system prompt, which asks the model to check each claim of the section
   against the code, the history and the docs with the tools, to say what it could not settle, to ask the reader the
-  questions that would settle it, and to propose its verdict with `propose_verdict` once settled; it names the
+  questions that would settle it, and to propose its verdict with `propose_verdict` once settled, its comment in
+  the words of a reader who is not a developer, its evidence apart, its status the one STL-13 says fits; it names the
   section settled (its kind and id), also once the conversation is started again after its session was dropped
   while a question ran (WAK-35). The last request of a question, which offers no tool, asks the verdict as text.
 - **STL-6** (deterministic) A question of a settling conversation must offer the tool `propose_verdict` besides the
   read-only tools; a question of a conversation no settling started, and `retrodoc ask` and `chat`, offer none.
 - **STL-7** (deterministic) An exchange whose answer holds a proposal must show it under its text: the status, the
-  comment and each field of the text it gives, and a link "Fill the form" to the form of the section (SFM-6) with
+  comment, its evidence folded under it and unfolded on demand, each field of the text it gives, and a link "Fill
+  the form" to the form of the section (SFM-6) with
   `?proposal=<n>`, `<n>` the number of the question in its session.
 - **STL-8** (deterministic) The page of the settled section asked with `?proposal=<n>` and the cookie of the session
-  that holds the exchange `<n>` must show its form filled with the proposal, the fields of the text it gives
+  that holds the exchange `<n>` must show its form filled with the proposal, its comment without its evidence, the fields of the text it gives
   unfolded and the others as the page shows them, and a notice that the agent proposed it and nothing is saved
   until the form is.
 - **STL-9** (deterministic) A settling must write neither `.retrodoc/reviews.json` nor `.retrodoc/edits.json`, from
@@ -61,12 +63,14 @@ and ends on a proposed review and correction that the reader puts in the form an
   conversation of the ask page starts over, only when the session of the page holds an exchange or a question
   running.
 - **STL-13** (deterministic) The tool `propose_verdict` must take the arguments of the table below; a call whose
-  arguments the table refuses gets the error as its result, the question going on (ASK-4).
+  arguments the table refuses gets the error as its result, the question going on (ASK-4); its description and the
+  description of `status` say which status fits.
 
   | argument | required | value |
   |---|---|---|
-  | `status` | yes | `validated`, `wrong` or `to_review` (REV-2) |
-  | `comment` | yes | the reason of the verdict, its evidence (files, commits, the reader's answers) |
+  | `status` | yes | `validated` (the section is right as it stands), `wrong` (a claim of it is wrong) or `to_review` (not settled) (REV-2); `validated` refused with a corrected field |
+  | `comment` | yes | the reason of the verdict for the reader, at most 400 characters |
+  | `evidence` | yes | what the verdict rests on: files, commits, the reader's answers |
   | `name`, `description` | no | the corrected text of the field |
   | `narrative` | no | the corrected narrative; refused for a domain or a feature (SED-3) |
 
@@ -74,19 +78,24 @@ and ends on a proposed review and correction that the reader puts in the form an
   proposal, the calls after it in its round not run; the text of the answer is the text of the message that made
   the call, or the comment of the proposal when that text is blank.
 - **STL-15** (deterministic) The answer kept in the conversation for the next questions (CHT-2) of an exchange with a
-  proposal must hold the proposal as text, its status, comment and fields, so that the reader can have it amended.
+  proposal must hold the proposal as text, its status, comment, evidence and fields, so that the reader can have it amended.
 - **STL-16** (deterministic) A page of a section asked with `?proposal=<n>` that names no session kept in memory,
   no exchange `<n>` of the session, an exchange with no proposal or the proposal of another section must be shown as
   without it, with no notice.
+- **STL-17** (deterministic) Each question of a settling conversation that ended must write one line to the log of
+  `ui` (stdout): the kind and id of the section, the number of the question in its settling, its rounds, its tool
+  calls, its LLM calls with their tokens in (among them cached) and out and those with no usage, the status it
+  proposes or `none`, then the same calls and tokens summed over the settling, counted as WAK-36 counts them.
 
 ## Scenarios
 
-- **STL-H1** (happy; STL-1, STL-2, STL-4, STL-5, STL-7, STL-8, STL-9) Given a use case reviewed `wrong` with the
+- **STL-H1** (happy; STL-1, STL-2, STL-4, STL-5, STL-7, STL-8, STL-9, STL-17) Given a use case reviewed `wrong` with the
   comment "the clerk does not pay", when the reader presses "Settle with the agent", then the ask page follows a
   first question whose message holds the use case, its review and its contradictions; the agent reads its code and
   asks who pays; the reader answers "the customer"; the agent proposes `wrong` with a corrected description; the
-  reader follows "Fill the form", finds the status, the comment and the description filled, saves, and only then
-  are the review and the edit written.
+  reader reads its short comment, unfolds the evidence under it, follows "Fill the form", finds the status, the
+  comment and the description filled, saves, and only then are the review and the edit written; the log of `ui`
+  holds a line for each of the two questions, the second with the proposed status and the settling's sums.
 - **STL-H2** (happy; STL-4, STL-6, STL-14) Given a feature that a section of the project's docs contradicts, when its
   settling starts, then the first question names the doc section and both statements, and the agent, having read
   the code, proposes `validated` with a comment citing the file, without a question to the reader.
@@ -95,6 +104,15 @@ and ends on a proposed review and correction that the reader puts in the form an
 - (STL-11) Given a feature id the last run does not have, when a settling starts, then it is answered with 404, and
   no LLM call is made.
 - (STL-13) Given a domain, when the agent proposes a narrative, then the call gets an error and the question goes on.
+- (STL-13) Given a call proposing `validated` with a corrected description, then it gets an error naming `wrong`
+  and the question goes on.
+- (STL-13) Given a comment of 401 characters, then the call gets an error asking for a shorter comment and the
+  evidence apart; one of 400 is accepted.
+- (STL-13) Given a call with no `evidence`, then it gets an error and the question goes on.
+- (STL-8) Given a proposal with an evidence, when its form is filled, then the comment of the review is the
+  proposal's comment alone.
+- (STL-17) Given a settling question that failed after one call, then its line holds that call and the status
+  `none`; a question of a conversation no settling started writes no line.
 - (STL-14) Given a round of a call of `propose_verdict` then a call of `read_source`, then the question ends with the
   proposal and `read_source` is not run.
 - (STL-15) Given an exchange that proposed `wrong`, when the reader answers "keep it to review", then the request of
@@ -107,7 +125,10 @@ and ends on a proposed review and correction that the reader puts in the form an
 
 ## Non-goals
 
-- No transcript of the exchange kept with the review: the proposed comment carries the evidence the reader keeps.
+- No transcript of the exchange kept with the review, and no evidence saved with it: the reader copies into the
+  comment what they want to keep.
+- No check that the comment is in business words: the prompt asks it, a measure judges it.
+- No cost in money in the log line: calls and tokens only, as the ask page (WAK-36).
 - No buttons of choices for the questions of the agent: it asks in its text and the reader answers in the question
   field, as a follow-up of `chat`.
 - No write by the agent: `propose_verdict` records a proposal of the exchange, nothing on disk (ADR 0057).

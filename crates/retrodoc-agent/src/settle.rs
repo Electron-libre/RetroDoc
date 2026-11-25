@@ -19,8 +19,16 @@ history (git_log) and the rest of the docs, and against what the project's own d
 which claims you confirmed, which are wrong, and what you could not settle. When something only the \
 reader can tell is left, ask them the few questions that would settle it, numbered, each with the \
 answers you see, and stop there: they answer in the next message. Once the section is settled, call \
-propose_verdict with the status, a comment giving your evidence (files, commits, the reader's \
-answers) and the corrected text of each field that is wrong; leave out a field that is right.";
+propose_verdict with the status, a comment and the evidence apart, and the corrected text of each \
+field that is wrong; leave out a field that is right. Write the comment for a reader who is not a \
+developer: a few sentences in the words of the business, what is right or wrong in the section and \
+why it matters to them, with no file, commit or code name; put those in the evidence, with the \
+reader's answers. Pick the status that agrees with the comment: validated when the section is right \
+as it stands, wrong when a claim of it is wrong (then give the corrected text), to_review when it \
+could not be settled.";
+
+/// The longest comment of a proposal, in characters: the evidence goes apart (STL-13).
+pub const MAX_COMMENT_CHARS: usize = 400;
 
 /// The last request of a settling question offers no tool: the model gives its verdict as text.
 pub(crate) const SETTLING_LAST_ROUND: &str = " You cannot call propose_verdict now: if the section is \
@@ -66,7 +74,10 @@ pub struct Disputed {
 pub struct Proposal {
     pub section: Section,
     pub status: Status,
+    /// The reason of the verdict, for the reader.
     pub comment: String,
+    /// What the verdict rests on: files, commits, the reader's answers.
+    pub evidence: String,
     pub name: Option<String>,
     pub description: Option<String>,
     /// Only for a use case.
@@ -78,9 +89,10 @@ impl Proposal {
     #[must_use]
     pub fn as_text(&self) -> String {
         let mut text = format!(
-            "Proposed verdict: {}\nComment: {}",
+            "Proposed verdict: {}\nComment: {}\nEvidence: {}",
             status_name(self.status),
-            self.comment
+            self.comment,
+            self.evidence
         );
         for (label, field) in [
             ("Name", &self.name),
@@ -149,19 +161,34 @@ pub(crate) fn propose_verdict_spec() -> ToolSpec {
     ToolSpec {
         name: PROPOSE_VERDICT.to_string(),
         description: "Propose the verdict on the section being settled, once it is settled: its \
-            review status, a comment with the evidence, and the corrected text of each wrong \
-            field. Saves nothing: the reader checks it and saves it."
+            review status, a short comment for a reader who is not a developer, the evidence \
+            apart, and the corrected text of each wrong field. Saves nothing: the reader checks it \
+            and saves it."
             .to_string(),
         parameters: json!({
             "type": "object",
             "properties": {
-                "status": {"type": "string", "enum": ["validated", "wrong", "to_review"]},
-                "comment": {"type": "string", "description": "Why, with the evidence."},
+                "status": {
+                    "type": "string",
+                    "enum": ["validated", "wrong", "to_review"],
+                    "description": "validated: the section is right as it stands, nothing corrected; \
+                        wrong: a claim of it is wrong, its corrected text given; to_review: it could not \
+                        be settled."
+                },
+                "comment": {
+                    "type": "string",
+                    "description": format!("Why, in a few sentences in the words of the business, \
+                        at most {MAX_COMMENT_CHARS} characters: no file, commit or code name.")
+                },
+                "evidence": {
+                    "type": "string",
+                    "description": "What the verdict rests on: files, commits, the reader's answers."
+                },
                 "name": {"type": "string", "description": "The corrected name, if wrong."},
                 "description": {"type": "string", "description": "The corrected description, if wrong."},
                 "narrative": {"type": "string", "description": "The corrected narrative of a use case, if wrong."}
             },
-            "required": ["status", "comment"]
+            "required": ["status", "comment", "evidence"]
         }),
     }
 }
@@ -189,9 +216,29 @@ pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal
             )
         }
     };
-    let comment = text("comment")
-        .ok_or_else(|| "Error: `comment` is required: give the evidence.".to_string())?;
-    let narrative = text("narrative");
+    let comment = text("comment").ok_or_else(|| {
+        "Error: `comment` is required: give the reason of the verdict.".to_string()
+    })?;
+    if comment.chars().count() > MAX_COMMENT_CHARS {
+        return Err(format!(
+            "Error: `comment` is longer than {MAX_COMMENT_CHARS} characters: say the verdict in a \
+             few sentences for the reader and put the files, commits and answers in `evidence`."
+        ));
+    }
+    let evidence = text("evidence").ok_or_else(|| {
+        "Error: `evidence` is required: the files, commits and answers the verdict rests on."
+            .to_string()
+    })?;
+    let (name, description, narrative) = (text("name"), text("description"), text("narrative"));
+    if status == Status::Validated
+        && (name.is_some() || description.is_some() || narrative.is_some())
+    {
+        return Err(
+            "Error: `validated` means the section is right as it stands: a proposal that corrects \
+             a field is `wrong`."
+                .to_string(),
+        );
+    }
     if narrative.is_some() && section.kind != SectionKind::UseCase {
         return Err(format!(
             "Error: a {} has no narrative; propose its name or description only.",
@@ -202,8 +249,9 @@ pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal
         section: section.clone(),
         status,
         comment,
-        name: text("name"),
-        description: text("description"),
+        evidence,
+        name,
+        description,
         narrative,
     })
 }

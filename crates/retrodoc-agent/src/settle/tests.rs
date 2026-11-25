@@ -8,8 +8,8 @@ use retrodoc_llm::{Role, ToolCall};
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 
 use super::{
-    proposal_of, Disagreement, Disputed, Proposal, PROPOSE_VERDICT, SETTLING_LAST_ROUND,
-    SETTLING_PROMPT,
+    proposal_of, propose_verdict_spec, Disagreement, Disputed, Proposal, PROPOSE_VERDICT,
+    SETTLING_LAST_ROUND, SETTLING_PROMPT,
 };
 use crate::{Conversation, DEFAULT_MAX_ROUNDS};
 
@@ -145,7 +145,7 @@ async fn a_proposal_the_table_refuses_gets_its_error_and_the_question_goes_on() 
                 call(
                     "c3",
                     PROPOSE_VERDICT,
-                    r#"{"status":"wrong","comment":"c","narrative":"n"}"#,
+                    r#"{"status":"wrong","comment":"c","evidence":"e","narrative":"n"}"#,
                 ),
                 call("c4", PROPOSE_VERDICT, "not json"),
             ],
@@ -177,7 +177,7 @@ async fn a_proposal_the_table_refuses_gets_its_error_and_the_question_goes_on() 
     let use_case = Section::new(SectionKind::UseCase, "pay-invoice/pay-by-card");
     let accepted = proposal_of(
         &use_case,
-        r#"{"status":"to_review","comment":" c ","narrative":"n","name":" "}"#,
+        r#"{"status":"to_review","comment":" c ","evidence":" e ","narrative":"n","name":" "}"#,
     )
     .unwrap();
     assert_eq!(
@@ -186,10 +186,68 @@ async fn a_proposal_the_table_refuses_gets_its_error_and_the_question_goes_on() 
             section: use_case,
             status: Status::ToReview,
             comment: "c".into(),
+            evidence: "e".into(),
             name: None,
             description: None,
             narrative: Some("n".into()),
         }
+    );
+}
+
+// spec: STL-13 (internal: the arguments of a call are what the model sends, checked before any question)
+#[test]
+fn a_proposal_needs_its_evidence_a_short_comment_and_a_status_that_fits_its_corrections() {
+    let section = feature();
+    let refused = |arguments: &str| proposal_of(&section, arguments).unwrap_err();
+    let no_evidence = refused(r#"{"status":"wrong","comment":"c"}"#);
+    assert!(
+        no_evidence.starts_with("Error:") && no_evidence.contains("`evidence`"),
+        "{no_evidence}"
+    );
+    let comment = |length: usize| "é".repeat(length);
+    let long = refused(&format!(
+        r#"{{"status":"wrong","comment":"{}","evidence":"e"}}"#,
+        comment(401)
+    ));
+    assert!(
+        long.contains("400 characters") && long.contains("`evidence`"),
+        "{long}"
+    );
+    let short = proposal_of(
+        &section,
+        &format!(
+            r#"{{"status":"wrong","comment":"{}","evidence":"e"}}"#,
+            comment(400)
+        ),
+    );
+    assert!(short.is_ok(), "{short:?}");
+    let validated = refused(
+        r#"{"status":"validated","comment":"c","evidence":"e","description":"The customer pays."}"#,
+    );
+    assert!(
+        validated.starts_with("Error:") && validated.contains("`wrong`"),
+        "{validated}"
+    );
+}
+
+// spec: STL-5, STL-13 (internal: the prompt and the tool are what the model reads, seen as sent)
+#[test]
+fn the_prompt_and_the_tool_say_how_to_write_the_comment_and_which_status_fits() {
+    assert!(
+        SETTLING_PROMPT.contains("not a developer"),
+        "{SETTLING_PROMPT}"
+    );
+    assert!(SETTLING_PROMPT.contains("evidence"), "{SETTLING_PROMPT}");
+    let tool = propose_verdict_spec();
+    let status = tool.parameters["properties"]["status"]["description"]
+        .as_str()
+        .unwrap();
+    for fits in ["validated", "wrong", "to_review"] {
+        assert!(status.contains(fits), "{status}");
+    }
+    assert_eq!(
+        tool.parameters["required"],
+        serde_json::json!(["status", "comment", "evidence"])
     );
 }
 
@@ -202,7 +260,7 @@ async fn a_valid_proposal_ends_the_question_and_the_calls_after_it_are_not_run()
             call(
                 "c1",
                 PROPOSE_VERDICT,
-                r#"{"status":"wrong","comment":"`app/invoice.rb` charges the card.","description":"The customer pays online."}"#,
+                r#"{"status":"wrong","comment":"The customer pays.","evidence":"`app/invoice.rb` charges the card.","description":"The customer pays online."}"#,
             ),
             call("c2", "read_source", r#"{"path":"app/invoice.rb"}"#),
         ],
@@ -222,14 +280,14 @@ async fn a_valid_proposal_ends_the_question_and_the_calls_after_it_are_not_run()
         proposal.description.as_deref(),
         Some("The customer pays online.")
     );
-    assert_eq!(answer.text, "`app/invoice.rb` charges the card.");
+    assert_eq!(answer.text, "The customer pays.");
 
     let said = FakeLlm::scripted(vec![calls(
         "The section is right.",
         vec![call(
             "c1",
             PROPOSE_VERDICT,
-            r#"{"status":"validated","comment":"c"}"#,
+            r#"{"status":"validated","comment":"c","evidence":"e"}"#,
         )],
     )]);
     let answer = Conversation::settling(feature())
@@ -248,7 +306,7 @@ async fn the_kept_answer_of_a_proposal_holds_it_as_text() {
             vec![call(
                 "c1",
                 PROPOSE_VERDICT,
-                r#"{"status":"wrong","comment":"The customer pays.","name":"Pay online"}"#,
+                r#"{"status":"wrong","comment":"The customer pays.","evidence":"`app/invoice.rb`.","name":"Pay online"}"#,
             )],
         ),
         FakeTurn::Text("Kept to review.".into()),
@@ -274,7 +332,7 @@ async fn the_kept_answer_of_a_proposal_holds_it_as_text() {
     );
     assert!(earlier
         .content
-        .contains("Proposed verdict: wrong\nComment: The customer pays.\nName: Pay online"));
+        .contains("Proposed verdict: wrong\nComment: The customer pays.\nEvidence: `app/invoice.rb`.\nName: Pay online"));
 }
 
 // spec: STL-5 (internal: the requests of the model are seen through the fake provider only)

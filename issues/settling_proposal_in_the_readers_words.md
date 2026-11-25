@@ -48,3 +48,53 @@ Read by someone taking an application over
 * The reader of the measure is not a developer of the measured application: judge the method with them, not a list
   of items.
 * A paid measure needs the user's go and the measures ledger read before.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-25
+
+## Understanding
+A settling's proposal judged at a glance: a short comment for the reader (at most 400 characters), its evidence in a
+field of its own folded under it and not saved with the review, a status the tool refuses when it contradicts a
+correction (`validated` with a corrected field); each settling question logs its rounds, calls and tokens on `ui`.
+Means differs: no replay first (approach 1): the session of 2026-11-25 was not captured and the fake provider
+replays scripted answers, not the model's; the log line records the proposed status, so the next measure tells.
+Out of scope: the paid measure of the ledger's queue (asked apart, after the issue).
+
+## Plan
+1. [x] Proposal in the reader's words: `evidence` argument, comment limit and `validated`-with-correction refusal in
+   `propose_verdict`, the settling prompt and the tool's descriptions say which status fits; the exchange shows the
+   evidence folded, the form takes the comment alone, the kept answer holds the evidence; verified by agent unit
+   tests and `settle_page.rs`; makes true STL-5, STL-7, STL-8, STL-13, STL-15 (~450 lines). (autonomous)
+2. [ ] Log of each settling question: one `tracing` line at its end (section, question number, rounds, tool calls,
+   LLM calls and tokens, proposed status, settling sums), the code in `ask/settle.rs` (`ask.rs` is at 781 lines of
+   800: only the call goes there); verified by a web test capturing the log; makes true STL-17 (~200 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: d11a0191d7838c4c060ceeefdb73b41cd41ac261
+- Answers (2026-11-25, all recommendations): the form takes the comment alone, the evidence stays in the exchange;
+  the tool refuses a comment over 400 characters; it refuses `validated` with a corrected field; only the questions
+  of a settling write a log line.
+
+## Deliverable 1: proposal in the reader's words
+
+done: `propose_verdict` takes `evidence`, refuses a comment over 400 characters and `validated` with a corrected
+field; the prompt and the tool say how to write the comment and which status fits; the exchange folds the evidence
+under the comment, the form takes the comment alone, the kept answer holds the evidence.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (`section-settle` draft until STL-17 is traced) |
+| docs | `docs/crates/agent.md`, `docs/crates/render-mcp-cli.md` |
+| code review | no findings |
+
+red: STL-5, STL-7, STL-8, STL-13, STL-15: `struct Proposal has no field named evidence` (agent), `settle_page.rs`: no `<details class="evidence">` in the exchange
+
+Code review: no findings
+
+not verified: what the model writes with the new prompt (a paid measure, after the issue).
+
+decisions needed: none

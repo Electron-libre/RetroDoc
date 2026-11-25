@@ -121,6 +121,8 @@ pub struct ProposedField {
 pub struct ProposalView {
     pub status: &'static str,
     pub comment: String,
+    /// What it rests on, folded under the comment.
+    pub evidence: String,
     pub fields: Vec<ProposedField>,
     /// The form of the section filled with it, `None` when the run no longer has the section.
     pub href: Option<String>,
@@ -145,6 +147,7 @@ impl ProposalView {
         Self {
             status: texts.review.status(proposal.status),
             comment: proposal.comment.clone(),
+            evidence: proposal.evidence.clone(),
             fields,
             href: href.map(str::to_string),
         }
