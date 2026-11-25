@@ -15,7 +15,8 @@ use retrodoc_docs::GeneratedDocs;
 use serde::Deserialize;
 use tokio::sync::watch;
 
-use super::{cookie, refused, with_cookie, AskState, Progress, Running, Session, Sessions};
+use super::{cookie, with_cookie, AskState, Progress, Running, Session, Sessions};
+use crate::collected::NarrativeLinks;
 use crate::edit_form::EditFormView;
 use crate::pages::read_failed;
 use crate::review::{Place, ReviewView};
@@ -55,7 +56,8 @@ impl Probe {
     /// The review and the form of the section at `place` as its page shows them for the session
     /// of `headers`: with the button of a settling (STL-1), and filled with the proposal of the
     /// exchange `number` the query `proposal` names when it proposes for that section (STL-8,
-    /// STL-16), its fields of the text unfolded and nothing saved.
+    /// STL-16), the fields of the text it corrects unfolded, its narrative previewed by `links`, and
+    /// nothing saved.
     pub(crate) fn form(
         &self,
         headers: &HeaderMap,
@@ -63,6 +65,7 @@ impl Probe {
         place: &Place,
         review: ReviewView,
         edit_form: EditFormView,
+        links: &NarrativeLinks,
     ) -> (ReviewView, EditFormView) {
         let section = place.section();
         let review = ReviewView {
@@ -78,17 +81,12 @@ impl Probe {
             proposed: true,
             ..review
         };
-        let narrative = match edit_form.narrative {
-            Some(shown) => Some(proposal.narrative.unwrap_or(shown)),
-            None => None,
-        };
-        let edit_form = EditFormView {
-            name: proposal.name.unwrap_or(edit_form.name),
-            description: proposal.description.unwrap_or(edit_form.description),
-            narrative,
-            sent: true,
-            ..edit_form
-        };
+        let edit_form = edit_form.proposed(
+            proposal.name,
+            proposal.description,
+            proposal.narrative,
+            links,
+        );
         (review, edit_form)
     }
 
@@ -271,7 +269,8 @@ impl SettledView {
 
 /// Starts the settling of the section the form names (STL-2, STL-10, STL-11): the session emptied,
 /// then its first question sent; answered at once, to `htmx` with `HX-Redirect`, else with a
-/// redirect `303`, to `/ask`.
+/// redirect `303`, to `/ask`. A refusal is its reason as plain text, which the notice of errors of
+/// the section page shows (`forms.js`): that page has no slot of the ask page to swap it into.
 pub(super) async fn settle(
     State(state): State<AskState>,
     headers: HeaderMap,
@@ -284,13 +283,13 @@ pub(super) async fn settle(
         "domain" => SectionKind::Domain,
         "feature" => SectionKind::Feature,
         "use_case" => SectionKind::UseCase,
-        _ => return refused(StatusCode::BAD_REQUEST, texts.settle.unknown_kind, htmx),
+        _ => return (StatusCode::BAD_REQUEST, texts.settle.unknown_kind).into_response(),
     };
     let (Some(generated), Some(docs)) = (site.docs(), state.docs(&site)) else {
-        return refused(StatusCode::NOT_FOUND, texts.errors.no_docs, htmx);
+        return (StatusCode::NOT_FOUND, texts.errors.no_docs).into_response();
     };
     let Some(found) = find(generated, &Section::new(kind, form.id.trim())) else {
-        return refused(StatusCode::NOT_FOUND, texts.errors.no_section, htmx);
+        return (StatusCode::NOT_FOUND, texts.errors.no_section).into_response();
     };
     let disputed = Disputed {
         disagreements: disagreements(generated, &found),
@@ -311,10 +310,10 @@ pub(super) async fn settle(
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         };
         if session.running.is_some() {
-            return refused(StatusCode::CONFLICT, texts.errors.question_running, htmx);
+            return (StatusCode::CONFLICT, texts.errors.question_running).into_response();
         }
         *session = Session {
-            conversation: Conversation::settling(disputed.section),
+            conversation: Conversation::settling(disputed.section.clone()),
             asked: session.asked + 1,
             ..Session::default()
         };
@@ -322,6 +321,7 @@ pub(super) async fn settle(
             number: session.asked,
             question: (texts.settle.question)(&found.name),
             message,
+            settled: Some(disputed.section.clone()),
             progress: watch::Sender::new(Progress::default()),
         });
         session.running = Some(Arc::clone(&running));

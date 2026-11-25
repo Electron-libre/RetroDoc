@@ -51,6 +51,15 @@ pub(crate) struct NarrativeLinks<'a> {
 }
 
 impl<'a> NarrativeLinks<'a> {
+    /// The links of a narrative with no page and no collected doc: its links stay as written.
+    #[cfg(test)]
+    pub(crate) fn none() -> Self {
+        Self {
+            page_dir: None,
+            collected: &[],
+        }
+    }
+
     /// The links of the narrative of the section at `place` of the run `site` serves.
     pub(crate) fn of(site: &'a Site, place: &Place) -> Self {
         let page_dir = match place {

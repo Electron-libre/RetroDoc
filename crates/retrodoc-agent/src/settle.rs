@@ -22,6 +22,26 @@ answers you see, and stop there: they answer in the next message. Once the secti
 propose_verdict with the status, a comment giving your evidence (files, commits, the reader's \
 answers) and the corrected text of each field that is wrong; leave out a field that is right.";
 
+/// The last request of a settling question offers no tool: the model gives its verdict as text.
+pub(crate) const SETTLING_LAST_ROUND: &str = " You cannot call propose_verdict now: if the section is \
+settled, give your verdict and the corrected text in your answer; otherwise say what is left to settle.";
+
+/// The settling system prompt for `section` (STL-5): it names the section, which the later turns of
+/// the conversation, trimmed to its memory, may no longer hold.
+pub(crate) fn settling_prompt(section: &Section) -> String {
+    let tool = match section.kind {
+        SectionKind::Domain => "get_domain",
+        SectionKind::Feature => "get_feature",
+        SectionKind::UseCase => "get_use_case",
+    };
+    format!(
+        "{SETTLING_PROMPT} The section being settled is the {} `{}`: read it again with {tool} when \
+         the conversation no longer shows it.",
+        kind_name(section.kind),
+        section.id
+    )
+}
+
 /// A doc section of the project that states something else than the section (REC-5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Disagreement {

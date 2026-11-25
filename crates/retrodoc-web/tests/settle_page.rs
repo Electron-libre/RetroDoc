@@ -319,6 +319,12 @@ async fn a_settling_is_refused_for_an_unknown_section_or_kind_and_while_a_questi
     ] {
         let response = settle(&router, form, Some(&cookie)).await;
         assert_eq!(response.status(), code, "{form}");
+        assert!(
+            !response.headers().contains_key("HX-Retarget")
+                && !response.headers().contains_key("HX-Reswap"),
+            "the section page shows it in its notice: {form}"
+        );
+        assert!(!body(response).await.contains('<'), "{form}");
     }
     assert_eq!(llm.calls(), 1);
     let page = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
@@ -464,6 +470,10 @@ async fn a_proposal_parameter_naming_no_proposal_of_the_section_is_left_out() {
     assert!(
         review_form(&page).contains("class=\"proposed\""),
         "the case that fills"
+    );
+    assert!(
+        !review_form(&page).contains("<details class=\"text-fields\" open"),
+        "a proposal that corrects no field unfolds none"
     );
     for (path, cookie) in [
         ("/domains/orders/list-orders?proposal=1", None),

@@ -17,6 +17,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use retrodoc_agent::{Answer, Conversation, Step};
+use retrodoc_docs::reviews::Section;
 use retrodoc_docs::{Docs, Source, SourceKind};
 use retrodoc_llm::{CallTotals, LlmProvider, UsageProvider, UsageTracker};
 use serde::Deserialize;
@@ -76,6 +77,8 @@ struct Running {
     question: String,
     /// What is sent to the model: the question, or the first message of a settling (STL-4).
     message: String,
+    /// The section its conversation settles, which a session started again keeps (STL-5).
+    settled: Option<Section>,
     progress: watch::Sender<Progress>,
 }
 
@@ -120,9 +123,14 @@ impl Sessions {
         (id, true)
     }
 
-    /// The session `id`, dropped while it ran `running`, started again as running it.
+    /// The session `id`, dropped while it ran `running`, started again as running it, a settling
+    /// still.
     fn reopen(&mut self, id: &str, running: &Arc<Running>) -> &mut Session {
         let session = Session {
+            conversation: running
+                .settled
+                .clone()
+                .map_or_else(Conversation::default, Conversation::settling),
             asked: running.number,
             running: Some(Arc::clone(running)),
             ..Session::default()
@@ -530,6 +538,7 @@ async fn question(
             number: session.asked,
             message: question.clone(),
             question,
+            settled: session.conversation.settled().cloned(),
             progress: watch::Sender::new(Progress::default()),
         });
         session.running = Some(Arc::clone(&running));

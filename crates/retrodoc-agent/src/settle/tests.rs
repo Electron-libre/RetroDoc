@@ -7,7 +7,10 @@ use retrodoc_docs::Docs;
 use retrodoc_llm::{Role, ToolCall};
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 
-use super::{proposal_of, Disagreement, Disputed, Proposal, PROPOSE_VERDICT, SETTLING_PROMPT};
+use super::{
+    proposal_of, Disagreement, Disputed, Proposal, PROPOSE_VERDICT, SETTLING_LAST_ROUND,
+    SETTLING_PROMPT,
+};
 use crate::{Conversation, DEFAULT_MAX_ROUNDS};
 
 /// The docs of one domain `billing` and its feature `pay-invoice`.
@@ -103,7 +106,11 @@ async fn a_settling_sends_the_verification_prompt_and_offers_propose_verdict_eac
             .unwrap();
     }
     for prompt in llm.system_prompts() {
-        assert!(prompt.ends_with(SETTLING_PROMPT), "{prompt}");
+        assert!(prompt.contains(SETTLING_PROMPT), "{prompt}");
+        assert!(
+            prompt.ends_with("the feature `pay-invoice`: read it again with get_feature when the conversation no longer shows it."),
+            "{prompt}"
+        );
         assert!(prompt.starts_with("You answer questions"), "{prompt}");
     }
     for tools in llm.tools() {
@@ -268,4 +275,39 @@ async fn the_kept_answer_of_a_proposal_holds_it_as_text() {
     assert!(earlier
         .content
         .contains("Proposed verdict: wrong\nComment: The customer pays.\nName: Pay online"));
+}
+
+// spec: STL-5 (internal: the requests of the model are seen through the fake provider only)
+#[tokio::test]
+async fn the_last_round_of_a_settling_asks_the_verdict_as_text() {
+    let llm = FakeLlm::scripted(vec![
+        calls(
+            "",
+            vec![call("c1", "get_feature", r#"{"slug":"pay-invoice"}"#)],
+        ),
+        FakeTurn::Text("Wrong: the customer pays.".into()),
+    ]);
+    let answer = Conversation::settling(feature())
+        .ask(&llm, docs(), "Help me settle it.", 1)
+        .await
+        .unwrap();
+    assert_eq!(answer.proposal, None);
+    let last = llm.messages().pop().unwrap();
+    let asked = &last.last().unwrap().content;
+    assert!(asked.ends_with(SETTLING_LAST_ROUND), "{asked}");
+    assert_eq!(llm.tools().last().map(Vec::len), Some(0));
+
+    let plain = FakeLlm::scripted(vec![
+        calls(
+            "",
+            vec![call("c1", "get_feature", r#"{"slug":"pay-invoice"}"#)],
+        ),
+        FakeTurn::Text("Billing.".into()),
+    ]);
+    Conversation::default()
+        .ask(&plain, docs(), "?", 1)
+        .await
+        .unwrap();
+    let last = plain.messages().pop().unwrap();
+    assert!(!last.last().unwrap().content.contains(SETTLING_LAST_ROUND));
 }

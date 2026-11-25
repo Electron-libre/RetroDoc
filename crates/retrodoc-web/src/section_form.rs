@@ -289,7 +289,14 @@ async fn save(
         Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,
         Ok(Saved::Refused(code, form)) => {
             let (review, edit_form) = *form;
-            let (review, edit_form) = probe.form(headers, None, &place, review, edit_form);
+            let (review, edit_form) = probe.form(
+                headers,
+                None,
+                &place,
+                review,
+                edit_form,
+                &NarrativeLinks::of(&site, &place),
+            );
             refused(code, review, edit_form)
         }
         Err(err) => read_failed(&err),

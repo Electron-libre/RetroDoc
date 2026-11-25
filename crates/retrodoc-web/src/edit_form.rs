@@ -86,6 +86,37 @@ impl EditFormView {
     }
 }
 
+impl EditFormView {
+    /// The form filled with the fields a proposal of the agent corrects, its preview rendered from
+    /// the proposed narrative by `links`, unfolded only when it corrects one (STL-8).
+    #[must_use]
+    pub(crate) fn proposed(
+        self,
+        name: Option<String>,
+        description: Option<String>,
+        narrative: Option<String>,
+        links: &NarrativeLinks,
+    ) -> Self {
+        let narrative = self.narrative.is_some().then_some(narrative).flatten();
+        let sent = name.is_some() || description.is_some() || narrative.is_some();
+        let (narrative, narrative_preview) = match narrative {
+            Some(text) => {
+                let preview = preview_html(Some(&text), links);
+                (Some(text), preview)
+            }
+            None => (self.narrative, self.narrative_preview),
+        };
+        Self {
+            name: name.unwrap_or(self.name),
+            description: description.unwrap_or(self.description),
+            narrative,
+            narrative_preview,
+            sent,
+            ..self
+        }
+    }
+}
+
 /// The text the page of the section at `place` of `docs` shows (SED-23), a narrative for a use
 /// case only.
 #[must_use]
@@ -131,4 +162,50 @@ pub async fn preview(
 
 fn is_use_case(place: &Place) -> bool {
     matches!(place, Place::UseCase { .. })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn use_case_form() -> EditFormView {
+        let place = Place::UseCase {
+            domain: "orders".into(),
+            feature: "list-orders".into(),
+            slug: "see".into(),
+        };
+        let shown = Fields {
+            name: Some("See".into()),
+            description: Some("Old description".into()),
+            narrative: Some("The clerk sees the orders.".into()),
+        };
+        EditFormView {
+            sent: false,
+            ..EditFormView::new(&place, shown.clone(), shown, false, &NarrativeLinks::none())
+        }
+    }
+
+    // spec: STL-8 (internal: a use case proposal needs a run with a use case and a scripted settling)
+    #[test]
+    fn a_proposal_unfolds_and_previews_only_the_fields_it_corrects() {
+        let links = NarrativeLinks::none();
+        let form = use_case_form().proposed(
+            None,
+            None,
+            Some("The customer sees their orders.".into()),
+            &links,
+        );
+        assert!(form.sent);
+        assert_eq!(form.name, "See");
+        assert!(form
+            .narrative_preview
+            .contains("The customer sees their orders."));
+        assert!(!form.narrative_preview.contains("clerk"));
+
+        let untouched = use_case_form().proposed(None, None, None, &links);
+        assert!(!untouched.sent);
+        assert!(untouched
+            .narrative_preview
+            .contains("The clerk sees the orders."));
+    }
 }

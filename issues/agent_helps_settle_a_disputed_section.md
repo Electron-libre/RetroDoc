@@ -70,6 +70,7 @@ Out of scope: transcript kept with the review, choice buttons, settling from `ch
 4. [x] Measure on 3 disputed sections of the default smoke repository with DeepSeek (paid: asked before the run, ledger
    read and appended): turns, calls, tokens, whether the proposal matches the reader's verdict; a dated entry in
    `docs/findings.md` (~40 lines). (autonomous)
+5. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -169,3 +170,27 @@ not verified: the turns, calls and tokens of each settling (shown only in the br
 
 decisions needed: none. Follow-up proposed at the final summary: proposals in the reader's words (short comment,
 evidence behind it, status consistent with the comment) and the usage of a settling logged.
+
+## Deliverable 5: docs of the issue and fixes of the high review
+
+done: `PRODUCT.md` names the settling; the 6 findings of the `high` review over `5413f8cb..HEAD` fixed: the refusals
+of `/ask/settle` answered as plain text, shown in `#page-error` of the section page (STL-11); the settling prompt
+names the section (`settling_prompt`) and the tool-less last round asks the verdict as text (STL-5); a session
+started again after its drop keeps `Conversation::settling` (`Running::settled`); a proposal unfolds only the fields
+it corrects and previews its narrative (`EditFormView::proposed`, STL-8). Spec STL-5, STL-11 amended.
+
+| check | result |
+|---|---|
+| tests | `project-check` green; new: `the_last_round_of_a_settling_asks_the_verdict_as_text`, `a_settling_session_started_again_still_settles_its_section`, `a_proposal_unfolds_and_previews_only_the_fields_it_corrects`; STL-11 and STL-16 tests extended |
+| specs | `check-specs` clean |
+| docs | `PRODUCT.md`, `docs/crates/agent.md`, `docs/crates/render-mcp-cli.md` |
+| code review | high over the issue: 2 important, 4 nits, all fixed; low of this deliverable below |
+
+red: STL-5, STL-8, STL-11: not observed, the tests were written with the fixes (they assert headers, constants and a
+method the former code lacked).
+
+Code review: no findings
+
+not verified: the plain-text refusal in a browser (`#page-error`).
+
+decisions needed: none

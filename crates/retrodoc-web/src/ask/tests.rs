@@ -50,3 +50,25 @@ fn a_file_source_links_to_its_path_percent_encoded() {
 
     assert_eq!(link.href.as_deref(), Some("/code/app/my%20order%231.rb"));
 }
+
+// spec: STL-5 (internal: a session dropped while its question runs needs 33 sessions and a task stopped)
+#[test]
+fn a_settling_session_started_again_still_settles_its_section() {
+    let section = Section::new(retrodoc_docs::reviews::SectionKind::Feature, "list-orders");
+    let running = |settled: Option<Section>| {
+        Arc::new(Running {
+            number: 3,
+            question: "Help me settle it.".into(),
+            message: "Help me settle it.".into(),
+            settled,
+            progress: watch::Sender::new(Progress::default()),
+        })
+    };
+    let mut sessions = Sessions::default();
+
+    let settling = sessions.reopen("a", &running(Some(section.clone())));
+    assert_eq!(settling.conversation.settled(), Some(&section));
+    assert_eq!(settling.asked, 3);
+    let plain = sessions.reopen("b", &running(None));
+    assert_eq!(plain.conversation.settled(), None);
+}

@@ -417,9 +417,9 @@ async fn answer_after(
         .filter(|tool| offered.offers(&tool.name))
         .collect();
     let mut system = offered.system_prompt();
-    if settled.is_some() {
+    if let Some(section) = settled {
         tools.push(settle::propose_verdict_spec());
-        system.push_str(settle::SETTLING_PROMPT);
+        system.push_str(&settle::settling_prompt(section));
     }
     let mut messages = vec![ChatMessage::new(Role::System, system)];
     for turn in earlier {
@@ -442,10 +442,13 @@ async fn answer_after(
             CompletionRequest {
                 messages: vec![
                     messages[0].clone(),
-                    ChatMessage::new(
-                        Role::User,
-                        folded(earlier, question, &called, &answer.tool_results),
-                    ),
+                    ChatMessage::new(Role::User, {
+                        let mut text = folded(earlier, question, &called, &answer.tool_results);
+                        if settled.is_some() {
+                            text.push_str(settle::SETTLING_LAST_ROUND);
+                        }
+                        text
+                    }),
                 ],
                 ..Default::default()
             }

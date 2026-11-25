@@ -32,7 +32,9 @@ and ends on a proposed review and correction that the reader puts in the form an
 - **STL-5** (deterministic) Each question of a settling conversation, its first and the answers of the reader that
   follow it, must be sent with the settling system prompt, which asks the model to check each claim of the section
   against the code, the history and the docs with the tools, to say what it could not settle, to ask the reader the
-  questions that would settle it, and to propose its verdict with `propose_verdict` once settled.
+  questions that would settle it, and to propose its verdict with `propose_verdict` once settled; it names the
+  section settled (its kind and id), also once the conversation is started again after its session was dropped
+  while a question ran (WAK-35). The last request of a question, which offers no tool, asks the verdict as text.
 - **STL-6** (deterministic) A question of a settling conversation must offer the tool `propose_verdict` besides the
   read-only tools; a question of a conversation no settling started, and `retrodoc ask` and `chat`, offer none.
 - **STL-7** (deterministic) An exchange whose answer holds a proposal must show it under its text: the status, the
@@ -53,7 +55,8 @@ and ends on a proposed review and correction that the reader puts in the form an
   `303` to `/ask`.
 - **STL-11** (deterministic) A start of a settling must be refused, the session left as it was and no LLM call made,
   with the status 404 for a section the last run does not have, 400 for another kind, and 409 while a question of
-  the session runs (WAK-29); without `--ask`, `/ask/settle` is answered as `/ask` is (WAK-2).
+  the session runs (WAK-29), its reason as plain text that the section page shows in its notice of errors;
+  without `--ask`, `/ask/settle` is answered as `/ask` is (WAK-2).
 - **STL-12** (deterministic) The button of STL-1 must ask a confirmation (its `data-confirm`) saying that the
   conversation of the ask page starts over, only when the session of the page holds an exchange or a question
   running.

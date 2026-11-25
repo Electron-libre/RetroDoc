@@ -302,6 +302,7 @@ pub async fn domain(
                 &place,
                 after.shown(review),
                 EditFormView::of(docs, &place, &links),
+                &links,
             );
             domain_page(docs, site.links(), &reviews, &slug)
                 .map(|page| (page, edit, review, edit_form))
@@ -379,6 +380,7 @@ pub async fn feature(
                 &place,
                 after.shown(review),
                 EditFormView::of(docs, &place, &links),
+                &links,
             );
             feature_page(docs, site.links(), &reviews, &domain, &slug)
                 .map(|page| (page, edit, review, edit_form))
@@ -427,6 +429,7 @@ pub async fn use_case(
                 &place,
                 after.shown(review),
                 EditFormView::of(docs, &place, &links),
+                &links,
             );
             use_case_page(docs, site.links(), &domain, &feature, &slug, &links)
                 .map(|page| (page, edit, review, edit_form))

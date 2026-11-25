@@ -74,8 +74,9 @@ debt nobody has time to pay.
 6. **Ask the docs**: `retrodoc ask "…"`, `retrodoc chat` or the ask page of `retrodoc ui --ask` answer a question
    from the docs, citing the domains, features, use cases and files behind the answer.
 7. **Own the docs**: `retrodoc ui` marks a section validated, wrong or to review, and corrects its name, description
-   and narrative; `generate` keeps the human changes, and the readers flag those whose section was rewritten or whose
-   code changed since.
+   and narrative; with `--ask`, the agent helps settle a doubted section against the code, its history and the docs,
+   and proposes a verdict the reader saves or not; `generate` keeps the human changes, and the readers flag those whose
+   section was rewritten or whose code changed since.
 
 ## Ask the documentation (vision)
 
