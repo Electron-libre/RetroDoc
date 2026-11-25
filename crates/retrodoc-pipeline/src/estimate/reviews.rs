@@ -3,7 +3,8 @@
 //! the command loaded, and the reviews each saved unit answered ([`Fingerprints::answered`]).
 //!
 //! A domain reviewed asks the domains call again; a feature reviewed, the features call of its domain (one call per
-//! domain: the estimate doesn't cut a domain into the slices of the pass); a use case reviewed, the use cases call of
+//! domain: the estimate doesn't cut a domain into the slices of the pass; a feature with no entry point is asked by
+//! no slice); a use case reviewed, the use cases call of
 //! its feature. A feature whose use cases are written again cascades into its rules and the confidence of its use
 //! cases; the domains call cascades into nothing counted, as when a changed file asks it.
 
@@ -61,12 +62,17 @@ impl ReviewedUnits {
         let mut features: BTreeSet<&str> = BTreeSet::new();
         let mut feature_domains = 0;
         for (domain, fixes) in corrections.features() {
-            let slices = format!("{domain}/slice-");
-            let in_domain = |unit: &str| unit == domain || unit.starts_with(&slices);
+            // A slice of the domain: `<domain>/-` asked in one call, `<domain>/slice-<n>` otherwise.
+            let in_domain = |unit: &str| {
+                unit.strip_prefix(domain)
+                    .is_some_and(|rest| rest.starts_with('/'))
+            };
             let before = features.len();
             features.extend(
                 fixes
                     .iter()
+                    // With no entry point, no slice shows it: the pass never asks it again.
+                    .filter(|c| !c.entry_points.is_empty())
                     .filter(|c| unanswered(prints, FEATURES, c, in_domain))
                     .map(|c| c.slug.as_str()),
             );
@@ -145,6 +151,7 @@ pub(super) fn add(
     }
     let asked = scaled(spread, units);
     let basis = pass.basis;
+    let before = pass.calls.low;
     if basis == Basis::Cached {
         pass.basis = Basis::Reviewed;
     }
@@ -162,6 +169,10 @@ pub(super) fn add(
             }
             _ => Range::add(range, asked),
         }
+    }
+    // One call a unit, whatever the lowest yield of the table: the review makes it certain.
+    if matches!(pass.pass.as_str(), "features" | "use-cases") {
+        pass.calls.low = pass.calls.low.max(before + units as u64);
     }
     pass
 }

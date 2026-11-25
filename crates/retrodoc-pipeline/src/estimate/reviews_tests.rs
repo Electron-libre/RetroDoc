@@ -63,6 +63,14 @@ fn wrong(slug: &str) -> Correction {
     }
 }
 
+/// A feature marked wrong, which held the entry point `<slug>#index` when the corrections were read.
+fn wrong_feature(slug: &str) -> Correction {
+    Correction {
+        entry_points: vec![format!("{slug}#index")],
+        ..wrong(slug)
+    }
+}
+
 fn validated(slug: &str) -> Correction {
     Correction {
         slug: slug.to_string(),
@@ -129,8 +137,8 @@ fn a_use_case_marked_wrong_asks_its_feature_and_cascades_into_its_rules_and_conf
 #[test]
 fn features_marked_wrong_ask_one_call_per_domain_and_the_use_cases_of_each() {
     let mut corrections = Corrections::default();
-    corrections.add_feature("orders", wrong("checkout"));
-    corrections.add_feature("orders", wrong("refund"));
+    corrections.add_feature("orders", wrong_feature("checkout"));
+    corrections.add_feature("orders", wrong_feature("refund"));
     // A use case of a reviewed feature asks nothing more than its feature.
     corrections.add_use_case("refund", wrong("refund-card"));
 
@@ -140,6 +148,7 @@ fn features_marked_wrong_ask_one_call_per_domain_and_the_use_cases_of_each() {
         calls(&estimate),
         [
             ("domains", 0, 0),
+            // One call at least, whatever the lowest yield of the table.
             ("features", 1, 2),
             ("use-cases", 2, 2),
             ("rules", 6, 6),
@@ -177,7 +186,7 @@ fn a_domain_marked_wrong_asks_the_domains_call_and_nothing_downstream() {
 fn a_review_its_unit_answered_asks_nothing() {
     let mut corrections = Corrections::default();
     corrections.add_domain(wrong("routing"));
-    corrections.add_feature("orders", wrong("checkout"));
+    corrections.add_feature("orders", wrong_feature("checkout"));
     corrections.add_use_case("pay", wrong("pay-online"));
     let review = |c: Correction| vec![c.wrong_key().unwrap()];
     let mut prints = Fingerprints::default();
@@ -186,7 +195,13 @@ fn a_review_its_unit_answered_asks_nothing() {
         .insert(answered_key(DOMAINS, "-"), review(wrong("routing")));
     prints.answered.insert(
         answered_key(FEATURES, "orders/slice-2"),
-        review(wrong("checkout")),
+        review(wrong_feature("checkout")),
+    );
+    // A domain asked in one call answers under `<domain>/-`.
+    corrections.add_feature("billing", wrong_feature("invoice"));
+    prints.answered.insert(
+        answered_key(FEATURES, "billing/-"),
+        review(wrong_feature("invoice")),
     );
     prints.answered.insert(
         answered_key(USE_CASES, "billing/pay"),
@@ -195,13 +210,13 @@ fn a_review_its_unit_answered_asks_nothing() {
 
     assert_eq!(units(&prints, &corrections), ReviewedUnits::default());
 
-    // Answered by a unit of another domain, the review is still pending.
+    // Answered by a unit of another domain, the review is still pending (and `billing` never answered there).
     let mut elsewhere = Fingerprints::default();
     elsewhere.answered.insert(
-        answered_key(FEATURES, "orders-archive"),
-        review(wrong("checkout")),
+        answered_key(FEATURES, "orders-archive/-"),
+        review(wrong_feature("checkout")),
     );
-    assert_eq!(units(&elsewhere, &corrections).feature_domains, 1);
+    assert_eq!(units(&elsewhere, &corrections).feature_domains, 2);
 }
 
 // spec: EST-12 (internal: the units counted on top of the changed files)
@@ -219,4 +234,40 @@ fn the_units_asked_add_to_the_changed_files_and_nothing_to_a_forced_run() {
     assert_eq!(calls(&changed)[0], ("domains", 1, 1));
     assert_eq!(calls(&changed)[2], ("use-cases", 3, 3));
     assert_eq!(calls(&forced)[2], ("use-cases", 10, 10));
+}
+
+// spec: EST-12 (internal: a feature the pass can't place in a slice)
+#[test]
+fn a_feature_with_no_entry_point_asks_nothing() {
+    let mut corrections = Corrections::default();
+    corrections.add_feature("orders", wrong("checkout"));
+
+    assert_eq!(
+        units(&Fingerprints::default(), &corrections),
+        ReviewedUnits::default()
+    );
+}
+
+// spec: EST-12, EST-6 (internal: the units counted per pass)
+#[test]
+fn a_call_a_review_asks_is_certain_and_the_confidence_sample_still_adds() {
+    let table = TABLE_YAML.replace(
+        r#"per_unit: {"calls":{"min":1.0,"max":2.0}"#,
+        r#"per_unit: {"calls":{"min":0.8,"max":2.0}"#,
+    );
+    let mut corrections = Corrections::default();
+    corrections.add_feature("orders", wrong_feature("checkout"));
+    let inputs = EstimateInputs {
+        passes: PASSES,
+        source_files: 10,
+        changed_files: Some(0),
+        reviewed: units(&Fingerprints::default(), &corrections),
+        confidence_sample: Some(4),
+        ..EstimateInputs::default()
+    };
+
+    let estimate = estimate(&inputs, &RatioTable::parse(&table).unwrap());
+
+    assert_eq!(calls(&estimate)[1], ("features", 1, 2));
+    assert_eq!(calls(&estimate)[4], ("confidence", 1, 6));
 }

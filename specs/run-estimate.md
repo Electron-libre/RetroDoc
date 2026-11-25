@@ -29,7 +29,8 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
 - **EST-12** (deterministic) On a rerun without `--force`, the estimate must count the units a review `wrong` not
   yet answered asks again (HCR-4), each at the measured cost per unit of its pass: one domains call when a domain is
   reviewed, one features call per domain that holds a reviewed feature, one use cases call per feature that holds a
-  reviewed use case; a review its unit already answered adds nothing.
+  reviewed use case; a review its unit already answered adds nothing, nor does a feature with no entry point, which
+  no call of the features is shown.
 
 ### Contract
 
@@ -100,4 +101,6 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
 - Predicting what a new binary (changed prompts) or another model redoes on a rerun: the printed estimate says so.
 - Predicting how far a domains call asked again by a review moves the domains, features and use cases after it: the
   cascade of a changed domain is not counted, as for a changed file.
+- Telling, on the `contexts` path, the reviews of the contexts the run leaves out: the slice a run documents is
+  planned from the context map after the estimate, so the reviews of every context are counted.
 - Comparing the estimate with what the run cost: `specs/token-accounting.md` (TOK-6 to TOK-8).

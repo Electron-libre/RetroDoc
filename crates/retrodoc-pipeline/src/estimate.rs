@@ -232,7 +232,10 @@ pub fn estimate(inputs: &EstimateInputs, table: &RatioTable) -> RunEstimate {
     let passes: Vec<PassEstimate> = inputs
         .passes
         .iter()
-        .map(|&name| reviews::add(estimate_pass(name, files, inputs, table), inputs, table))
+        .map(|&name| {
+            let pass = reviews::add(estimate_pass(name, files, inputs, table), inputs, table);
+            with_sample(pass, inputs, table)
+        })
         .collect();
     let (mut calls, mut prompt_tokens, mut completion_tokens) = Default::default();
     for pass in &passes {
@@ -302,14 +305,28 @@ fn estimate_pass(
         pass.prompt_tokens.low = 0;
         pass.completion_tokens.low = 0;
     }
-    if name == "confidence" {
-        if let Some(sample) = inputs.confidence_sample {
-            let (prompt, completion) = costliest_call(measured);
-            let sample = sample as u64;
-            pass.calls.high += sample;
-            pass.prompt_tokens.high += sample * prompt;
-            pass.completion_tokens.high += sample * completion;
-        }
+    pass
+}
+
+/// `pass` with the use cases `--confidence-sample` asks besides added to its high bound, when the confidence runs
+/// (EST-6).
+fn with_sample(
+    mut pass: PassEstimate,
+    inputs: &EstimateInputs,
+    table: &RatioTable,
+) -> PassEstimate {
+    let runs = matches!(pass.basis, Basis::PerSourceFile | Basis::Reviewed);
+    if let (true, "confidence", Some(sample), Some(measured)) = (
+        runs,
+        pass.pass.as_str(),
+        inputs.confidence_sample,
+        table.pass(&pass.pass),
+    ) {
+        let (prompt, completion) = costliest_call(measured);
+        let sample = sample as u64;
+        pass.calls.high += sample;
+        pass.prompt_tokens.high += sample * prompt;
+        pass.completion_tokens.high += sample * completion;
     }
     pass
 }

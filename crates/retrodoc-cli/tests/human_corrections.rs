@@ -250,9 +250,11 @@ fn the_estimate_counts_the_units_a_use_case_marked_wrong_asks_again_until_answer
     let out = String::from_utf8_lossy(&output.stdout);
     let (total, use_cases) = estimated(&out, "use-cases");
     assert!(!total.starts_with("LLM estimate: 0 call(s)"), "{out}");
-    // At least one call, whatever the measured table says of its cost.
+    // A high bound above zero, whatever the measured table says of its cost.
     let asks = |line: &str| {
-        line.contains("call(s)") && !line.contains(" 0 call(s)") && !line.contains(" 0-")
+        let calls = line.split(" call(s)").next().unwrap_or_default();
+        let high = calls.split_whitespace().last().unwrap_or_default();
+        high.rsplit('-').next().and_then(|n| n.parse::<u64>().ok()) > Some(0)
     };
     assert!(asks(use_cases), "{use_cases}");
     assert!(asks(estimated(&out, "rules").1), "{out}");

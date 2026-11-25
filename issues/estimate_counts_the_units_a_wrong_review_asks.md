@@ -47,6 +47,9 @@ rules and confidence of the rewritten feature; no cascade below a domains call, 
 2. [x] CLI: `generate --estimate` loads the corrections (edits.json refused as HCR-11), the CLI estimate gives the
    pending units and the saved use cases per feature; verified by binary tests EST-H1, EST-12 (answered review at
    zero), EST-14; docs (`docs/crates/pipeline.md`, `docs/findings.md` §15 note); ~250 lines. (autonomous)
+3. [x] Fixes of the `high` review: one-slice domains (`<domain>/-`) answered, a feature with no entry point not
+   counted, a call a review asks at least once, `--confidence-sample` kept on a reviewed confidence, the CLI test
+   independent of the table, the contexts path documented; verified by internal tests of EST-12, EST-6. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,3 +74,15 @@ rules and confidence of the rewritten feature; no cascade below a domains call, 
   call(s)`; `generate --estimate` succeeded on an unreadable `edits.json`.
 - Code review: no findings
 - not verified: a paid rerun on the smoke repository (the 13 calls of findings §15 against the new estimate).
+
+## Summary of deliverable 3
+- done: the findings of the `high` review fixed (see plan line 3); spec EST-12 and a non-goal on the contexts path.
+- checks: tests ok, lint ok, specs ok, docs ok, code review ok.
+- Code review: no findings
+- red: EST-12, EST-6: `left: ReviewedUnits { feature_domains: 1, .. }` for a review answered under `orders/-`;
+  `left: ("features", 0, 2)`.
+- High review: 7 findings: 1, 2, 5, 6, 7 fixed; 3 (contexts path counts the reviews of every context) stated as a
+  non-goal: the slice is planned from the context map after the estimate; 4 (nit, an answer kept under the old
+  domain of a moved feature) not fixed: a feature that moves domain changes its print, so the run asks it anyway
+  and the estimate counts it on its changed files.
+- not verified: a paid rerun on the smoke repository.

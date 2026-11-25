@@ -106,7 +106,7 @@ Behaviors that span passes:
   `Basis::Unmeasured`, at zero. `estimate/reviews.rs` adds, on a rerun without `--force`, the units the reviews
   `wrong` not yet answered ask again (`ReviewedUnits::pending`, read from the corrections and
   `Fingerprints::answered` as the passes read them, EST-12): the domains call, one features call per domain holding
-  a reviewed feature, one use cases call per feature holding a reviewed use case, plus their rules and the
-  confidence of their saved use cases (EST-13), each at the pass's cost per unit (`Basis::Reviewed` when the cache
-  would have saved the pass). The estimate's types are core's (`retrodoc_core::artifacts::estimate`); `render` shows the models that answered the measured runs next to
+  a reviewed feature with an entry point, one use cases call per feature holding a reviewed use case, plus their rules and the
+  confidence of their saved use cases (EST-13), each at the pass's cost per unit, a features or use cases call at least once (`Basis::Reviewed` when the cache
+  would have saved the pass; on the contexts path, the reviews of every context). The estimate's types are core's (`retrodoc_core::artifacts::estimate`); `render` shows the models that answered the measured runs next to
   those the run asks, without comparing them (a server may answer under another name).
