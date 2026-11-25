@@ -389,6 +389,21 @@ Steps, each shippable:
      twice, the judge changed 1 verdict of 13 (an answer missing the profile switch of the Wayback Machine).
    - Cost: about $0.19 (agent $0.16, judge $0.03). One run per variant: a sample, not a spread.
 4. Interactive `chat` with conversation memory; code and git history tools.
+5. Settling a disputed section from its form (`issues/agent_helps_settle_a_disputed_section.md`,
+   `specs/section-settle.md`). Measured (2026-11-25, at `5fd7ef85`, hosted `deepseek-chat`, `retrodoc ui --ask`): on
+   a copy of the default smoke repository's saved run that carries two sections reviewed `wrong` (a domain, a use
+   case); its `generate` at HEAD made no call. The project's author played the reader on three sections.
+   - Overall, the reader found the proposals matched their own verdict; they could not judge every detail, and found
+     the agent quibbling over points they did not always understand.
+   - The one proposal saved (the domain) shows why: a comment of about 2,900 characters citing file lines, a
+     commit and rule ids, with the reader's answers to three numbered questions; the corrected description it
+     filled was kept as proposed. Its saved status, `validated`, contradicts its own comment ("the reviewer's mark
+     was right on substance"): a status left out of the prompt's demand for consistency, or picked by the reader,
+     the record does not tell.
+   - Not measured: the turns, calls and tokens of each settling. The ask page shows them in the browser's session
+     only; `ui` logs none of them, and the session is gone with the server.
+   - Lesson: the settling finds the evidence, but speaks to a developer. A proposal a reader can judge needs a short
+     comment in the reader's words, its evidence behind it, and a status consistent with what it says.
 
 ## 5. Smaller open items
 

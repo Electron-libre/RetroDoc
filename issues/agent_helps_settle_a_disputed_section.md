@@ -67,9 +67,9 @@ Out of scope: transcript kept with the review, choice buttons, settling from `ch
 3. [x] Web proposal: the proposal shown in its exchange with "Fill the form", the section page filled from
    `?proposal=<n>` with its notice, nothing written before the save (~500 lines); makes true STL-7, STL-8, STL-9, STL-16;
    sets the spec `accepted`. (autonomous)
-4. [ ] Measure on 3 disputed sections of the default smoke repository with DeepSeek (paid: asked before the run, ledger
+4. [x] Measure on 3 disputed sections of the default smoke repository with DeepSeek (paid: asked before the run, ledger
    read and appended): turns, calls, tokens, whether the proposal matches the reader's verdict; a dated entry in
-   `docs/findings.md` (~40 lines).
+   `docs/findings.md` (~40 lines). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -147,3 +147,25 @@ Code review: 1 findings
 not verified: the preview of a narrative filled from a proposal shows the former narrative until the field is typed in (its `hx-trigger` is `input`); the look of `section.proposal` and `p.proposed` (no screenshots).
 
 decisions needed: none
+
+## Deliverable 4: measure
+
+done: settlings by hand on a copy of the saved delivery_router run with two `wrong` reviews (`generate` at HEAD: 0
+calls), `deepseek-chat`; entry 5 of section 4 of `docs/findings.md`; ledger line appended.
+
+| check | result |
+|---|---|
+| tests | none (a measure); `project-check` green |
+| specs | `check-specs` clean |
+| docs | `docs/findings.md` |
+| code review | low, see below |
+
+red: none
+
+Code review: no findings
+
+not verified: the turns, calls and tokens of each settling (shown only in the browser's ask session, not logged by
+`ui`); whether the `validated` status saved on the domain was the agent's or the reader's.
+
+decisions needed: none. Follow-up proposed at the final summary: proposals in the reader's words (short comment,
+evidence behind it, status consistent with the comment) and the usage of a settling logged.
