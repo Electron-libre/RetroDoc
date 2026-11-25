@@ -50,11 +50,11 @@ each field), merging with the new generated text.
    confirmation. Verified by internal tests in `edits/tests.rs` and `corrections/tests.rs` and a test of the form
    through the router (name corrected, outdated description kept: still outdated); makes true SED-15, SED-34, SED-35,
    SED-36 (amended), SFM-3 (amended). ~350 lines. (autonomous)
-2. [ ] Confirmation in the form (`retrodoc-web`): an unchecked checkbox `confirm` in the form of a section whose
+2. [x] Confirmation in the form (`retrodoc-web`): an unchecked checkbox `confirm` in the form of a section whose
    edit is outdated, its label in English and French (a field of `EditTexts` in `texts.rs`, +4 lines; the split of
    that file left out, a precedent `settle_texts.rs` exists if it grows), a save with it checked writing the edit as
    sent confirmed, an unchanged one included. Verified by tests in a new `crates/retrodoc-web/tests/edit_confirm.rs`
-   (`section_form.rs` is at 709 lines); makes true SFM-17; sets both specs `accepted`. ~250 lines.
+   (`section_form.rs` is at 709 lines); makes true SFM-17; sets both specs `accepted`. ~250 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -83,5 +83,27 @@ red: SED-15, SED-34, SED-35: `left: None, right: Some(Outdated { rewritten: true
 Code review: no findings
 
 not verified: none
+
+decisions needed: none
+
+## Deliverable 2 summary
+done: the form of a section whose edit is outdated holds an unchecked `confirm` checkbox (English and French label);
+a save with it checked writes the edit confirmed (`EditChange::Confirm`), an unchanged one included; both specs
+`accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (SED, SFM `accepted`) |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md`, `README.md` |
+| code review | low, no findings |
+
+red: SFM-17, SED-36: the page held no `name="confirm"` checkbox; `left: Some(Outdated { rewritten: true, .. }), right: None` after a confirmed save
+
+Code review: no findings
+
+not verified: the look of the checkbox (no screenshots shot); the checkbox kept checked in the form answered to a
+refused save (SFM-15) has no test
 
 decisions needed: none

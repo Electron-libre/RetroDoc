@@ -84,3 +84,65 @@ async fn correcting_one_field_of_an_outdated_edit_keeps_the_other_outdated() {
     let outdated = edits::outdated(&load(root), &edit).expect("the description is still outdated");
     assert!(outdated.rewritten);
 }
+
+// spec: SFM-17
+#[tokio::test]
+async fn only_the_form_of_an_outdated_edit_offers_to_confirm_it() {
+    let dir = outdated_edit();
+    let root = dir.path();
+    let page = support::get(root, FEATURE).await;
+    assert!(
+        page.contains(r#"<input type="checkbox" name="confirm" value="1">"#),
+        "{page}"
+    );
+    assert!(page.contains("The edited text still holds over the new generated text"));
+
+    let fresh = generated_repo();
+    let none = support::get(fresh.path(), FEATURE).await;
+    assert!(!none.contains(r#"name="confirm""#));
+    let fields = Fields {
+        name: Some("Payments".into()),
+        ..Fields::default()
+    };
+    edits::record(fresh.path(), &load(fresh.path()), &pay_invoice(), fields).unwrap();
+    let up_to_date = support::get(fresh.path(), FEATURE).await;
+    assert!(!up_to_date.contains(r#"name="confirm""#));
+}
+
+// spec: SFM-17, SED-36
+#[tokio::test]
+async fn confirming_an_outdated_edit_untouched_brings_it_up_to_date() {
+    let dir = outdated_edit();
+    let root = dir.path();
+    let before = saved(root);
+
+    let status = post(
+        root,
+        FEATURE,
+        "status=&shown_name=Pay+an+invoice&shown_description=OldD&name=Pay+an+invoice&description=OldD&confirm=1",
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    let edit = saved(root);
+    assert_eq!(edit.fields, before.fields);
+    assert_eq!(edits::outdated(&load(root), &edit), None);
+}
+
+// spec: SFM-17, SED-15
+#[tokio::test]
+async fn confirming_with_a_field_corrected_brings_every_field_up_to_date() {
+    let dir = outdated_edit();
+    let root = dir.path();
+
+    post(
+        root,
+        FEATURE,
+        "status=&name=Payments&description=OldD&confirm=1",
+    )
+    .await;
+
+    let edit = saved(root);
+    assert_eq!(edit.fields.name.as_deref(), Some("Payments"));
+    assert_eq!(edits::outdated(&load(root), &edit), None);
+}

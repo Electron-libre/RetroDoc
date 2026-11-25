@@ -19,7 +19,7 @@ use serde::Deserialize;
 use crate::ask::Probe;
 use crate::collected::NarrativeLinks;
 use crate::edit::is_edited;
-use crate::edit_form::{shown_in, EditFormView};
+use crate::edit_form::{is_outdated, shown_in, EditFormView};
 use crate::pages::{blocking, form_answer, not_found, read_failed};
 use crate::review::{self as review_view, Place, ReviewView};
 use crate::texts::WebTexts;
@@ -41,6 +41,9 @@ pub struct SectionForm {
     shown_name: Option<String>,
     shown_description: Option<String>,
     shown_narrative: Option<String>,
+    /// Sent by the checkbox that confirms an outdated edit (SFM-17).
+    #[serde(default)]
+    confirm: String,
     /// `revert` for the button that brings the generated text back (SFM-5).
     #[serde(default)]
     action: String,
@@ -145,9 +148,10 @@ impl SectionForm {
     }
 }
 
-/// What `form` does to the edit of the section at `place` of `docs` (SFM-3, SFM-11): the revert
-/// removes it; fields sent as the page showed them keep it; else the fields that change the
-/// generated text, cleaned, none removing it.
+/// What `form` does to the edit of the section at `place` of `docs` (SFM-3, SFM-11, SFM-17): the
+/// revert removes it; fields sent as the page showed them keep it, unless an outdated edit is
+/// confirmed; else the fields that change the generated text, cleaned, none removing it, written
+/// confirmed when an outdated edit is.
 fn edit_change(docs: &GeneratedDocs, place: &Place, form: &SectionForm) -> EditChange {
     if form.action == "revert" {
         return EditChange::Remove;
@@ -159,7 +163,8 @@ fn edit_change(docs: &GeneratedDocs, place: &Place, form: &SectionForm) -> EditC
         let single_line = field == Field::Name;
         as_sent(sent.get(field), single_line) == as_sent(shown.get(field), single_line)
     });
-    if unchanged {
+    let confirmed = !form.confirm.is_empty() && is_outdated(docs, place);
+    if unchanged && !confirmed {
         return EditChange::Keep;
     }
     let kept = |field: Field| {
@@ -174,6 +179,8 @@ fn edit_change(docs: &GeneratedDocs, place: &Place, form: &SectionForm) -> EditC
     };
     if fields == Fields::default() {
         EditChange::Remove
+    } else if confirmed {
+        EditChange::Confirm(fields)
     } else {
         EditChange::Set(fields)
     }
@@ -191,7 +198,7 @@ fn write(site: &Site, docs: &GeneratedDocs, place: &Place, form: &SectionForm) -
             site,
             place,
             form,
-            is_edited(docs, place),
+            (is_edited(docs, place), is_outdated(docs, place)),
             shown_in(docs, place),
         );
         Saved::Refused(code, Box::new((review, fields)))
@@ -226,18 +233,20 @@ fn write(site: &Site, docs: &GeneratedDocs, place: &Place, form: &SectionForm) -
     }
 }
 
-/// The fields of the text as `form` sent them, unfolded to show them; a field it left out, and
-/// the hidden text shown, as `now`, the text the page shows now (SFM-15).
+/// The fields of the text as `form` sent them, unfolded to show them, and its confirmation, offered
+/// when the edit is outdated; a field it left out, and the hidden text shown, as `now`, the text
+/// the page shows now (SFM-15).
 fn sent_form(
     site: &Site,
     place: &Place,
     form: &SectionForm,
-    edited: bool,
+    (edited, outdated): (bool, bool),
     now: Fields,
 ) -> EditFormView {
     let links = NarrativeLinks::of(site, place);
     let shown = form.shown(now);
-    EditFormView::sent(place, form.fields(&shown), shown, edited, &links)
+    let state = (edited, outdated, !form.confirm.is_empty());
+    EditFormView::sent(place, form.fields(&shown), shown, state, &links)
 }
 
 async fn save(
@@ -283,7 +292,7 @@ async fn save(
             let error = site.texts().errors.no_section.to_string();
             let sent = review_view::parse(form.status.trim()).flatten();
             let review = ReviewView::absent(&place, error, sent, form.comment.trim().into());
-            let edit_form = sent_form(&site, &place, &form, false, Fields::default());
+            let edit_form = sent_form(&site, &place, &form, (false, false), Fields::default());
             refused(StatusCode::NOT_FOUND, review, edit_form)
         }
         Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,

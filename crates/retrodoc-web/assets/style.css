@@ -399,6 +399,7 @@ section.review form.settle { margin-top: var(--space-3); padding-top: var(--spac
 details.text-fields[open] > summary { margin-bottom: var(--space-4); }
 details.text-fields > summary { cursor: pointer; font-weight: 600; }
 details.text-fields .field + .field, details.text-fields .field + .hint { margin-top: var(--space-4); }
+.section-form .confirm { display: flex; align-items: center; gap: var(--space-2); }
 form.section-form, form.ask { display: flex; flex-direction: column; gap: var(--space-4); max-width: 48rem; margin: var(--space-4) 0; }
 form.section-form { margin-bottom: 0; }
 form.ask-reset { margin: 0 0 var(--space-4); }

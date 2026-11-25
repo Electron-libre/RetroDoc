@@ -33,6 +33,9 @@ pub struct EditFormView {
     pub narrative_preview: String,
     /// Whether the section holds an edit, which the button "back to the generated text" removes.
     pub edited: bool,
+    /// The confirmation of an outdated edit, offered only then (SFM-17): whether it is checked,
+    /// as a save sent it (SFM-15).
+    pub confirm: Option<bool>,
     /// Whether the fields are shown as a save sent them, which unfolds them (SFM-2).
     pub sent: bool,
     /// The text the page shows, sent back in hidden fields, so that a save compares the fields
@@ -48,21 +51,26 @@ impl EditFormView {
         let shown = shown_in(docs, place);
         Self {
             sent: false,
+            confirm: is_outdated(docs, place).then_some(false),
             ..Self::new(place, shown.clone(), shown, is_edited(docs, place), links)
         }
     }
 
     /// The fields as a save sent them, kept in the form that says why it failed (SFM-15), with
-    /// the text the page that sent them showed.
+    /// the text the page that sent them showed and the confirmation as sent, offered when the edit
+    /// is `outdated`.
     #[must_use]
     pub(crate) fn sent(
         place: &Place,
         fields: Fields,
         shown: Fields,
-        edited: bool,
+        (edited, outdated, confirmed): (bool, bool, bool),
         links: &NarrativeLinks,
     ) -> Self {
-        Self::new(place, fields, shown, edited, links)
+        Self {
+            confirm: outdated.then_some(confirmed),
+            ..Self::new(place, fields, shown, edited, links)
+        }
     }
 
     fn new(
@@ -80,6 +88,7 @@ impl EditFormView {
             narrative_preview: preview_html(narrative.as_deref(), links),
             narrative,
             edited,
+            confirm: None,
             sent: true,
             shown,
         }
@@ -126,6 +135,16 @@ pub(crate) fn shown_in(docs: &GeneratedDocs, place: &Place) -> Fields {
         narrative: is_use_case(place).then(|| shown.narrative.unwrap_or_default()),
         ..shown
     }
+}
+
+/// Whether the edit of the section at `place` of `docs` is shown and outdated (SED-34, SED-35).
+#[must_use]
+pub(crate) fn is_outdated(docs: &GeneratedDocs, place: &Place) -> bool {
+    is_edited(docs, place)
+        && docs
+            .edits()
+            .get(&place.section())
+            .is_some_and(|edit| edits::outdated(docs, edit).is_some())
 }
 
 /// `narrative` rendered as the page of a use case renders it (WEB-118); empty when there is none.

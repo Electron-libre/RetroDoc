@@ -1,6 +1,6 @@
 ---
 id: SED
-status: draft
+status: accepted
 adrs: [0044, 0045]
 ---
 

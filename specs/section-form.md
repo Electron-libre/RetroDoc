@@ -1,6 +1,6 @@
 ---
 id: SFM
-status: draft
+status: accepted
 adrs: [0039, 0044, 0045]
 ---
 

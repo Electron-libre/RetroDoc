@@ -75,7 +75,7 @@ Each form shows each state that applies to it; a cross marks the states it must 
 |---|---|---|---|---|---|---|---|---|
 | search (top bar) | every page | x | | x | | x | | |
 | ask (question, send, start over) | ask | x | x | x | x (a question runs) | x | | x |
-| section (status, comment, name, description, narrative and its preview, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
+| section (status, comment, name, description, narrative and its preview, the confirmation of an outdated edit, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
 | debt filters (kind chips, domain) | debt | x | x | x | | x | | |
 | rules filters (kind chips, domain, feature) | rules | x | x | x | | x | | |
 | run comparison (from, to, swap) | history | x | x | x | | x | | |

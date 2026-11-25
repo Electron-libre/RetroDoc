@@ -393,6 +393,8 @@ pub struct EditTexts {
     pub revert: &'static str,
     /// The question the revert asks before it is sent (SFM-5).
     pub revert_confirm: &'static str,
+    /// The checkbox that confirms an outdated edit (SFM-17).
+    pub confirm: &'static str,
 }
 
 /// Why a review or an edit is outdated, in words.
@@ -819,6 +821,7 @@ impl WebTexts {
             preview: "Preview of the narrative",
             revert: "Back to the generated text",
             revert_confirm: "Remove the edit and show the generated text again?",
+            confirm: "The edited text still holds over the new generated text",
         },
         settle: crate::settle_texts::SettleTexts::ENGLISH,
         ask: AskTexts {
@@ -1231,6 +1234,7 @@ impl WebTexts {
             preview: "Aperçu du récit",
             revert: "Revenir au texte généré",
             revert_confirm: "Supprimer la correction et revenir au texte généré ?",
+            confirm: "Le texte corrigé reste juste face au nouveau texte généré",
         },
         settle: crate::settle_texts::SettleTexts::FRENCH,
         ask: AskTexts {

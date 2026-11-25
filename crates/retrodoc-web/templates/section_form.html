@@ -25,6 +25,7 @@
   <div class="field"><span class="field-label">{{ t.edit.preview }}</span> <div class="preview narrative" id="narrative-preview" aria-live="polite">{{ edit_form.narrative_preview|safe }}</div></div>{% endif %}
   <p class="hint">{{ t.edit.form_hint }}</p>
   </details>
+  {% if let Some(checked) = edit_form.confirm %}<label class="confirm"><input type="checkbox" name="confirm" value="1"{% if checked %} checked{% endif %}> {{ t.edit.confirm }}</label>{% endif %}
   <input type="hidden" name="shown_name" value="{{ edit_form.shown.name.as_deref().unwrap_or_default() }}">
   <input type="hidden" name="shown_description" value="{{ edit_form.shown.description.as_deref().unwrap_or_default() }}">
   {% if let Some(narrative) = edit_form.shown.narrative %}<input type="hidden" name="shown_narrative" value="{{ narrative }}">{% endif %}
