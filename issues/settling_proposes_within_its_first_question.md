@@ -43,3 +43,44 @@ Read by someone taking an application over
 
 # Hints
 * A paid measure needs the user's go and the measures ledger read before.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-25
+
+## Understanding
+A settling question must reach `propose_verdict` (or its questions) within its rounds: the last request offers the
+tool, the prompt states the rounds budget, and the `ui` log names the tool calls so the measure sees what the rounds
+go to (the steps of the earlier measures were never captured). Out of scope: a budget of rounds of its own (measured
+first). The measure again needs the user's go (cents on DeepSeek).
+
+## Plan
+1. [x] Log the tool calls of a settling question: one line per question after its usage line; verified by a unit
+   test of the line and the settling page test; makes true STL-19. (autonomous)
+2. [ ] Propose within the rounds: the settling prompt states `max_rounds` and asks to propose or ask before they run
+   out; the last request of a settling offers `propose_verdict` alone, a valid call ends on the proposal, a refused
+   one or another tool on the text; verified by agent tests with the fake provider; makes true STL-5, STL-18.
+3. [ ] Measure again (paid, cents, after the user's go): same copy and three sections as the ledger's line of
+   `e4334139`, usage and tool lines read from the `ui` log; findings section 4 item 5 and the ledger updated.
+
+## Decisions
+- Mode: autonomous
+- A proposal refused in the last request ends the question on its text, no extra round (1 a).
+- The paid measure runs after deliverables 1 and 2, on the user's go then; the agent plays the reader only if asked (2 a).
+- Base commit: e6d85b2035a5b4be5796c57dd62119f2b19252ec
+
+## Deliverable 1
+done: each settling question logs a second line after its usage line, its tool calls in order with what each reads.
+
+| check | result |
+|---|---|
+| tests | pass (`settle_page`, workspace) |
+| lint | pass |
+| specs | pass (STL-19 traced) |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/dev/commands.md` |
+| code review | see below |
+
+red: STL-19: `one line per settling question: [...] left: 0 right: 2` (no tool line logged)
+Code review: no findings
+not verified: none
+decisions needed: none

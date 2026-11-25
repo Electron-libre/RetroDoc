@@ -204,7 +204,8 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   (`settle::log_usage`, called by `Free::keep` also when the session was reset or dropped meanwhile, STL-17): the section, the number of the question in the settling
   (from `Running::settling_from`, the number of its first question), its rounds, tool calls, LLM calls and tokens, the proposed status
   or `none`, and the sums of the settling (`Running::spent_before`, the calls of the session before the question, emptied when
-  the settling starts, plus its own; a session started again keeps them as its `spent`); a measure reads them
+  the settling starts, plus its own; a session started again keeps them as its `spent`), then a second line of its
+  tool calls in order, each tool with what it reads, or `none` (`settle::tools_line`, STL-19); a measure reads them
   from the log of `ui`. `assets/ask.js`, loaded by `ask.html`, makes the form a composer: Enter sends (through
   `requestSubmit`, so `htmx` sends it), Shift+Enter, a running input method composition or a touch device
   (`pointer: coarse`, whose keyboard has no Shift+Enter) does not; the field grows

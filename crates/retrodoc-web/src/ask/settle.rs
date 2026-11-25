@@ -8,7 +8,7 @@ use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
-use retrodoc_agent::{Answer, Conversation, Disagreement, Disputed, Proposal};
+use retrodoc_agent::{Answer, Conversation, Disagreement, Disputed, Proposal, Step};
 use retrodoc_core::reconcile::ItemKind;
 use retrodoc_docs::reviews::{Section, SectionKind, Status};
 use retrodoc_docs::GeneratedDocs;
@@ -162,8 +162,9 @@ pub(super) fn proposal_href(site: &Site, proposal: &Proposal, number: u64) -> Op
     Some(format!("{}?proposal={number}#review", found.href))
 }
 
-/// Logs the usage of the question `running` that ended on `exchange` when it is a question of a
-/// settling, also once its session was reset or dropped meanwhile (STL-17).
+/// Logs the usage of the question `running` that ended on `exchange`, then its tool calls, when it
+/// is a question of a settling, also once its session was reset or dropped meanwhile (STL-17,
+/// STL-19).
 pub(super) fn log_usage(running: &Running, exchange: &Exchange) {
     let Some(section) = &running.settled else {
         return;
@@ -180,6 +181,37 @@ pub(super) fn log_usage(running: &Running, exchange: &Exchange) {
         &settling,
     );
     tracing::info!("{line}");
+    tracing::info!("{}", tools_line(section, number, &exchange.steps));
+}
+
+/// The line the log of `ui` gets after the usage line of the question `number` of the settling
+/// of `section`: each tool call of the question in order, what it reads after it (STL-19).
+pub(super) fn tools_line(section: &Section, number: u64, steps: &[Step]) -> String {
+    let calls = if steps.is_empty() {
+        "none".to_string()
+    } else {
+        steps
+            .iter()
+            .map(|step| match &step.target {
+                Some(target) => format!("{} `{target}`", step.tool),
+                None => step.tool.clone(),
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    format!(
+        "settling of the {} `{}`, question {number}, tool calls: {calls}",
+        kind_name(section.kind),
+        section.id
+    )
+}
+
+fn kind_name(kind: SectionKind) -> &'static str {
+    match kind {
+        SectionKind::Domain => "domain",
+        SectionKind::Feature => "feature",
+        SectionKind::UseCase => "use case",
+    }
 }
 
 /// The line the log of `ui` gets when the question `number` of the settling of `section` ends
@@ -204,14 +236,10 @@ pub(super) fn usage_line(
         },
         None => "none",
     };
-    let kind = match section.kind {
-        SectionKind::Domain => "domain",
-        SectionKind::Feature => "feature",
-        SectionKind::UseCase => "use case",
-    };
     format!(
-        "settling of the {kind} `{}`, question {number}: {}, {}, {}, proposed {proposed}; \
+        "settling of the {} `{}`, question {number}: {}, {}, {}, proposed {proposed}; \
          settling: {}",
+        kind_name(section.kind),
         section.id,
         counted(rounds, "round"),
         counted(tool_calls as u64, "tool call"),

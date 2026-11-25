@@ -584,6 +584,7 @@ async fn each_question_of_a_settling_logs_its_rounds_calls_and_tokens_and_the_se
     let settling: Vec<&String> = lines
         .iter()
         .filter(|line| line.contains("settling of the feature `list-orders`"))
+        .filter(|line| line.contains("LLM call"))
         .collect();
     assert_eq!(
         settling.len(),
@@ -615,8 +616,64 @@ async fn each_question_of_a_settling_logs_its_rounds_calls_and_tokens_and_the_se
         !lines
             .iter()
             .skip_while(|l| !l.contains("question 3"))
-            .skip(1)
+            .skip(2)
             .any(|l| l.contains("settling")),
         "a question no settling started logs no line: {lines:#?}"
     );
+}
+
+// spec: STL-19
+#[tokio::test]
+async fn each_question_of_a_settling_logs_its_tool_calls_in_order() {
+    let dir = generated_repo();
+    let read = |id: &str, name: &str, arguments: &str| retrodoc_llm::ToolCall {
+        id: id.into(),
+        name: name.into(),
+        arguments: arguments.into(),
+    };
+    let llm = Arc::new(FakeLlm::scripted(vec![
+        FakeTurn::Calls {
+            text: String::new(),
+            calls: vec![
+                read("c1", "get_feature", r#"{"id":"list-orders"}"#),
+                read("c2", "read_source", r#"{"path":"app/order.rb"}"#),
+            ],
+        },
+        FakeTurn::Text("Who sees the orders?".into()),
+        FakeTurn::Text("Still unsure.".into()),
+    ]));
+    let router = router(dir.path(), Some(llm));
+    let lines = logged(async {
+        let cookie = session_cookie(&settle(&router, FEATURE, None).await).unwrap();
+        send(&router, get_request("/ask/questions/1", Some(&cookie))).await;
+        ask(&router, Some(&cookie)).await;
+    })
+    .await;
+    let tools: Vec<&String> = lines
+        .iter()
+        .filter(|line| line.contains("settling of the feature `list-orders`"))
+        .filter(|line| line.contains("tool calls:"))
+        .collect();
+    assert_eq!(tools.len(), 2, "one line per settling question: {lines:#?}");
+    assert!(
+        tools[0].contains(
+            "question 1, tool calls: get_feature `list-orders`, read_source `app/order.rb`"
+        ),
+        "{}",
+        tools[0]
+    );
+    assert!(
+        tools[1].contains("question 2, tool calls: none"),
+        "{}",
+        tools[1]
+    );
+    let usage = lines
+        .iter()
+        .position(|line| line.contains("question 1:"))
+        .expect("usage line");
+    let calls = lines
+        .iter()
+        .position(|line| line.contains("question 1, tool calls:"))
+        .expect("tool line");
+    assert!(usage < calls, "the tool line follows the usage line");
 }

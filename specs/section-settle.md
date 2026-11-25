@@ -1,6 +1,6 @@
 ---
 id: STL
-status: accepted
+status: draft
 adrs: [0047, 0048, 0049, 0057]
 ---
 
@@ -35,7 +35,9 @@ and ends on a proposed review and correction that the reader puts in the form an
   questions that would settle it, and to propose its verdict with `propose_verdict` once settled, its comment in
   the words of a reader who is not a developer, its evidence apart, its status the one STL-13 says fits; it names the
   section settled (its kind and id), also once the conversation is started again after its session was dropped
-  while a question ran (WAK-35). The last request of a question, which offers no tool, asks the verdict as text.
+  while a question ran (WAK-35). It states the rounds of tool calls the question has (`--max-rounds`) and asks the
+  model to propose its verdict, or to ask its questions, before they run out. The last request of a question asks the
+  verdict with `propose_verdict` (STL-18), or the questions left as text.
 - **STL-6** (deterministic) A question of a settling conversation must offer the tool `propose_verdict` besides the
   read-only tools; a question of a conversation no settling started, and `retrodoc ask` and `chat`, offer none.
 - **STL-7** (deterministic) An exchange whose answer holds a proposal must show it under its text: the status, the
@@ -88,6 +90,13 @@ and ends on a proposed review and correction that the reader puts in the form an
   calls, its LLM calls with their tokens in (among them cached) and out and those with no usage, the status it
   proposes or `none`, then the same calls and tokens summed over the settling, counted as WAK-36 counts them; also
   when its session was reset or dropped meanwhile. The rounds of a question that failed are its calls answered.
+- **STL-18** (deterministic) The last request of a settling question (ASK-6, ASK-22) must offer the tool
+  `propose_verdict` alone, unlike the last request of a question no settling started; a call of it that the table
+  of STL-13 accepts ends the question with its proposal as STL-14 says; a call it refuses, or of another tool, ends
+  the question on the text of that message, with no proposal.
+- **STL-19** (deterministic) Each question of a settling conversation that ended must write, after its line of
+  STL-17, one line to the log of `ui` (stdout) naming the kind and id of the section, the number of the question in
+  its settling and each tool call of the question in order, its tool and what it reads (ASK-25), or `none`.
 
 ## Scenarios
 
@@ -127,6 +136,14 @@ and ends on a proposed review and correction that the reader puts in the form an
   that question holds the proposed status and comment in the earlier answer.
 - (STL-16) Given the exchange 2 proposing for the feature `orders/list-orders`, when the page of `orders/pay` is
   asked with `?proposal=2`, then its form is as without it.
+- (STL-18) Given a settling question that used its rounds, when the model calls `propose_verdict` in the last
+  request, then the question ends with that proposal; when it calls it with a comment of 401 characters, or calls
+  `read_source`, then the question ends on the text of that message with no proposal.
+- (STL-18) Given a question of a conversation no settling started that used its rounds, then its last request offers
+  no tool.
+- (STL-5) Given `--max-rounds 3`, then the system prompt of a settling question states 3 rounds.
+- (STL-19) Given a settling question that read the use case then a file, then its line names `get_use_case` with
+  the use case's id then `read_source` with the file's path; one with no tool call names `none`.
 - (STL-12) Given a session with no exchange, then the button asks no confirmation; given one with an exchange, it
   asks one.
 - (STL-3) Given a settled session, when the reader resets it, then the page no longer names the section.
@@ -141,5 +158,8 @@ and ends on a proposed review and correction that the reader puts in the form an
   field, as a follow-up of `chat`.
 - No write by the agent: `propose_verdict` records a proposal of the exchange, nothing on disk (ADR 0057).
 - No settling from the terminal (`retrodoc chat`) nor of a business rule, a glossary term or an actor.
-- No proposal from the last request without tools (ASK-6): a settling that ran out of rounds ends on a text answer.
+- No round of tools after the last request (STL-18): a proposal refused there ends the question on its text, the
+  reader asking again.
+- No budget of rounds of its own for a settling: its questions have the rounds of `--max-rounds`, as a question of
+  `ask` has.
 - No proposal kept across a restart of `ui`: it lives with its exchange in the session (WAK-21).
