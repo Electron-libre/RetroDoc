@@ -86,3 +86,6 @@ rules and confidence of the rewritten feature; no cascade below a domains call, 
   domain of a moved feature) not fixed: a feature that moves domain changes its print, so the run asks it anyway
   and the estimate counts it on its changed files.
 - not verified: a paid rerun on the smoke repository.
+
+Done: every deliverable committed; left: a paid rerun on the smoke repository to set the estimate against the 13 calls
+of findings §15 (optional, ask first).
