@@ -16,8 +16,8 @@ use retrodoc_llm::CallTotals;
 use serde::Deserialize;
 use tokio::sync::watch;
 
-use super::{cookie, with_cookie, AskState, Progress, Running, Session, Sessions};
-use crate::collected::NarrativeLinks;
+use super::{cookie, with_cookie, AskState, Exchange, Progress, Running, Session, Sessions};
+use crate::collected::{markdown_html, NarrativeLinks};
 use crate::edit_form::EditFormView;
 use crate::pages::read_failed;
 use crate::review::{Place, ReviewView};
@@ -122,7 +122,7 @@ pub struct ProposedField {
 pub struct ProposalView {
     pub status: &'static str,
     pub comment: String,
-    /// What it rests on, folded under the comment.
+    /// What it rests on, folded under the comment, rendered from its Markdown: safe to insert.
     pub evidence: String,
     pub fields: Vec<ProposedField>,
     /// The form of the section filled with it, `None` when the run no longer has the section.
@@ -148,7 +148,7 @@ impl ProposalView {
         Self {
             status: texts.review.status(proposal.status),
             comment: proposal.comment.clone(),
-            evidence: proposal.evidence.clone(),
+            evidence: markdown_html(&proposal.evidence),
             fields,
             href: href.map(str::to_string),
         }
@@ -160,6 +160,26 @@ impl ProposalView {
 pub(super) fn proposal_href(site: &Site, proposal: &Proposal, number: u64) -> Option<String> {
     let found = find(site.docs()?, &proposal.section)?;
     Some(format!("{}?proposal={number}#review", found.href))
+}
+
+/// Logs the usage of the question `running` that ended on `exchange` when it is a question of a
+/// settling, also once its session was reset or dropped meanwhile (STL-17).
+pub(super) fn log_usage(running: &Running, exchange: &Exchange) {
+    let Some(section) = &running.settled else {
+        return;
+    };
+    let mut settling = running.spent_before;
+    settling.add(&exchange.cost);
+    let number = running.number + 1 - running.settling_from;
+    let line = usage_line(
+        section,
+        number,
+        &exchange.outcome,
+        exchange.steps.len(),
+        &exchange.cost,
+        &settling,
+    );
+    tracing::info!("{line}");
 }
 
 /// The line the log of `ui` gets when the question `number` of the settling of `section` ends
@@ -174,7 +194,8 @@ pub(super) fn usage_line(
     settling: &CallTotals,
 ) -> String {
     let answer = outcome.as_ref().ok();
-    let rounds = answer.map_or(0, |answer| answer.rounds);
+    // A failed question ended on a call that failed: each call answered before held tool calls.
+    let rounds = answer.map_or(cost.calls, |answer| answer.rounds as u64);
     let proposed = match answer.and_then(|answer| answer.proposal.as_ref()) {
         Some(proposal) => match proposal.status {
             Status::Validated => "validated",
@@ -192,7 +213,7 @@ pub(super) fn usage_line(
         "settling of the {kind} `{}`, question {number}: {}, {}, {}, proposed {proposed}; \
          settling: {}",
         section.id,
-        counted(rounds as u64, "round"),
+        counted(rounds, "round"),
         counted(tool_calls as u64, "tool call"),
         calls(cost),
         calls(settling),
@@ -386,6 +407,7 @@ pub(super) async fn settle(
             message,
             settled: Some(disputed.section.clone()),
             settling_from: session.asked,
+            spent_before: CallTotals::default(),
             progress: watch::Sender::new(Progress::default()),
         });
         session.running = Some(Arc::clone(&running));

@@ -62,6 +62,7 @@ fn a_settling_session_started_again_still_settles_its_section() {
             message: "Help me settle it.".into(),
             settled,
             settling_from: 2,
+            spent_before: CallTotals::default(),
             progress: watch::Sender::new(Progress::default()),
         })
     };
@@ -76,4 +77,63 @@ fn a_settling_session_started_again_still_settles_its_section() {
     assert_eq!(settling.asked, 3);
     let plain = sessions.reopen("b", &running(None));
     assert_eq!(plain.conversation.settled(), None);
+}
+
+/// The question 3 of a settling started at the question 2, two calls spent before it.
+fn settling_question() -> Arc<Running> {
+    Arc::new(Running {
+        number: 3,
+        question: "The customer.".into(),
+        message: "The customer.".into(),
+        settled: Some(Section::new(
+            retrodoc_docs::reviews::SectionKind::Feature,
+            "list-orders",
+        )),
+        settling_from: 2,
+        spent_before: CallTotals {
+            calls: 2,
+            calls_without_usage: 2,
+            ..CallTotals::default()
+        },
+        progress: watch::Sender::new(Progress::default()),
+    })
+}
+
+/// Ends `running` of the session `id` after one call, and gives the lines logged.
+fn end_after_one_call(sessions: &Arc<Mutex<Sessions>>, id: &str, running: Arc<Running>) -> String {
+    let (buffer, guard) = retrodoc_pipeline::testing::capture_logs();
+    let counted = UsageTracker::new();
+    counted.record("m", None);
+    let mut free = Free {
+        sessions: Arc::clone(sessions),
+        id: id.into(),
+        running,
+        counted,
+    };
+    free.keep(Err("down".into()), None, None);
+    drop(guard);
+    buffer.text()
+}
+
+// spec: STL-17 (internal: a session dropped or reset while its question runs needs a task held)
+#[test]
+fn a_settling_question_logs_its_line_with_the_settling_sums_once_its_session_dropped_or_reset() {
+    let sessions = Arc::new(Mutex::new(Sessions::default()));
+
+    let dropped = end_after_one_call(&sessions, "a", settling_question());
+    assert!(
+        dropped.contains("question 2: 1 round, 0 tool calls, 1 LLM call")
+            && dropped.contains("settling: 3 LLM calls (3 without usage)"),
+        "{dropped}"
+    );
+    let mut kept = sessions.lock().unwrap();
+    assert_eq!(kept.get(Some("a")).unwrap().spent.calls, 3, "WAK-36");
+    let (reset, _) = kept.open(None);
+    drop(kept);
+
+    let logged = end_after_one_call(&sessions, &reset, settling_question());
+    assert!(
+        logged.contains("question 2:") && logged.contains("settling: 3 LLM calls"),
+        "a session reset meanwhile still logs the question: {logged}"
+    );
 }

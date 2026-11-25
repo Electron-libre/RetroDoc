@@ -297,6 +297,39 @@ async fn a_valid_proposal_ends_the_question_and_the_calls_after_it_are_not_run()
     assert_eq!(answer.text, "The section is right.");
 }
 
+// spec: STL-14 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_sources_of_a_proposal_are_checked_over_its_evidence_too() {
+    let llm = FakeLlm::scripted(vec![
+        calls(
+            "",
+            vec![call("c1", "get_feature", r#"{"id":"pay-invoice"}"#)],
+        ),
+        calls(
+            "",
+            vec![call(
+                "c2",
+                PROPOSE_VERDICT,
+                r#"{"status":"wrong","comment":"The customer pays.","evidence":"`billing/pay-invoice` names the clerk.","description":"The customer pays online."}"#,
+            )],
+        ),
+    ]);
+    let answer = Conversation::settling(feature())
+        .ask(&llm, docs(), "Settle it.", DEFAULT_MAX_ROUNDS)
+        .await
+        .unwrap();
+    assert_eq!(answer.text, "The customer pays.");
+    assert!(
+        answer
+            .sources
+            .iter()
+            .any(|source| source.id == "billing/pay-invoice"),
+        "{:?} {:?}",
+        answer.sources,
+        answer.tool_results
+    );
+}
+
 // spec: STL-15 (internal: the requests of the model are seen through the fake provider only)
 #[tokio::test]
 async fn the_kept_answer_of_a_proposal_holds_it_as_text() {

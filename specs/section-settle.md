@@ -39,7 +39,7 @@ and ends on a proposed review and correction that the reader puts in the form an
 - **STL-6** (deterministic) A question of a settling conversation must offer the tool `propose_verdict` besides the
   read-only tools; a question of a conversation no settling started, and `retrodoc ask` and `chat`, offer none.
 - **STL-7** (deterministic) An exchange whose answer holds a proposal must show it under its text: the status, the
-  comment, its evidence folded under it and unfolded on demand, each field of the text it gives, and a link "Fill
+  comment, its evidence rendered from its Markdown, folded under it and unfolded on demand, each field of the text it gives, and a link "Fill
   the form" to the form of the section (SFM-6) with
   `?proposal=<n>`, `<n>` the number of the question in its session.
 - **STL-8** (deterministic) The page of the settled section asked with `?proposal=<n>` and the cookie of the session
@@ -76,7 +76,8 @@ and ends on a proposed review and correction that the reader puts in the form an
 
 - **STL-14** (deterministic) A call of `propose_verdict` that the table accepts must end the question with that
   proposal, the calls after it in its round not run; the text of the answer is the text of the message that made
-  the call, or the comment of the proposal when that text is blank.
+  the call, or the comment of the proposal when that text is blank; its sources are checked (ASK-7) over that text
+  and the evidence of the proposal.
 - **STL-15** (deterministic) The answer kept in the conversation for the next questions (CHT-2) of an exchange with a
   proposal must hold the proposal as text, its status, comment, evidence and fields, so that the reader can have it amended.
 - **STL-16** (deterministic) A page of a section asked with `?proposal=<n>` that names no session kept in memory,
@@ -85,7 +86,8 @@ and ends on a proposed review and correction that the reader puts in the form an
 - **STL-17** (deterministic) Each question of a settling conversation that ended must write one line to the log of
   `ui` (stdout): the kind and id of the section, the number of the question in its settling, its rounds, its tool
   calls, its LLM calls with their tokens in (among them cached) and out and those with no usage, the status it
-  proposes or `none`, then the same calls and tokens summed over the settling, counted as WAK-36 counts them.
+  proposes or `none`, then the same calls and tokens summed over the settling, counted as WAK-36 counts them; also
+  when its session was reset or dropped meanwhile. The rounds of a question that failed are its calls answered.
 
 ## Scenarios
 
@@ -98,7 +100,8 @@ and ends on a proposed review and correction that the reader puts in the form an
   holds a line for each of the two questions, the second with the proposed status and the settling's sums.
 - **STL-H2** (happy; STL-4, STL-6, STL-14) Given a feature that a section of the project's docs contradicts, when its
   settling starts, then the first question names the doc section and both statements, and the agent, having read
-  the code, proposes `validated` with a comment citing the file, without a question to the reader.
+  the code, proposes `validated` with a comment in business words and the file in its evidence, without a question
+  to the reader.
 - (STL-11) Given a question running in the session, when a settling starts, then it is answered with 409 and the
   running question and the exchanges are kept.
 - (STL-11) Given a feature id the last run does not have, when a settling starts, then it is answered with 404, and
@@ -111,8 +114,13 @@ and ends on a proposed review and correction that the reader puts in the form an
 - (STL-13) Given a call with no `evidence`, then it gets an error and the question goes on.
 - (STL-8) Given a proposal with an evidence, when its form is filled, then the comment of the review is the
   proposal's comment alone.
-- (STL-17) Given a settling question that failed after one call, then its line holds that call and the status
-  `none`; a question of a conversation no settling started writes no line.
+- (STL-17) Given a settling question that failed on its second call, after one answered call of a tool, then its
+  line holds 1 round, that call and the status `none`; a question of a conversation no settling started writes no
+  line.
+- (STL-17) Given a session reset or dropped while a settling question runs, then that question still logs its line,
+  its settling sums counting the questions before it.
+- (STL-14) Given a proposal whose comment names no section and whose evidence names a feature a tool returned, then
+  that feature is a source of the answer.
 - (STL-14) Given a round of a call of `propose_verdict` then a call of `read_source`, then the question ends with the
   proposal and `read_source` is not run.
 - (STL-15) Given an exchange that proposed `wrong`, when the reader answers "keep it to review", then the request of

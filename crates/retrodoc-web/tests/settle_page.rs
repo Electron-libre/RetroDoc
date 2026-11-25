@@ -398,7 +398,7 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
         .expect(proposal)..];
     assert!(
         evidence[..evidence.find("</details>").unwrap()]
-            .contains("`app/order.rb` filters by customer."),
+            .contains("<code>app/order.rb</code> filters by customer."),
         "the evidence is folded under the comment: {proposal}"
     );
     assert!(
@@ -537,40 +537,12 @@ async fn a_contradicted_section_settled_from_the_code_alone_ends_on_a_proposal_a
     assert!(proposal.contains("lists them for the clerk"), "{proposal}");
 }
 
-thread_local! {
-    /// What the server logged on this thread.
-    static LOGGED: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-/// Writes the log to the buffer of the thread that logs.
-struct ThreadLog;
-
-impl std::io::Write for ThreadLog {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        LOGGED.with(|logged| logged.borrow_mut().extend_from_slice(bytes));
-        Ok(bytes.len())
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
-/// The lines the server logs while `test` runs, the tasks it spawns on this thread included. The
-/// subscriber is global, as a scoped one misses the log lines a test without it reached first.
+/// The lines the server logs while `test` runs, the tasks it spawns on this thread included.
 async fn logged<F: std::future::Future<Output = ()>>(test: F) -> Vec<String> {
-    static INSTALLED: std::sync::Once = std::sync::Once::new();
-    INSTALLED.call_once(|| {
-        let subscriber = tracing_subscriber::fmt()
-            .with_writer(|| ThreadLog)
-            .with_ansi(false)
-            .without_time()
-            .finish();
-        tracing::subscriber::set_global_default(subscriber).unwrap();
-    });
-    LOGGED.with(|logged| logged.borrow_mut().clear());
+    let (buffer, guard) = retrodoc_pipeline::testing::capture_logs();
     test.await;
-    let written = LOGGED.with(|logged| String::from_utf8(logged.borrow().clone()).unwrap());
-    written.lines().map(str::to_string).collect()
+    drop(guard);
+    buffer.text().lines().map(str::to_string).collect()
 }
 
 // spec: STL-17
@@ -588,6 +560,14 @@ async fn each_question_of_a_settling_logs_its_rounds_calls_and_tokens_and_the_se
         },
         FakeTurn::Text("Who sees the orders?".into()),
         propose(r#"{"status":"wrong","comment":"The customer sees them.","evidence":"e"}"#),
+        FakeTurn::Calls {
+            text: String::new(),
+            calls: vec![retrodoc_llm::ToolCall {
+                id: "r2".into(),
+                name: "read_source".into(),
+                arguments: r#"{"path":"app/order.rb"}"#.into(),
+            }],
+        },
         FakeTurn::Fail,
         FakeTurn::Text("Orders.".into()),
     ]));
@@ -626,7 +606,7 @@ async fn each_question_of_a_settling_logs_its_rounds_calls_and_tokens_and_the_se
         settling[1]
     );
     assert!(
-        settling[2].contains("question 3: 0 rounds, 0 tool calls, 0 LLM calls")
+        settling[2].contains("question 3: 1 round, 1 tool call, 1 LLM call (1 without usage)")
             && settling[2].contains("proposed none"),
         "a failed question logs its line too: {}",
         settling[2]

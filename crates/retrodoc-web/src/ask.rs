@@ -81,6 +81,8 @@ struct Running {
     settled: Option<Section>,
     /// The number of the first question of that settling, which numbers its questions (STL-17).
     settling_from: u64,
+    /// The calls of the session before it, which a session started again keeps (WAK-36, STL-17).
+    spent_before: CallTotals,
     progress: watch::Sender<Progress>,
 }
 
@@ -138,6 +140,7 @@ impl Sessions {
             asked: running.number,
             running: Some(Arc::clone(running)),
             settling_from: running.settling_from,
+            spent: running.spent_before,
             ..Session::default()
         };
         self.push(id.to_string(), session)
@@ -545,6 +548,7 @@ async fn question(
             question,
             settled: session.conversation.settled().cloned(),
             settling_from: session.settling_from,
+            spent_before: session.spent,
             progress: watch::Sender::new(Progress::default()),
         });
         session.running = Some(Arc::clone(&running));
@@ -649,7 +653,6 @@ impl Free {
             cost,
             session_cost: cost,
         };
-        let mut logged = None;
         let exchange = {
             let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
             let session = match sessions.get(Some(&self.id)) {
@@ -672,19 +675,12 @@ impl Free {
                 while session.exchanges.len() > MAX_EXCHANGES {
                     session.exchanges.pop_front();
                 }
-                logged = running.settled.as_ref().map(|section| {
-                    let (outcome, steps) = (&exchange.outcome, exchange.steps.len());
-                    let number = running.number + 1 - running.settling_from;
-                    settle::usage_line(section, number, outcome, steps, &cost, &session.spent)
-                });
                 exchange
             } else {
                 Arc::new(exchange)
             }
         };
-        if let Some(line) = logged {
-            tracing::info!("{line}");
-        }
+        settle::log_usage(running, &exchange);
         running.progress.send_modify(|p| p.ended = Some(exchange));
     }
 }

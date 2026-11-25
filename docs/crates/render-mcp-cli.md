@@ -195,15 +195,16 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   "Help me settle “name”.", shown), answering at once with `HX-Redirect` or a `303` to `/ask`, which names the section
   (`SettledView`) while the conversation of the session settles it. An answer that ends on a proposal keeps, with its
   exchange, the link to the form of its section (`settle::proposal_href`, `<page>?proposal=<n>#review`), and
-  `exchange.html` shows it (`ProposalView`: the status, the comment, its evidence folded under it, the corrected fields, "Fill the form"); the page
+  `exchange.html` shows it (`ProposalView`: the status, the comment, its evidence rendered from Markdown and folded under it, the corrected fields, "Fill the form"); the page
   of a section asked with `?proposal=<n>` goes through `Probe::form`, which also gives the button: an exchange `<n>` of
   the session of the cookie proposing for that section fills the form (`ReviewView::selected`, `draft` (the comment alone, not its evidence), `proposed`
   for its notice; the fields of `EditFormView` it gives, unfolded by `sent` only when it gives one, the preview
   rendered from the proposed narrative, `EditFormView::proposed`), anything else leaves the form as it
   is; nothing is written until the form is saved. Each question of a settling that ends logs one line on stdout
-  (`settle::usage_line`, written by `Free::keep`, STL-17): the section, the number of the question in the settling
+  (`settle::log_usage`, called by `Free::keep` also when the session was reset or dropped meanwhile, STL-17): the section, the number of the question in the settling
   (from `Running::settling_from`, the number of its first question), its rounds, tool calls, LLM calls and tokens, the proposed status
-  or `none`, and the sums of the settling (`Session::spent`, emptied when the settling starts); a measure reads them
+  or `none`, and the sums of the settling (`Running::spent_before`, the calls of the session before the question, emptied when
+  the settling starts, plus its own; a session started again keeps them as its `spent`); a measure reads them
   from the log of `ui`. `assets/ask.js`, loaded by `ask.html`, makes the form a composer: Enter sends (through
   `requestSubmit`, so `htmx` sends it), Shift+Enter, a running input method composition or a touch device
   (`pointer: coarse`, whose keyboard has no Shift+Enter) does not; the field grows

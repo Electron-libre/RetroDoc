@@ -478,13 +478,8 @@ async fn answer_after(
                 // A valid proposal ends the question, the calls after it not run (STL-14).
                 match settle::proposal_of(section, &call.arguments) {
                     Ok(proposal) => {
-                        let text = if response.content.trim().is_empty() {
-                            proposal.comment.clone()
-                        } else {
-                            response.content
-                        };
-                        answer.proposal = Some(proposal);
-                        return Ok(answered(answer, text, earlier, &docs).await);
+                        let text = response.content;
+                        return Ok(proposed(answer, proposal, text, earlier, &docs).await);
                     }
                     Err(error) => error,
                 }
@@ -509,6 +504,27 @@ async fn answer_after(
 async fn answered(mut answer: Answer, text: String, earlier: &[Turn], docs: &Arc<Docs>) -> Answer {
     answer.sources = checked_sources(&text, &answer.tool_results, earlier, docs);
     answer.warnings = warnings_of(docs, answer.sources.clone()).await;
+    answer.text = text;
+    answer
+}
+
+/// `answer` ended on `proposal` (STL-14): its text the `text` of the message that made the call,
+/// else the comment; its sources checked over the evidence too, as the comment names no file.
+async fn proposed(
+    mut answer: Answer,
+    proposal: Proposal,
+    text: String,
+    earlier: &[Turn],
+    docs: &Arc<Docs>,
+) -> Answer {
+    let text = if text.trim().is_empty() {
+        proposal.comment.clone()
+    } else {
+        text
+    };
+    let checked = format!("{text}\n\n{}", proposal.evidence);
+    answer.proposal = Some(proposal);
+    let mut answer = answered(answer, checked, earlier, docs).await;
     answer.text = text;
     answer
 }

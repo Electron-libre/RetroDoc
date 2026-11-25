@@ -69,6 +69,9 @@ Out of scope: the paid measure of the ledger's queue (asked apart, after the iss
 2. [x] Log of each settling question: one `tracing` line at its end (section, question number, rounds, tool calls,
    LLM calls and tokens, proposed status, settling sums), the code in `ask/settle.rs` (`ask.rs` is at 781 lines of
    800: only the call goes there); verified by a web test capturing the log; makes true STL-17 (~200 lines). (autonomous)
+3. [x] Docs and fixes of the `high` review of the issue: the sources of a proposal checked over its evidence, the
+   evidence rendered from Markdown, the log line of a question that failed or whose session was reset or dropped,
+   the spec's scenarios aligned; verified by agent and web tests; makes true STL-7, STL-14, STL-17. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -122,5 +125,31 @@ Code review: 1 finding
   of the settling's first question, kept when a dropped session is started again; a second review found nothing.
 
 not verified: the line in the log of a real `ui --ask` (a paid measure, after the issue).
+
+decisions needed: none
+
+## Deliverable 3: docs and fixes of the `high` review
+
+done: the 8 findings of the `high` review of `d11a0191..HEAD` fixed: sources checked over the evidence, evidence
+rendered from Markdown, a failed question counts its answered calls as rounds, a question whose session was reset
+or dropped still logs, its sums kept in `Running::spent_before` (a session started again keeps them as `spent`,
+WAK-36), STL-H2 and the STL-17 scenario reworded, the log test on `capture_logs`; `docs/dev/web-ui.md` names the fold.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/agent.md`, `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md` |
+| code review | 1 finding, not a defect |
+
+red: STL-14: `[]` (no source from the evidence, observed with the fix reverted); STL-17: the dropped and reset
+cases, red as the review described them (logged sums from zero, no line), not run before the fix (the fields did not exist)
+
+Code review: 1 finding
+- The evidence inserted `|safe` could carry the model's raw HTML: no change, `markdown_html` turns raw HTML into
+  escaped text (`collected.rs`, `Event::Html` to `Event::Text`), as for the text of the answer.
+
+not verified: the fold on screen (`just screenshots` needs an ask page with a proposal, so a run of the model).
 
 decisions needed: none
