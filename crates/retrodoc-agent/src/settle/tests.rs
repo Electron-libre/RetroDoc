@@ -370,25 +370,34 @@ async fn the_kept_answer_of_a_proposal_holds_it_as_text() {
 
 /// A settling of `pay-invoice` with one round, its tool calls then `last`, the answer of its last
 /// request.
-async fn after_its_one_round(last: FakeTurn) -> (FakeLlm, crate::Answer) {
-    let llm = FakeLlm::scripted(vec![
+async fn after_its_one_round(last: FakeTurn) -> (FakeLlm, crate::Answer, Vec<String>) {
+    after_its_round(
         calls(
             "",
             vec![call("c1", "get_feature", r#"{"slug":"pay-invoice"}"#)],
         ),
         last,
-    ]);
+    )
+    .await
+}
+
+/// A settling of `pay-invoice` with the one round `round` then `last`, the answer of its last
+/// request, and the tools the observer was told.
+async fn after_its_round(round: FakeTurn, last: FakeTurn) -> (FakeLlm, crate::Answer, Vec<String>) {
+    let llm = FakeLlm::scripted(vec![round, last]);
+    let told = std::sync::Mutex::new(Vec::new());
+    let observer = |step: crate::Step| told.lock().unwrap().push(step.tool);
     let answer = Conversation::settling(feature())
-        .ask(&llm, docs(), "Help me settle it.", 1)
+        .ask_observed(&llm, docs(), "Help me settle it.", 1, &observer)
         .await
         .unwrap();
-    (llm, answer)
+    (llm, answer, told.into_inner().unwrap())
 }
 
 // spec: STL-18 (internal: the requests of the model are seen through the fake provider only)
 #[tokio::test]
 async fn the_last_request_of_a_settling_offers_propose_verdict_alone() {
-    let (llm, answer) = after_its_one_round(calls(
+    let (llm, answer, told) = after_its_one_round(calls(
         "Settled.",
         vec![call(
             "p1",
@@ -405,6 +414,12 @@ async fn the_last_request_of_a_settling_offers_propose_verdict_alone() {
         "{}",
         last[1].content
     );
+    assert!(
+        !last[1].content.contains(crate::LAST_ROUND),
+        "{}",
+        last[1].content
+    );
+    assert_eq!(told, ["get_feature", PROPOSE_VERDICT]);
     let proposal = answer.proposal.expect("the proposal of the last request");
     assert_eq!(proposal.status, Status::Wrong);
     assert_eq!(answer.text, "Settled.");
@@ -431,6 +446,7 @@ async fn the_last_request_of_a_settling_offers_propose_verdict_alone() {
 async fn a_refused_proposal_or_another_tool_in_the_last_request_ends_on_its_text() {
     let long = "x".repeat(MAX_COMMENT_CHARS + 1);
     let refused = format!(r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#);
+    let not_json = proposal_of(&feature(), r#"{"status":"wr"#).unwrap_err();
     for (last, expected) in [
         (
             calls(
@@ -451,25 +467,75 @@ async fn a_refused_proposal_or_another_tool_in_the_last_request_ends_on_its_text
             calls("", vec![call("p1", PROPOSE_VERDICT, &refused)]),
             &long,
         ),
+        (
+            calls("", vec![call("p1", PROPOSE_VERDICT, r#"{"status":"wr"#)]),
+            &not_json,
+        ),
     ] {
-        let (llm, answer) = after_its_one_round(last).await;
+        let (llm, answer, _) = after_its_one_round(last).await;
         assert_eq!(answer.proposal, None);
         assert_eq!(answer.text, expected);
         assert_eq!(llm.calls(), 2, "no round after the last request");
     }
 }
 
+// spec: STL-18 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_first_accepted_proposal_of_the_last_request_ends_the_question() {
+    let long = "x".repeat(MAX_COMMENT_CHARS + 1);
+    let refused = format!(r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#);
+    let accepted = r#"{"status":"wrong","comment":"The customer pays.","evidence":"e","description":"The customer pays."}"#;
+    let (_, answer, _) = after_its_one_round(calls(
+        "",
+        vec![
+            call("p1", PROPOSE_VERDICT, &refused),
+            call("p2", PROPOSE_VERDICT, accepted),
+        ],
+    ))
+    .await;
+    let proposal = answer.proposal.expect("the second call's proposal");
+    assert_eq!(proposal.comment, "The customer pays.");
+}
+
+// spec: STL-18 (internal: the requests of the model are seen through the fake provider only)
+#[tokio::test]
+async fn the_last_request_holds_a_proposal_refused_in_a_round_and_its_error() {
+    let long = "x".repeat(MAX_COMMENT_CHARS + 1);
+    let refused = format!(r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#);
+    let (llm, _, _) = after_its_round(
+        calls("", vec![call("p1", PROPOSE_VERDICT, &refused)]),
+        FakeTurn::Text("Wrong.".into()),
+    )
+    .await;
+    let last = llm.messages().pop().unwrap();
+    let asked = &last[1].content;
+    assert!(asked.contains("## Call of propose_verdict"), "{asked}");
+    assert!(asked.contains(&long), "{asked}");
+    assert!(
+        asked.contains("Error: `comment` is longer than 400 characters"),
+        "{asked}"
+    );
+    assert!(asked.ends_with(SETTLING_LAST_ROUND), "{asked}");
+    assert!(!asked.contains(crate::LAST_ROUND), "{asked}");
+}
+
 // spec: STL-5 (internal: the system prompt is seen through the fake provider only)
 #[tokio::test]
 async fn the_settling_prompt_states_the_rounds_of_the_question() {
-    let llm = FakeLlm::scripted(vec![FakeTurn::Text("Who pays?".into())]);
-    Conversation::settling(feature())
-        .ask(&llm, docs(), "Help me settle it.", 3)
-        .await
-        .unwrap();
-    let prompt = &llm.system_prompts()[0];
-    assert!(
-        prompt.contains("You have 3 rounds of tool calls"),
-        "{prompt}"
-    );
+    for (rounds, said) in [
+        (3, "You have 3 rounds of tool calls"),
+        (1, "You have 1 round of tool calls"),
+        (
+            0,
+            "You have no round of tool calls: only propose_verdict is offered",
+        ),
+    ] {
+        let llm = FakeLlm::scripted(vec![FakeTurn::Text("Who pays?".into())]);
+        Conversation::settling(feature())
+            .ask(&llm, docs(), "Help me settle it.", rounds)
+            .await
+            .unwrap();
+        let prompt = &llm.system_prompts()[0];
+        assert!(prompt.contains(said), "{prompt}");
+    }
 }

@@ -9,7 +9,8 @@ use std::sync::Arc;
 use retrodoc_docs::reviews::Section;
 use retrodoc_docs::{read_tools, Docs, Source, Warning};
 use retrodoc_llm::{
-    ChatMessage, CompletionRequest, LlmError, LlmProvider, Role, ToolCall, ToolSpec,
+    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role, ToolCall,
+    ToolSpec,
 };
 
 /// Rounds of tool calls before the agent asks for the answer without tools, unless set otherwise:
@@ -439,23 +440,13 @@ async fn answer_after(
                 ..Default::default()
             }
         } else {
-            let folded = folded(earlier, question, &called, &answer.tool_results);
-            last_request(messages[0].clone(), folded, settled.is_some())
+            let settling = settled.is_some();
+            let folded = folded(earlier, question, &called, &answer.tool_results, settling);
+            last_request(messages[0].clone(), folded, settling)
         };
         let response = llm.complete(request).await?;
         if !offer {
-            let ended = match settled {
-                Some(section) => {
-                    settle::last_answer(section, &response.tool_calls, response.content)
-                }
-                None => settle::LastAnswer::Text(response.content),
-            };
-            return Ok(match ended {
-                settle::LastAnswer::Proposed(proposal, text) => {
-                    proposed(answer, proposal, text, earlier, &docs).await
-                }
-                settle::LastAnswer::Text(text) => answered(answer, text, earlier, &docs).await,
-            });
+            return Ok(last_answered(answer, response, settled, earlier, &docs, observer).await);
         }
         if response.tool_calls.is_empty() {
             return Ok(answered(answer, response.content, earlier, &docs).await);
@@ -503,14 +494,41 @@ async fn answer_after(
     }
 }
 
+/// `answer` ended on the `response` to its last request: on the proposal of a `settled` section
+/// that response makes, told to the `observer` (STL-18), else on its text.
+async fn last_answered(
+    answer: Answer,
+    response: CompletionResponse,
+    settled: Option<&Section>,
+    earlier: &[Turn],
+    docs: &Arc<Docs>,
+    observer: Observer<'_>,
+) -> Answer {
+    let ended = match settled {
+        Some(section) => settle::last_answer(section, &response.tool_calls, response.content),
+        None => settle::LastAnswer::Text(response.content),
+    };
+    match ended {
+        settle::LastAnswer::Proposed {
+            proposal,
+            text,
+            call,
+        } => {
+            observer(Step::of(&response.tool_calls[call]));
+            proposed(answer, proposal, text, earlier, docs).await
+        }
+        settle::LastAnswer::Text(text) => answered(answer, text, earlier, docs).await,
+    }
+}
+
 /// The last request of a question (ASK-22): the `system` message and the `folded` user message,
 /// no tool, but `propose_verdict` alone in a `settling` (STL-18).
-fn last_request(system: ChatMessage, mut folded: String, settling: bool) -> CompletionRequest {
-    let mut tools = Vec::new();
-    if settling {
-        folded.push_str(settle::SETTLING_LAST_ROUND);
-        tools.push(settle::propose_verdict_spec());
-    }
+fn last_request(system: ChatMessage, folded: String, settling: bool) -> CompletionRequest {
+    let tools = if settling {
+        vec![settle::propose_verdict_spec()]
+    } else {
+        Vec::new()
+    };
     CompletionRequest {
         messages: vec![system, ChatMessage::new(Role::User, folded)],
         tools,
@@ -567,10 +585,17 @@ fn within_budget(result: String, used: &mut usize) -> String {
 }
 
 /// The one user message of the last request: the earlier turns of a conversation, the question,
-/// each call that got no error with its result as text, then the demand of the answer. No tool
-/// history, which a server may refuse in a request without tools, and no second user message in a
-/// row, which some chat templates refuse.
-fn folded(earlier: &[Turn], question: &str, calls: &[ToolCall], results: &[String]) -> String {
+/// each call that got no error with its result as text, then the demand of the answer; in a
+/// `settling`, also each call of `propose_verdict` with the error that refused it, then the demand
+/// of the verdict instead (STL-18). No tool history, which a server may refuse in a request with
+/// few or no tools, and no second user message in a row, which some chat templates refuse.
+fn folded(
+    earlier: &[Turn],
+    question: &str,
+    calls: &[ToolCall],
+    results: &[String],
+    settling: bool,
+) -> String {
     let mut text = String::new();
     if !earlier.is_empty() {
         text.push_str("The conversation so far:\n\n");
@@ -587,7 +612,9 @@ fn folded(earlier: &[Turn], question: &str, calls: &[ToolCall], results: &[Strin
     let read: Vec<_> = calls
         .iter()
         .zip(results)
-        .filter(|(_, result)| !result.starts_with("Error:"))
+        .filter(|(call, result)| {
+            !result.starts_with("Error:") || (settling && call.name == PROPOSE_VERDICT)
+        })
         .collect();
     if !read.is_empty() {
         text.push_str("Your tool calls and what they returned:\n\n");
@@ -601,7 +628,11 @@ fn folded(earlier: &[Turn], question: &str, calls: &[ToolCall], results: &[Strin
             );
         }
     }
-    text.push_str(LAST_ROUND);
+    text.push_str(if settling {
+        settle::SETTLING_LAST_ROUND
+    } else {
+        LAST_ROUND
+    });
     text
 }
 

@@ -60,7 +60,11 @@ first). The measure again needs the user's go (cents on DeepSeek).
 2. [x] Propose within the rounds: the settling prompt states `max_rounds` and asks to propose or ask before they run
    out; the last request of a settling offers `propose_verdict` alone, a valid call ends on the proposal, a refused
    one or another tool on the text; verified by agent tests with the fake provider; makes true STL-5, STL-18. (autonomous)
-3. [ ] Measure again (paid, cents, after the user's go): same copy and three sections as the ledger's line of
+3. [x] Fixes of the `high` review of the issue: the last request of a settling ends on the demand of the verdict
+   alone, keeps the proposals refused in a round with their errors, takes the first accepted proposal and tells
+   the observer of it, a blank text falls back to the refused comment then its error; the rounds sentence for 0 and
+   1 round; ASK-6 and the STL-19 scenario amended; verified by agent tests; makes true STL-5, STL-18. (autonomous)
+4. [ ] Measure again (paid, cents, after the user's go): same copy and three sections as the ledger's line of
    `e4334139`, usage and tool lines read from the `ui` log; findings section 4 item 5 and the ledger updated.
 
 ## Decisions
@@ -106,4 +110,27 @@ Code review: 1 finding
 - `lib.rs`: a proposal refused in the last request, its message text blank, ended on an empty answer: fixed, the
   answer is then the comment of the refused call (STL-18 amended, test extended).
 not verified: what DeepSeek does with the last request (deliverable 3).
+decisions needed: none
+
+## Deliverable 3
+done: the fixes of the 8 findings of the `high` review (`e6d85b20..8e88b7e2`).
+
+| check | result |
+|---|---|
+| tests | pass (`retrodoc-agent`, workspace) |
+| lint | pass |
+| specs | pass (STL-18 amended, ASK-6 names the exception, spec `accepted`) |
+| docs | `docs/crates/agent.md` |
+| code review | see below |
+
+red: STL-5, STL-18: the observer not told the last proposal (`left: ["get_feature"]`), the folded message ending on
+the demand of the answer, the refused proposal of a round left out, the second accepted call ignored, "1 rounds"
+and "0 rounds" in the prompt.
+Findings of the `high` review, all fixed: no step told for a last proposal; two demands in the last message; a
+proposal refused in a round dropped from the last request; ASK-6 and the agent docs saying no tool; only the first
+call of `propose_verdict` checked; a blank answer for arguments that are not JSON (now their error); "1 rounds" and
+"0 rounds"; the STL-19 scenario naming a use case while its test settles a feature (scenario reworded).
+Kept as is: the last request is not counted as a round in STL-17 (a round holds tool calls answered).
+Code review: no findings
+not verified: what DeepSeek does with the last request (deliverable 4).
 decisions needed: none

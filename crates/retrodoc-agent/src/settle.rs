@@ -30,10 +30,17 @@ could not be settled.";
 /// The longest comment of a proposal, in characters: the evidence goes apart (STL-13).
 pub const MAX_COMMENT_CHARS: usize = 400;
 
-/// The last request of a settling question offers `propose_verdict` alone (STL-18).
-pub(crate) const SETTLING_LAST_ROUND: &str = " You can call no other tool now: if the section is \
-settled, call propose_verdict; otherwise say what is left to settle and ask the reader your \
-questions.";
+/// The demand that ends the last request of a settling question, which offers `propose_verdict`
+/// alone (STL-18).
+pub(crate) const SETTLING_LAST_ROUND: &str = "You have used all your rounds of tool calls: \
+propose_verdict is the only tool left. If the section is settled, call propose_verdict now, \
+correcting the call if an earlier one was refused; otherwise say what is left to settle and ask \
+the reader your questions.";
+
+/// The sentence of the settling prompt on the rounds of a question, `{rounds}` their number.
+const ROUNDS_LEFT: &str = "You have {rounds} of tool calls for each message of the reader: spend \
+them on what settles the section, and call propose_verdict, or ask your questions, before they \
+run out; after the last round only propose_verdict is left.";
 
 /// The settling system prompt for `section`, whose questions have `max_rounds` rounds of tool calls
 /// (STL-5): it names the section, which the later turns of the conversation, trimmed to its memory,
@@ -44,12 +51,14 @@ pub(crate) fn settling_prompt(section: &Section, max_rounds: usize) -> String {
         SectionKind::Feature => "get_feature",
         SectionKind::UseCase => "get_use_case",
     };
+    let rounds = match max_rounds {
+        0 => "You have no round of tool calls: only propose_verdict is offered.".to_string(),
+        1 => ROUNDS_LEFT.replace("{rounds}", "1 round"),
+        n => ROUNDS_LEFT.replace("{rounds}", &format!("{n} rounds")),
+    };
     format!(
-        "{SETTLING_PROMPT} You have {max_rounds} rounds of tool calls for each message of the \
-         reader: spend them on what settles the section, and call propose_verdict, or ask your \
-         questions, before they run out; after the last round only propose_verdict is left. The \
-         section being settled is the {} `{}`: read it again with {tool} when the conversation no \
-         longer shows it.",
+        "{SETTLING_PROMPT} {rounds} The section being settled is the {} `{}`: read it again with \
+         {tool} when the conversation no longer shows it.",
         kind_name(section.kind),
         section.id
     )
@@ -263,29 +272,50 @@ pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal
 
 /// What the last request of a settling question ended on (STL-18).
 pub(crate) enum LastAnswer {
-    /// A proposal the table accepts, with the text of the message that made it.
-    Proposed(Proposal, String),
+    /// A proposal the table accepts, with the text of the message that made it and the index of
+    /// its call.
+    Proposed {
+        proposal: Proposal,
+        text: String,
+        call: usize,
+    },
     /// No proposal: the text of the message.
     Text(String),
 }
 
 /// What the last request of the settling of `section` ended on, its message holding `calls` and
-/// `text`: the proposal of its first call of `propose_verdict` if the table accepts it, no round
-/// following to correct it; else the text, blank replaced by the comment of a refused call.
+/// `text`: the proposal of its first call of `propose_verdict` the table accepts, no round
+/// following to correct a refused one; else the text, blank replaced by the comment of the first
+/// refused call, else by its error.
 pub(crate) fn last_answer(section: &Section, calls: &[ToolCall], text: String) -> LastAnswer {
-    let Some(call) = calls.iter().find(|call| call.name == PROPOSE_VERDICT) else {
-        return LastAnswer::Text(text);
-    };
-    if let Ok(proposal) = proposal_of(section, &call.arguments) {
-        return LastAnswer::Proposed(proposal, text);
+    let mut refused = None;
+    for (index, call) in calls.iter().enumerate() {
+        if call.name != PROPOSE_VERDICT {
+            continue;
+        }
+        match proposal_of(section, &call.arguments) {
+            Ok(proposal) => {
+                return LastAnswer::Proposed {
+                    proposal,
+                    text,
+                    call: index,
+                }
+            }
+            Err(error) => {
+                refused.get_or_insert((call, error));
+            }
+        }
     }
-    if !text.trim().is_empty() {
-        return LastAnswer::Text(text);
+    match refused {
+        Some((call, error)) if text.trim().is_empty() => {
+            let comment = serde_json::from_str::<Value>(&call.arguments)
+                .ok()
+                .and_then(|arguments| Some(arguments.get("comment")?.as_str()?.trim().to_string()))
+                .filter(|comment| !comment.is_empty());
+            LastAnswer::Text(comment.unwrap_or(error))
+        }
+        _ => LastAnswer::Text(text),
     }
-    let comment = serde_json::from_str::<Value>(&call.arguments)
-        .ok()
-        .and_then(|arguments| Some(arguments.get("comment")?.as_str()?.trim().to_string()));
-    LastAnswer::Text(comment.unwrap_or(text))
 }
 
 #[cfg(test)]

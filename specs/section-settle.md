@@ -91,9 +91,12 @@ and ends on a proposed review and correction that the reader puts in the form an
   proposes or `none`, then the same calls and tokens summed over the settling, counted as WAK-36 counts them; also
   when its session was reset or dropped meanwhile. The rounds of a question that failed are its calls answered.
 - **STL-18** (deterministic) The last request of a settling question (ASK-6, ASK-22) must offer the tool
-  `propose_verdict` alone, unlike the last request of a question no settling started; a call of it that the table
-  of STL-13 accepts ends the question with its proposal as STL-14 says; a call it refuses, or of another tool, ends
-  the question on the text of that message, with no proposal, that text blank on the `comment` of the refused call.
+  `propose_verdict` alone, unlike the last request of a question no settling started, with a user message that ends
+  on the demand of the verdict instead of the demand of the answer and holds each earlier call of `propose_verdict`
+  with the error that refused it. The first call of that request that the table of STL-13 accepts ends the
+  question with its proposal as STL-14 says, its call told to the observer (ASK-25); with none, the question ends
+  on the text of that message, with no proposal, that text blank on the `comment` of the first refused call of
+  `propose_verdict`, else on its error.
 - **STL-19** (deterministic) Each question of a settling conversation that ended must write, after its line of
   STL-17, one line to the log of `ui` (stdout) naming the kind and id of the section, the number of the question in
   its settling and each tool call of the question in order, its tool and what it reads (ASK-25), or `none`.
@@ -137,14 +140,20 @@ and ends on a proposed review and correction that the reader puts in the form an
 - (STL-16) Given the exchange 2 proposing for the feature `orders/list-orders`, when the page of `orders/pay` is
   asked with `?proposal=2`, then its form is as without it.
 - (STL-18) Given a settling question that used its rounds, when the model calls `propose_verdict` in the last
-  request, then the question ends with that proposal; when it calls it with a comment of 401 characters, or calls
-  `read_source`, then the question ends on the text of that message with no proposal, on the comment of 401
-  characters when that text is blank.
+  request, then the question ends with that proposal and the observer is told the call; when it calls it with a
+  comment of 401 characters, or calls `read_source`, then the question ends on the text of that message with no
+  proposal, on the comment of 401 characters when that text is blank, on the error of arguments that are not JSON
+  when they are not.
+- (STL-18) Given a last request whose first call of `propose_verdict` is refused and whose second is accepted, then
+  the question ends with the second.
+- (STL-18) Given a call of `propose_verdict` refused in the last round, then the last request holds that call and its
+  error, and ends on the demand of the verdict, not on the demand of the answer of ASK-6.
 - (STL-18) Given a question of a conversation no settling started that used its rounds, then its last request offers
   no tool.
-- (STL-5) Given `--max-rounds 3`, then the system prompt of a settling question states 3 rounds.
-- (STL-19) Given a settling question that read the use case then a file, then its line names `get_use_case` with
-  the use case's id then `read_source` with the file's path; one with no tool call names `none`.
+- (STL-5) Given `--max-rounds 3`, then the system prompt of a settling question states 3 rounds; given 1, one
+  round; given 0, that only `propose_verdict` is offered.
+- (STL-19) Given a settling question that read the feature then a file, then its line names `get_feature` with
+  the feature's id then `read_source` with the file's path; one with no tool call names `none`.
 - (STL-12) Given a session with no exchange, then the button asks no confirmation; given one with an exchange, it
   asks one.
 - (STL-3) Given a settled session, when the reader resets it, then the page no longer names the section.

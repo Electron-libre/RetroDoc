@@ -23,8 +23,9 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - **ASK-4** (deterministic) A tool call must be answered with a tool result naming the error, not fail the question,
   when its tool is unknown or its arguments are not a JSON object the tool accepts.
 - **ASK-5** (deterministic) The text of the answer must be the text of the first model answer that holds no tool call.
-- **ASK-6** (deterministic) The agent must make one last request offering no tool, asking the model to answer from
-  what it read, after `max_rounds` answers holding tool calls (8 unless `--max-rounds` sets it).
+- **ASK-6** (deterministic) The agent must make one last request offering no tool (but `propose_verdict` in a
+  settling, STL-18), asking the model to answer from what it read, after `max_rounds` answers holding tool calls (8
+  unless `--max-rounds` sets it).
 - **ASK-7** (deterministic) The sources of an answer must be the domains, features, use cases and files its text
   names in a code span whose full id or path a tool result of the same question held, each with its kind.
 - **ASK-8** (deterministic) A name of the text that no tool result of the question held must not be listed as a

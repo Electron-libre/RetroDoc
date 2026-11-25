@@ -10,7 +10,8 @@ of the system prompt that names them, and answers a call to a tool not offered w
 answer. The tool results of a question are bounded so they fit the context of a local model: the calls of a round past
 `MAX_CALLS_PER_ROUND` (6) and a result that would bring the results past `MAX_RESULT_CHARS` (40000 characters,
 errors left out) are answered with an error telling the model to narrow down or answer (ASK-23, ASK-24).
-After `max_rounds` rounds of calls (`DEFAULT_MAX_ROUNDS`, 8) one last request offers no tool and asks for the
+After `max_rounds` rounds of calls (`DEFAULT_MAX_ROUNDS`, 8) one last request offers no tool (`propose_verdict` alone in
+a settling, below) and asks for the
 answer from what was read; it sends the system prompt and one user message, the question then each call that got
 no error with its result as text, so no server refuses a tool history without tools nor two user messages in a row
 (ASK-22). `Answer` holds its text, the tool results of the question, the rounds and its sources:
@@ -43,9 +44,11 @@ edit) then the contradictions of the project's docs the caller gives as `Disagre
 questions goes with the system prompt of `ask` and a paragraph of verification that names the section
 (`settle::settling_prompt`, so a turn trimmed from the memory does not lose it) and states its `max_rounds`,
 asking to propose or ask before they run out, and offers one more tool, `propose_verdict` (STL-5, STL-6); the last
-request of a question offers `propose_verdict` alone (`last_request`, `SETTLING_LAST_ROUND`): a valid call ends the
-question on its proposal, a refused one or another tool on the text of the message, blank replaced by the comment
-of the refused call, no round following (`settle::last_answer`, STL-18). The paragraph and the tool ask a short comment for a reader who is not a developer, the
+request of a question offers `propose_verdict` alone (`last_request`, `SETTLING_LAST_ROUND`): its user message ends on the demand of
+the verdict and keeps the calls of `propose_verdict` refused in a round with their errors (`folded`); the first call
+the table accepts ends the question on its proposal, told to the observer, else the question ends on the text of the
+message, blank replaced by the comment of the first refused call, else by its error, no round following
+(`settle::last_answer`, STL-18). The paragraph and the tool ask a short comment for a reader who is not a developer, the
 evidence (files, commits, the reader's answers) apart, and say which status fits. A call of it whose arguments are
 refused (a status other than the three of a review, no comment, a comment over `MAX_COMMENT_CHARS` (400 characters),
 no evidence, `validated` with a corrected field, a narrative for a domain or a feature) gets the error as its result
