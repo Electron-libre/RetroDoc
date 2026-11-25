@@ -39,7 +39,7 @@ Read by someone taking an application over
 # Tracking
 
 Done: the five deliverables; the follow-up of the high review in
-`issues/keep_the_outdated_mark_of_untouched_edited_fields.md`.
+`issues/done/keep_the_outdated_mark_of_untouched_edited_fields.md`.
 
 Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-24
 
@@ -170,7 +170,7 @@ scope: in-place editing on the page (candidate 2), the steps, rules and glossary
   2. the revert button stayed enabled while a save runs: fixed, `hx-disabled-elt="#review button"`.
   3. the preview of a narrative cleared the page error (`forms.js` matched `/preview` exactly): fixed.
   4. an outdated edit is recorded again, its untouched stale fields included, no longer outdated: pre-existing,
-     outside the requirements, filed as `issues/keep_the_outdated_mark_of_untouched_edited_fields.md`.
+     outside the requirements, filed as `issues/done/keep_the_outdated_mark_of_untouched_edited_fields.md`.
   5. a refused save that sent no text answered empty fields: fixed, the text shown fills them.
   6. a name with a line break, which an `<input>` drops, made a review alone write an edit: fixed, the name compared
      without its line breaks.
