@@ -404,6 +404,18 @@ Steps, each shippable:
      only; `ui` logs none of them, and the session is gone with the server.
    - Lesson: the settling finds the evidence, but speaks to a developer. A proposal a reader can judge needs a short
      comment in the reader's words, its evidence behind it, and a status consistent with what it says.
+   - Measured again (2026-11-25, at `e4334139`, after `issues/done/settling_proposal_in_the_readers_words.md`, same
+     copy without `generate`, same model, same reader, three sections: the domain, the use case and a validated
+     feature). About $0.04: 31 calls, 199k tokens in (146k cached), 10.6k out, read from the usage lines of `ui`.
+   - Each first question used its 8 rounds (19 to 20 tool calls, 9 calls, 57k to 64k tokens in) without a proposal:
+     the last request offers no tool. The domain ended there, on a correction in the text that the reader typed into
+     the form. The use case and the feature proposed `wrong` at their second question (1 and 3 rounds), each with a
+     comment of about 380 characters in business words and its corrected text, which filled the form as proposed.
+   - The reader saved both as `validated`, after the correction: to them the status judges the section as saved,
+     not as generated. The status the tool now enforces (`wrong` when it corrects) is the reverse; the 2,900-character
+     domain of the first measure was the same choice of the reader.
+   - Lesson: the comment is now one a reader judges; the rounds of a first question are spent checking before the
+     agent proposes, and what a status means once the section is corrected is still to settle.
 
 ## 5. Smaller open items
 
