@@ -64,8 +64,8 @@ first). The measure again needs the user's go (cents on DeepSeek).
    alone, keeps the proposals refused in a round with their errors, takes the first accepted proposal and tells
    the observer of it, a blank text falls back to the refused comment then its error; the rounds sentence for 0 and
    1 round; ASK-6 and the STL-19 scenario amended; verified by agent tests; makes true STL-5, STL-18. (autonomous)
-4. [ ] Measure again (paid, cents, after the user's go): same copy and three sections as the ledger's line of
-   `e4334139`, usage and tool lines read from the `ui` log; findings section 4 item 5 and the ledger updated.
+4. [x] Measure again (paid, cents, after the user's go): same copy and three sections as the ledger's line of
+   `e4334139`, usage and tool lines read from the `ui` log; findings section 4 item 5 and the ledger updated. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -134,3 +134,23 @@ Kept as is: the last request is not counted as a round in STL-17 (a round holds 
 Code review: no findings
 not verified: what DeepSeek does with the last request (deliverable 4).
 decisions needed: none
+
+## Deliverable 4
+done: the third settling measure (2026-11-26, `e3ae1a41`, ~$0.03), in `docs/findings.md` section 4 item 5 and the
+measures ledger; the copy kept as `settling_proposes_within_its_first_question-e3ae1a41-1/`.
+
+| check | result |
+|---|---|
+| tests | n/a (docs only) |
+| specs | n/a |
+| docs | `docs/findings.md` |
+| code review | see below |
+
+red: none
+Follow-up for the user: the refusals of `propose_verdict` (1, 1 and 4 before an accepted call) are where rounds go
+now, and their reason is not logged.
+Code review: no findings
+not verified: why `propose_verdict` was refused (not logged).
+decisions needed: whether to open an issue on the refusals of `propose_verdict`.
+
+All deliverables done.

@@ -416,6 +416,24 @@ Steps, each shippable:
      domain of the first measure was the same choice of the reader.
    - Lesson: the comment is now one a reader judges; the rounds of a first question are spent checking before the
      agent proposes, and what a status means once the section is corrected is still to settle.
+   - Measured a third time (2026-11-26, at `e3ae1a41`, after `issues/settling_proposes_within_its_first_question.md`:
+     the prompt states the rounds, the last request offers `propose_verdict` alone; same copy, model, reader and
+     sections). About $0.03: 24 calls, 135k tokens in (103k cached), 8.5k out, with the tool calls of each question
+     now in the `ui` log.
+   - The rounds of a first question go to the section, its neighbours in the docs and the files of the code, about
+     once each (`read_source` 5 to 6 files, `git_log` once); no file was read twice.
+   - The domain and the use case stopped on their own, under the budget (5 and 4 rounds, 11 to 12 tool calls,
+     24k to 34k tokens in), with no proposal, and proposed at their second question (`wrong`, `validated`). The
+     feature used its 8 rounds and proposed `to_review` in the last request: no first question ended on a text
+     correction.
+   - `propose_verdict` was refused before it was accepted in each of the three settlings: once at each second
+     question, four times in the first question of the feature, which spent four of its rounds on them. The log
+     does not say why (the comment over 400 characters, or `validated` with a corrected field, are the refusals
+     the prompt warns of).
+   - The reader saved the domain `validated` with the description the agent proposed `wrong`, and the use case and
+     the feature as proposed.
+   - Lesson: the first question now ends on a proposal or stops before the budget; the refusals of `propose_verdict`
+     are where rounds are lost now, and their reason is not measured.
 
 ## 5. Smaller open items
 
