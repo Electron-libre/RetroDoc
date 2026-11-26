@@ -6,6 +6,7 @@ use std::time::Duration;
 use super::judge::{Judgement, Unaudited, Unjudged};
 use super::matching::{Comparison, Score};
 use super::metrics::RunMetrics;
+use super::narratives::BatchRating;
 use retrodoc_core::text::format_duration;
 
 /// `Some(0.5)` → `50%`, `None` → `n/a`.
@@ -136,24 +137,45 @@ pub fn summary(
             );
         }
         for (n, batch) in rating.batches.iter().enumerate() {
-            let _ = writeln!(
-                out,
-                "  batch {}: {} of {} rated, {} in business language",
-                n + 1,
-                batch.rated,
-                batch.narratives,
-                batch.business
-            );
+            let _ = writeln!(out, "  batch {}: {}", n + 1, batch_line(batch));
         }
     }
     out
+}
+
+/// The rating of a batch of narratives, with each of its ratings when it was rated again (BNR-8).
+fn batch_line(batch: &BatchRating) -> String {
+    let mut line = format!(
+        "{} of {} rated, {} in business language",
+        batch.rated, batch.narratives, batch.business
+    );
+    if !batch.ratings.is_empty() {
+        let each: Vec<String> = batch
+            .ratings
+            .iter()
+            .map(|v| {
+                if v.rated == 0 {
+                    "no verdict".to_string()
+                } else {
+                    v.business.to_string()
+                }
+            })
+            .collect();
+        let _ = write!(
+            line,
+            " (rated {} times: {}; the middle one kept)",
+            batch.ratings.len(),
+            each.join(", ")
+        );
+    }
+    line
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::benchmark::metrics::Cost;
-    use crate::benchmark::narratives::{rate_narratives, NarrativeRating};
+    use crate::benchmark::narratives::{rate_narratives, BatchRating, NarrativeRating, Verdicts};
     use crate::testing::FakeLlm;
 
     fn score(
@@ -362,6 +384,58 @@ mod tests {
         );
         assert!(
             text.contains("  batch 2: 1 of 5 rated, 1 in business language"),
+            "{text}"
+        );
+    }
+
+    // spec: BNR-H3, BNR-8 (internal: the binary would need an LLM judge and a generated run)
+    #[test]
+    fn prints_each_rating_of_a_batch_rated_again() {
+        let comparison = Comparison {
+            domains: score(Some(1.0), Some(1.0), &[], &[]),
+            features: score(Some(1.0), Some(1.0), &[], &[]),
+        };
+        let verdicts = |business| Verdicts {
+            rated: 20,
+            business,
+        };
+        let judgement = Judgement {
+            narratives: NarrativeRating {
+                total: 40,
+                rated: 40,
+                business: 34,
+                batches: vec![
+                    BatchRating {
+                        narratives: 20,
+                        rated: 20,
+                        business: 19,
+                        ..BatchRating::default()
+                    },
+                    BatchRating {
+                        narratives: 20,
+                        rated: 20,
+                        business: 15,
+                        ratings: vec![verdicts(0), verdicts(17), verdicts(15)],
+                    },
+                ],
+            },
+            ..Judgement::default()
+        };
+
+        let text = summary(
+            &metrics(None),
+            &comparison,
+            Some((&comparison, &judgement, Unaudited::default())),
+        );
+
+        assert!(
+            text.contains("  batch 1: 20 of 20 rated, 19 in business language\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "  batch 2: 20 of 20 rated, 15 in business language (rated 3 times: 0, 17, 15; the middle one kept)"
+            ),
             "{text}"
         );
     }

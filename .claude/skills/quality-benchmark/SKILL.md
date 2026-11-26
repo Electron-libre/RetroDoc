@@ -105,7 +105,9 @@ a later run generates. The figures are therefore read like this:
   of the judge's row and named under the series (`specs/benchmark-narrative-rating.md`): rate it again
   (`retrodoc benchmark --judge`: the whole judge again, its pairs included, about 8 calls on 70 use cases)
   before reading it; `retrodoc benchmark` prints the
-  rating of each batch of 20 to tell a bad batch from a bad rating.
+  rating of each batch of 20 to tell a bad batch from a bad rating. A batch more than 50 points below the
+  median of the others is rated twice more and keeps its middle rating, the batch line showing each of them
+  (BNR-6): two calls more per such batch (2 to 3 on Lobsters, whose last batches are technical use cases).
 - **no suffix** (strict): the hand-written pairs and equal names only. An audited floor, which rises as
   verified pairs are added to `matches.yaml`.
 - A change smaller than the range between runs is noise, not progress. One run is a sample, not a

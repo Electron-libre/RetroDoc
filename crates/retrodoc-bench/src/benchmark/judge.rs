@@ -534,7 +534,7 @@ fn except(items: &[Item], names: &[String]) -> Vec<Item> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::benchmark::narratives::BatchRating;
+    use crate::benchmark::narratives::{BatchRating, Verdicts};
     use crate::testing::FakeLlm;
 
     fn item(name: &str, description: &str) -> Item {
@@ -850,7 +850,7 @@ mod tests {
         assert_eq!(pairs, []);
     }
 
-    // spec: BNR-4, BNR-H1 (internal: the file is written and read back in a temporary directory)
+    // spec: BNR-4, BNR-9, BNR-H1 (internal: the file is written and read back in a temporary directory)
     #[test]
     fn the_batches_of_the_narratives_are_saved_in_judge_yaml() {
         let dir = tempfile::tempdir().unwrap();
@@ -858,13 +858,33 @@ mod tests {
             narratives,
             rated,
             business,
+            ..BatchRating::default()
         };
         let judgement = Judgement {
             narratives: NarrativeRating {
                 total: 25,
                 rated: 24,
                 business: 20,
-                batches: vec![batch(20, 19, 16), batch(5, 5, 4)],
+                batches: vec![
+                    BatchRating {
+                        ratings: vec![
+                            Verdicts {
+                                rated: 20,
+                                business: 0,
+                            },
+                            Verdicts {
+                                rated: 19,
+                                business: 16,
+                            },
+                            Verdicts {
+                                rated: 20,
+                                business: 17,
+                            },
+                        ],
+                        ..batch(20, 19, 16)
+                    },
+                    batch(5, 5, 4),
+                ],
             },
             ..Judgement::default()
         };
@@ -1020,7 +1040,8 @@ mod tests {
                 batches: vec![BatchRating {
                     narratives: 1,
                     rated: 1,
-                    business: 1
+                    business: 1,
+                    ..BatchRating::default()
                 }],
             }
         );

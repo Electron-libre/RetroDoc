@@ -1,6 +1,6 @@
 ---
 id: BNR
-status: draft
+status: accepted
 adrs: []
 ---
 
