@@ -66,7 +66,7 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
 5. [x] The limit of the comment goes from 400 to 600 characters (`MAX_COMMENT_CHARS`, the prompt, the schema, the
    error); verified by the agent tests of STL-13 at 600 and 601; makes true STL-13 (amended). Commits the measure
    of deliverable 4. (autonomous)
-6. [ ] Measure again on a fresh copy, after the user's go; recorded in `docs/findings.md` and the ledger.
+6. [x] Measure again on a fresh copy, after the user's go; recorded in `docs/findings.md` and the ledger. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -127,3 +127,12 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
 - Code review: no findings
 - not verified: the comments of a real settling under 600 characters (deliverable 6).
 - decisions needed: none.
+
+## Deliverable 6: summary
+- done: the sixth measure (`89c30067`, ~$0.02): `propose_verdict` accepted at the first call in 2 settlings of 3,
+  each settling proposed within its budget; recorded in `docs/findings.md` and the ledger.
+- red: none (a measure).
+- Code review: no findings
+- not verified: none.
+- follow-up: the comments saved grow to the limit (516 to 598 characters); a shorter comment is a matter of the
+  prompt, left out of this issue.

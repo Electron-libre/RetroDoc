@@ -458,6 +458,17 @@ Steps, each shippable:
      change: the model writes 400 to 500 characters whatever the schema says.
    - Lesson: the limit of 400 characters is where the proposals are lost now, and a refusal in the last request
      loses the whole settling question.
+   - Measured a sixth time (2026-11-26, at `89c30067`, the comment allowed 600 characters; same copy, model, reader
+     and sections). About $0.02: 23 calls, 123k tokens in (102k cached), 6.5k out.
+   - Each settling proposed `validated` within its budget, saved as proposed: the use case at its first question
+     (5 rounds), the domain and the feature at their second, after a first question that stopped with a question
+     (7 and 4 rounds). No question used its 8 rounds.
+   - `propose_verdict` was accepted at the first call in two settlings of three (the use case, the feature); the
+     domain was refused twice, comments of 814 and 655 characters, then accepted.
+   - The comments saved are longer than before: 516 to 598 characters, against 400 at most. The model writes up to
+     the limit it is given, a little past it.
+   - Lesson: the proposals are now accepted at the first call in most settlings; the length of the comment follows
+     the limit, so a shorter comment is a matter of the prompt, not of the limit.
 
 ## 5. Smaller open items
 
