@@ -27,7 +27,7 @@ pub use frozen::{FrozenInputs, Manifest, ReplayPass};
 pub use judge::{judge, second_calls, Judgement, SecondCall, Unaudited, Unjudged};
 pub use matching::{compare, Comparison, Matches, Pair, Rejected, Score, SCORING_VERSION};
 pub use metrics::{Cost, RunMetrics};
-pub use narratives::{rate_narratives, NarrativeRating};
+pub use narratives::{rate_narratives, BatchRating, NarrativeRating};
 pub use questions::{check_questions, Question, QuestionKind, QuestionSet};
 pub use reference::{
     Checked, Evidence, EvidenceKind, Reference, ReferenceDomain, ReferenceFeature,

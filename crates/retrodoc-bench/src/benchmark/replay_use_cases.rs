@@ -240,7 +240,8 @@ pub fn use_case_table(title: &str, runs: &[UseCaseFigures]) -> String {
     let mut out = format!(
         "## {title}\n\n| Run | Use cases | With narrative | Business language, judge | Score (mean) | Score = 1 | Steps | Cited | Checks pass | Calls | Prompt tokens | Completion tokens | Seconds |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n"
     );
-    let judge_share = |r: &UseCaseFigures| r.judged.and_then(|j| j.business_share());
+    let judge_share =
+        |r: &UseCaseFigures| r.judged.as_ref().and_then(NarrativeRating::business_share);
     let cited_share = |r: &UseCaseFigures| share(r.steps_cited, r.steps);
     let passing_share = |r: &UseCaseFigures| share(r.steps_passing, r.steps);
     for (n, run) in runs.iter().enumerate() {
@@ -363,7 +364,7 @@ mod tests {
         assert_eq!(figures.features, 1);
         assert_eq!(figures.use_cases, 1);
         assert_eq!(figures.with_narrative, 1);
-        assert_eq!(figures.judged.unwrap().business, 1);
+        assert_eq!(figures.judged.as_ref().unwrap().business, 1);
         assert!(figures.mean_score.is_some());
         assert_eq!(
             (figures.steps, figures.steps_cited, figures.steps_passing),

@@ -534,6 +534,7 @@ fn except(items: &[Item], names: &[String]) -> Vec<Item> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::benchmark::narratives::BatchRating;
     use crate::testing::FakeLlm;
 
     fn item(name: &str, description: &str) -> Item {
@@ -991,7 +992,12 @@ mod tests {
             NarrativeRating {
                 total: 1,
                 rated: 1,
-                business: 1
+                business: 1,
+                batches: vec![BatchRating {
+                    narratives: 1,
+                    rated: 1,
+                    business: 1
+                }],
             }
         );
         assert_eq!(llm.calls(), 3);

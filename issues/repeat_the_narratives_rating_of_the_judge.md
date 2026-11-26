@@ -44,9 +44,9 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
 1. [x] Move the rating of the narratives (`NarrativeRating`, `rate_narratives`, its prompt and tests) out of
    `judge.rs` (1,460 lines) into `benchmark/narratives.rs`, no change of behaviour; verified by the existing tests;
    makes room for the next two (~300 lines). (autonomous)
-2. [ ] Batches kept and printed: `judge.yaml` and the run report keep each batch's counts, `benchmark` prints them;
+2. [x] Batches kept and printed: `judge.yaml` and the run report keep each batch's counts, `benchmark` prints them;
    verified by tests of the rating, the load of an old `judge.yaml` and the summary; makes true BNR-1, BNR-4, BNR-H1
-   (~250 lines).
+   (~250 lines). (autonomous)
 3. [ ] Off rating marked: the summary marks and warns of a share more than 25 points off the self-rated score, the
    table leaves those runs out of the judge's narratives row with a note, computed from the saved figures; verified
    by summary and table tests, one on a report saved before the batches; makes true BNR-2, BNR-3, BNR-5, BNR-H2;
@@ -69,4 +69,12 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
   `benchmark`; no change of behaviour; spec draft `benchmark-narrative-rating` committed with it.
 - checks: tests pass, clippy clean, specs check pass, docs (`docs/crates/bench.md`) updated.
 - red: none (a move, the existing tests unchanged).
+- Code review: no findings
+
+## Deliverable 2
+- done: `NarrativeRating` keeps a `BatchRating` per batch (narratives sent, rated, business), saved in `judge.yaml`
+  and the run report (absent from an old file, which loads with none); `retrodoc benchmark` prints a line per batch
+  under the judge's figure.
+- checks: tests pass, clippy clean, specs check pass, docs (`docs/crates/bench.md`) updated.
+- red: BNR-4, BNR-1, BNR-H1: `cannot find struct BatchRating`, `NarrativeRating has no field named batches`.
 - Code review: no findings

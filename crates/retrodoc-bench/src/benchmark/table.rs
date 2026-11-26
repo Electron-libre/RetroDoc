@@ -375,7 +375,11 @@ const FIGURES: &[Figure] = &[
         label: "Narratives in business language (judge)",
         kind: Kind::Percent,
         scored: true,
-        value: |r| r.narratives.and_then(|n| share(n.business_share())),
+        value: |r| {
+            r.narratives
+                .as_ref()
+                .and_then(|n| share(n.business_share()))
+        },
     },
     Figure {
         label: "Business-language score",
@@ -499,6 +503,7 @@ mod tests {
                 total: 10,
                 rated: 10,
                 business: 9,
+                ..NarrativeRating::default()
             }),
             strict,
             unjudged: Unjudged::default(),

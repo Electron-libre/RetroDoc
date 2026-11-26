@@ -115,7 +115,7 @@ pub fn summary(
                 );
             }
         }
-        let rating = judgement.narratives;
+        let rating = &judgement.narratives;
         let _ = writeln!(
             out,
             "Narratives in business language, by the judge: {} ({} of {} rated, {} use case(s) with a narrative)",
@@ -124,6 +124,16 @@ pub fn summary(
             rating.rated,
             rating.total
         );
+        for (n, batch) in rating.batches.iter().enumerate() {
+            let _ = writeln!(
+                out,
+                "  batch {}: {} of {} rated, {} in business language",
+                n + 1,
+                batch.rated,
+                batch.narratives,
+                batch.business
+            );
+        }
     }
     out
 }
@@ -132,7 +142,8 @@ pub fn summary(
 mod tests {
     use super::*;
     use crate::benchmark::metrics::Cost;
-    use crate::benchmark::narratives::NarrativeRating;
+    use crate::benchmark::narratives::{rate_narratives, NarrativeRating};
+    use crate::testing::FakeLlm;
 
     fn score(
         recall: Option<f32>,
@@ -287,6 +298,7 @@ mod tests {
                 total: 12,
                 rated: 10,
                 business: 9,
+                ..NarrativeRating::default()
             },
             ..Judgement::default()
         };
@@ -304,5 +316,42 @@ mod tests {
             "{text}"
         );
         assert!(text.contains("Narratives in business language, by the judge: 90% (9 of 10 rated, 12 use case(s) with a narrative)"), "{text}");
+    }
+
+    // spec: BNR-H1, BNR-1 (internal: the binary would need an LLM judge and a generated run)
+    #[tokio::test]
+    async fn prints_the_rating_of_each_batch() {
+        let llm = FakeLlm::sequence(&[
+            r#"{"ratings":[{"id":1,"business":true},{"id":2,"business":false}]}"#,
+            r#"{"ratings":[{"id":1,"business":true}]}"#,
+        ]);
+        let narratives: Vec<String> = (0..25).map(|i| format!("narrative {i}")).collect();
+        let comparison = Comparison {
+            domains: score(Some(1.0), Some(1.0), &[], &[]),
+            features: score(Some(1.0), Some(1.0), &[], &[]),
+        };
+        let judgement = Judgement {
+            narratives: rate_narratives(&llm, &narratives).await.unwrap(),
+            ..Judgement::default()
+        };
+
+        let text = summary(
+            &metrics(None),
+            &comparison,
+            Some((&comparison, &judgement, Unaudited::default())),
+        );
+
+        assert!(
+            text.contains("by the judge: 67% (2 of 3 rated, 25 use case(s) with a narrative)"),
+            "{text}"
+        );
+        assert!(
+            text.contains("  batch 1: 2 of 20 rated, 1 in business language"),
+            "{text}"
+        );
+        assert!(
+            text.contains("  batch 2: 1 of 5 rated, 1 in business language"),
+            "{text}"
+        );
     }
 }

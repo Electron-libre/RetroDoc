@@ -11,12 +11,25 @@ use crate::response::complete_json;
 use crate::text::truncate_chars;
 
 /// How many narratives of the use cases the judge reads, out of how many there are.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NarrativeRating {
     pub total: usize,
     /// Narratives the judge gave a verdict on.
     pub rated: usize,
     /// Of those, the ones it found written in business language.
+    pub business: usize,
+    /// The rating of each batch, in the order they were sent; empty in a file saved before they
+    /// were kept.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub batches: Vec<BatchRating>,
+}
+
+/// The rating of one batch of narratives: a batch whose answer gave no usable verdict has none rated.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BatchRating {
+    /// Narratives sent in the batch.
+    pub narratives: usize,
+    pub rated: usize,
     pub business: usize,
 }
 
@@ -33,8 +46,8 @@ impl NarrativeRating {
 const BATCH: usize = 20;
 
 /// Asks the judge, in batches, whether each narrative is written in business language (who does what
-/// and why, in the application's words) rather than in code terms. A batch it answers badly stays
-/// unrated, which the counts show.
+/// and why, in the application's words) rather than in code terms, and keeps the counts of each
+/// batch. A batch it answers badly stays unrated, which the counts show.
 ///
 /// # Errors
 ///
@@ -48,30 +61,34 @@ pub async fn rate_narratives(
         ..NarrativeRating::default()
     };
     for batch in narratives.chunks(BATCH) {
+        let mut counts = BatchRating {
+            narratives: batch.len(),
+            ..BatchRating::default()
+        };
         let user = batch
             .iter()
             .enumerate()
             .map(|(i, n)| format!("{}. {}", i + 1, truncate_chars(n, 600)))
             .collect::<Vec<_>>()
             .join("\n");
-        let Some(answer) = complete_json::<RawRatings>(
+        let answer = complete_json::<RawRatings>(
             llm,
             RATE_SYSTEM_PROMPT,
             &user,
             "benchmark judge (narratives)",
         )
-        .await?
-        else {
-            continue;
-        };
+        .await?;
         let mut seen = BTreeSet::new();
-        for verdict in answer.ratings {
+        for verdict in answer.map(|a| a.ratings).unwrap_or_default() {
             if verdict.id == 0 || verdict.id > batch.len() || !seen.insert(verdict.id) {
                 continue;
             }
-            rating.rated += 1;
-            rating.business += usize::from(verdict.business);
+            counts.rated += 1;
+            counts.business += usize::from(verdict.business);
         }
+        rating.rated += counts.rated;
+        rating.business += counts.business;
+        rating.batches.push(counts);
     }
     Ok(rating)
 }
@@ -120,7 +137,12 @@ mod tests {
             NarrativeRating {
                 total: 3,
                 rated: 2,
-                business: 1
+                business: 1,
+                batches: vec![BatchRating {
+                    narratives: 3,
+                    rated: 2,
+                    business: 1
+                }],
             },
             "id 7 doesn't exist, the second verdict for id 1 is ignored"
         );
@@ -128,6 +150,7 @@ mod tests {
         assert_eq!(llm.calls(), 1);
     }
 
+    // spec: BNR-4 (internal: the batches are read from the rating built with a fake judge)
     #[tokio::test]
     async fn narratives_go_by_batches_and_a_bad_batch_stays_unrated() {
         let llm = FakeLlm::sequence(&[r#"{"ratings":[{"id":1,"business":true}]}"#, "garbage"]);
@@ -135,13 +158,22 @@ mod tests {
 
         let rating = rate_narratives(&llm, &narratives).await.unwrap();
 
+        assert_eq!((rating.total, rating.rated, rating.business), (25, 1, 1));
         assert_eq!(
-            rating,
-            NarrativeRating {
-                total: 25,
-                rated: 1,
-                business: 1
-            }
+            rating.batches,
+            [
+                BatchRating {
+                    narratives: 20,
+                    rated: 1,
+                    business: 1
+                },
+                BatchRating {
+                    narratives: 5,
+                    rated: 0,
+                    business: 0
+                }
+            ],
+            "the unparseable batch is kept with none rated"
         );
         // Batch 1 answered once; batch 2 was unparseable twice (one retry).
         assert_eq!(llm.calls(), 3);
@@ -152,5 +184,15 @@ mod tests {
     #[test]
     fn no_rated_narrative_is_no_share() {
         assert_eq!(NarrativeRating::default().business_share(), None);
+    }
+
+    // spec: BNR-4 (internal: the file is parsed from a string, as `judge.yaml` holds it)
+    #[test]
+    fn a_rating_saved_before_the_batches_loads_with_none() {
+        let rating: NarrativeRating =
+            serde_yaml::from_str("total: 73\nrated: 73\nbusiness: 22\n").unwrap();
+
+        assert_eq!((rating.total, rating.rated, rating.business), (73, 73, 22));
+        assert_eq!(rating.batches, []);
     }
 }
