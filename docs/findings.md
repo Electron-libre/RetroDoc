@@ -892,6 +892,11 @@ rejected, 2 added):
   and 5 to 10 of 20: technical use cases, 40 to 70 points below the median of the other batches), linkding's last
   one 6 to 12 of 15. A flip reads 82 points or more below the others, so a batch more than 50 points below is now
   rated twice more and keeps the middle rating (BNR-6): a technical batch stays low, at two calls a time.
+- **Re-rated, the flipped batch no longer moves the figure** (2026-11-26, same issue): ten ratings of the same
+  hidden run of Vingilot at `3a3cfc3` gave 84, 68, 78, 79, 81, 84, 81, 88, 82, 77%. One batch flipped (the third,
+  1 of 20, in the tenth rating), was rated again 13 and 20 of 20 and kept 13: the rating reads 77% where it would
+  have read 60%. The 68% one has no flipped batch (three batches a few narratives lower each) and is marked, 29
+  points off; the table reads 81% (77% to 88%) over 9 ratings, against 78% (74% to 84%) over 4 before.
 - **Missed in both series**: the powers by role (rules spread over every feature, not a feature of their own in the
   docs), laying notes and book pages on the table, the table kept on disk, and the links between notes.
 

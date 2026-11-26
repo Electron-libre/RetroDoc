@@ -55,8 +55,8 @@ every batch twice, smaller batches (non-goals of the spec). Means: candidate (a)
 2. [ ] Rate again a flipped batch: `rate_narratives` rates a batch twice more past the bound and keeps the middle
    rating, `judge.yaml` and the run report keep each rating of the batch, the summary prints them; verified by
    tests with a fake judge; makes true BNR-6, BNR-7, BNR-8, BNR-9, BNR-H3.
-3. [ ] Measure after: five ratings of the hidden copy of `6873831-rerate` at the new code (<$0.01), against the
-   84/74/77/60/77% of 2026-11-26; recorded in `docs/findings.md` §12 and the ledger.
+3. [x] Measure after: five ratings of the hidden copy of `6873831-rerate` at the new code (<$0.01), against the
+   84/74/77/60/77% of 2026-11-26; recorded in `docs/findings.md` §12 and the ledger. (autonomous)
 4. [ ] Docs of the whole issue and fixes of its `high` review.
 
 ## Decisions
@@ -76,3 +76,13 @@ every batch twice, smaller batches (non-goals of the spec). Means: candidate (a)
 - checks: project check passes; no code changed.
 - red: none (a measure).
 - Code review: no findings
+
+## Deliverable 3
+- done: ten ratings of the hidden Vingilot copy at `3a3cfc3` (<$0.01; ten rather than five, the first five having
+  no flip): 84, 68, 78, 79, 81, 84, 81, 88, 82, 77%; the one flip (run 10, batch 3, 1 of 20) re-rated 13 and 20,
+  13 kept (77% instead of 60%); run 2 (68%) marked, no flipped batch; table 81% (77% to 88%) over 9. Recorded in
+  `docs/findings.md` §12 and the ledger; artifacts in `rate_again_a_flipped_batch_of_narratives-3a3cfc3-rerate/`.
+- checks: project check passes; no code changed.
+- red: none (a measure).
+- Code review: no findings
+- not verified: a flip on linkding or Lobsters at the new code (none in 90 batches before it).
