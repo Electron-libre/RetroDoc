@@ -447,6 +447,17 @@ Steps, each shippable:
      No refusal of a status since ADR 0058.
    - Lesson: the refusals left are the length of the comment and a field the section does not have, both rules the
      schema of the tool could state instead of its error.
+   - Measured a fifth time (2026-11-26, at `1935de14`, the schema of `propose_verdict` giving the comment its
+     `maxLength` and a narrative to a use case only; same copy, model, reader and sections, the domain settled
+     twice). About $0.04: 37 calls, 223k tokens in (173k cached), 8.7k out.
+   - No first question ended on a proposal. The domain (twice) and the feature used their 8 rounds and every call of
+     `propose_verdict` in their last request was refused for a comment over 400 characters (409 to 487): each ended
+     on the text of the comment, with no form to fill and no question. The use case stopped at its fourth round
+     with a question, and proposed `validated` at its second, after one refusal (437 characters).
+   - No refusal of a narrative; every refusal (6 of 6) is the length of the comment, which `maxLength` did not
+     change: the model writes 400 to 500 characters whatever the schema says.
+   - Lesson: the limit of 400 characters is where the proposals are lost now, and a refusal in the last request
+     loses the whole settling question.
 
 ## 5. Smaller open items
 

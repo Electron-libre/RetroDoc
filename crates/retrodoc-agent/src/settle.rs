@@ -29,7 +29,7 @@ a claim of it is wrong that you cannot correct (the next run writes it again; gi
 you can), to_review when it could not be settled.";
 
 /// The longest comment of a proposal, in characters: the evidence goes apart (STL-13).
-pub const MAX_COMMENT_CHARS: usize = 400;
+pub const MAX_COMMENT_CHARS: usize = 600;
 
 /// The demand that ends the last request of a settling question, which offers `propose_verdict`
 /// alone (STL-18).

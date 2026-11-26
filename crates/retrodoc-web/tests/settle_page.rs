@@ -684,7 +684,7 @@ async fn each_question_of_a_settling_logs_its_tool_calls_in_order() {
 #[tokio::test]
 async fn each_question_of_a_settling_logs_its_refused_proposals_in_order() {
     let dir = generated_repo();
-    let long = "x".repeat(401);
+    let long = "x".repeat(601);
     let llm = Arc::new(FakeLlm::scripted(vec![
         propose(&format!(
             r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#
@@ -711,8 +711,8 @@ async fn each_question_of_a_settling_logs_its_refused_proposals_in_order() {
     );
     assert!(
         refusals[0].contains(
-            "question 1, refused proposals: status `wrong`, comment of 401 characters, \
-             Error: `comment` is longer than 400 characters"
+            "question 1, refused proposals: status `wrong`, comment of 601 characters, \
+             Error: `comment` is longer than 600 characters"
         ),
         "{}",
         refusals[0]

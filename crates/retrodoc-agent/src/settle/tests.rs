@@ -207,21 +207,21 @@ fn a_proposal_needs_its_evidence_a_short_comment_and_a_status_that_fits_its_corr
     let comment = |length: usize| "é".repeat(length);
     let long = refused(&format!(
         r#"{{"status":"wrong","comment":"{}","evidence":"e"}}"#,
-        comment(401)
+        comment(601)
     ));
     assert!(
-        long.contains("400 characters") && long.contains("`evidence`"),
+        long.contains("600 characters") && long.contains("`evidence`"),
         "{long}"
     );
     assert!(
-        long.contains("401 characters"),
+        long.contains("601 characters"),
         "the error names its length: {long}"
     );
     let short = proposal_of(
         &section,
         &format!(
             r#"{{"status":"wrong","comment":"{}","evidence":"e"}}"#,
-            comment(400)
+            comment(600)
         ),
     );
     assert!(short.is_ok(), "{short:?}");
@@ -556,7 +556,7 @@ async fn the_last_request_holds_a_proposal_refused_in_a_round_and_its_error() {
     assert!(asked.contains("## Call of propose_verdict"), "{asked}");
     assert!(asked.contains(&long), "{asked}");
     assert!(
-        asked.contains("Error: `comment` is longer than 400 characters"),
+        asked.contains("Error: `comment` is longer than 600 characters"),
         "{asked}"
     );
     assert!(asked.ends_with(SETTLING_LAST_ROUND), "{asked}");

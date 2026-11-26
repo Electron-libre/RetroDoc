@@ -61,8 +61,12 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
 3. [x] The schema of `propose_verdict` states its rules: `comment` has `maxLength` 400, `narrative` is offered for a
    use case only (the tool built for the settled section), and the error of a long comment names its length;
    verified by agent tests of the schema per kind and of the error; makes true STL-13 (amended). (autonomous)
-4. [ ] Measure again: the same three settlings on a fresh copy, the refusals read from the STL-20 lines; recorded
-   in `docs/findings.md` and the ledger; verified by the recorded figures.
+4. [x] Measure again: the same three settlings on a fresh copy, the refusals read from the STL-20 lines; recorded
+   in `docs/findings.md` and the ledger; verified by the recorded figures. (autonomous)
+5. [x] The limit of the comment goes from 400 to 600 characters (`MAX_COMMENT_CHARS`, the prompt, the schema, the
+   error); verified by the agent tests of STL-13 at 600 and 601; makes true STL-13 (amended). Commits the measure
+   of deliverable 4. (autonomous)
+6. [ ] Measure again on a fresh copy, after the user's go; recorded in `docs/findings.md` and the ledger.
 
 ## Decisions
 - Mode: autonomous
@@ -71,6 +75,9 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
   run is confirmed; the agent prepares the copy and reads the log.
 - Fix (deliverable 3): planned after the measure, at a stop. Measure of `82272de3`: 3 refusals out of 3
   settlings, 2 a comment over 400 characters (497, 483), 1 a narrative for a feature; none of a status.
+- Measure of `1935de14`: 6 refusals, all a comment of 409 to 487 characters (`maxLength` ignored by the model), 3
+  in the last request, which lost the question. Answered by the user: the limit goes to 600 characters (no retry
+  after the last request), then one more measure with a stop before it.
 
 ## Deliverable 2: summary
 - done: the fourth measure (`82272de3`, ~$0.03), recorded in `docs/findings.md` (section 4, item 5) and the ledger.
@@ -96,4 +103,27 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
   the error of a 401-character comment did not name `401 characters`.
 - Code review: no findings
 - not verified: whether DeepSeek keeps a comment under `maxLength` (deliverable 4).
+- decisions needed: none.
+
+## Deliverable 4: summary
+- done: the fifth measure (`1935de14`, ~$0.04), recorded in `docs/findings.md` and the ledger; committed with
+  deliverable 5.
+- red: none (a measure).
+- Code review: no findings (a doc change only, reviewed with deliverable 5).
+
+## Deliverable 5: summary
+- done: `MAX_COMMENT_CHARS` is 600 (the prompt, the schema's `maxLength` and the error follow it).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass (`project-check`) |
+| specs | STL-13 amended (600), spec `accepted` |
+| docs | `docs/crates/agent.md`, `docs/findings.md` |
+| code review | `low`: clean |
+
+- red: STL-13: `a_proposal_needs_its_evidence_a_short_comment_and_a_status_that_fits_its_corrections` and
+  `the_last_request_holds_a_proposal_refused_in_a_round_and_its_error` failed on the 400-character error.
+- Code review: no findings
+- not verified: the comments of a real settling under 600 characters (deliverable 6).
 - decisions needed: none.

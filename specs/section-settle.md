@@ -72,7 +72,7 @@ and ends on a proposed review and correction that the reader puts in the form an
   | argument | required | value |
   |---|---|---|
   | `status` | yes | `validated` (the section is right as saved with the corrected fields the call gives, none when it is right as it stands), `wrong` (a claim of it is wrong and left uncorrected, with the corrected fields the call gives if any: the next `generate` writes it again, HCR-4) or `to_review` (not settled) (REV-2, ADR 0058) |
-  | `comment` | yes | the reason of the verdict for the reader, at most 400 characters |
+  | `comment` | yes | the reason of the verdict for the reader, at most 600 characters |
   | `evidence` | yes | what the verdict rests on: files, commits, the reader's answers |
   | `name`, `description` | no | the corrected text of the field |
   | `narrative` | no | the corrected narrative; refused for a domain or a feature (SED-3) |
@@ -127,10 +127,10 @@ and ends on a proposed review and correction that the reader puts in the form an
 - (STL-13) Given a domain, when the agent proposes a narrative, then the call gets an error and the question goes on.
 - (STL-13) Given a call proposing `validated` with a corrected description, then it is accepted; one proposing
   `wrong` with a corrected description, a claim of the narrative left uncorrected, is accepted too.
-- (STL-13) Given a comment of 401 characters, then the call gets an error naming its 401 characters and asking
-  for a shorter comment and the evidence apart; one of 400 is accepted.
+- (STL-13) Given a comment of 601 characters, then the call gets an error naming its 601 characters and asking
+  for a shorter comment and the evidence apart; one of 600 is accepted.
 - (STL-13) Given the settling of a feature, then the schema of `propose_verdict` has no `narrative` and gives
-  `comment` a `maxLength` of 400; given a use case, it has `narrative`.
+  `comment` a `maxLength` of 600; given a use case, it has `narrative`.
 - (STL-13) Given a call with no `evidence`, then it gets an error and the question goes on.
 - (STL-8) Given a proposal with an evidence, when its form is filled, then the comment of the review is the
   proposal's comment alone.
@@ -149,8 +149,8 @@ and ends on a proposed review and correction that the reader puts in the form an
   asked with `?proposal=2`, then its form is as without it.
 - (STL-18) Given a settling question that used its rounds, when the model calls `propose_verdict` in the last
   request, then the question ends with that proposal and the observer is told the call; when it calls it with a
-  comment of 401 characters, or calls `read_source`, then the question ends on the text of that message with no
-  proposal, on the comment of 401 characters when that text is blank, on the error of arguments that are not JSON
+  comment of 601 characters, or calls `read_source`, then the question ends on the text of that message with no
+  proposal, on the comment of 601 characters when that text is blank, on the error of arguments that are not JSON
   when they are not.
 - (STL-18) Given a last request whose first call of `propose_verdict` is refused and whose second is accepted, then
   the question ends with the second.
@@ -162,8 +162,8 @@ and ends on a proposed review and correction that the reader puts in the form an
   round; given 0, that only `propose_verdict` is offered.
 - (STL-19) Given a settling question that read the feature then a file, then its line names `get_feature` with
   the feature's id then `read_source` with the file's path; one with no tool call names `none`.
-- (STL-20) Given a settling question whose first call of `propose_verdict` gives a comment of 401 characters and
-  whose second is accepted, then its line names one refusal, its status, 401 characters and the error of a comment
+- (STL-20) Given a settling question whose first call of `propose_verdict` gives a comment of 601 characters and
+  whose second is accepted, then its line names one refusal, its status, 601 characters and the error of a comment
   too long; one with no refused call names `none`; one refused in the last request names that refusal too.
 - (STL-12) Given a session with no exchange, then the button asks no confirmation; given one with an exchange, it
   asks one.
