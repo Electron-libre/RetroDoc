@@ -63,6 +63,10 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
    STL-13, STL-5, STL-H1; ~150 lines. (autonomous)
 3. [x] The form says what each status means: a hint under the statuses, English and French; verified by a web test
    of the form of a use case in both languages; makes true SFM-18; ~60 lines. (autonomous)
+4. [x] Docs of the whole issue and the fixes of its `high` review: the fields of the text unfold on `validated` too
+   (SFM-2, SFM-H2 saves `validated` with its edit), the tool fields never with `wrong`, the French hint names the
+   section, no ADR number in the model's error, the prompt test checks the new meaning, the counts of the audit in
+   the ADR's consequences, the finding of section 4 item 5 settled. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -99,3 +103,17 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
 - red: SFM-18: `no hint under the statuses`.
 - Code review: no findings
 - not verified: the look of the hint in a browser (no screenshots taken). decisions needed: none.
+
+### 4. Docs of the issue and fixes of the high review
+- done: `forms.js` unfolds the fields of the text on `wrong` or `validated` (SFM-2, SFM-H2 now saves `validated`
+  with its edit); the fields of `propose_verdict` say never with `wrong`; the French hint says the section is
+  rewritten; the model's error cites no ADR; the prompt test checks "once corrected" and "cannot give its
+  correction"; ADR 0058 notes the counts by status; `docs/findings.md` section 4 item 5 records the decision;
+  `issues/settling_proposal_refusals.md` names the new refusal.
+- high review: 7 findings; fixed 1 (form unfolds on `wrong` only), 3 (tool fields), 4 (French hint), 5 (ADR in the
+  error), 6 (prompt test), 7 (audit counts, as a consequence of the ADR); 2 (a partial correction with `wrong`
+  refused) left to the user: it reverses the decision 2 a.
+- checks: tests, lint, specs (`project-check`).
+- red: SFM-2: `UNFOLDING_STATUSES = ["wrong", "validated"] in <forms.js>` not found.
+- Code review: no findings
+- not verified: the unfolding in a browser (the test reads the script). decisions needed: finding 2 of the high review.

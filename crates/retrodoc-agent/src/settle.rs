@@ -199,9 +199,9 @@ pub(crate) fn propose_verdict_spec() -> ToolSpec {
                     "type": "string",
                     "description": "What the verdict rests on: files, commits, the reader's answers."
                 },
-                "name": {"type": "string", "description": "The corrected name, if it is wrong; then the status is validated."},
-                "description": {"type": "string", "description": "The corrected description, if it is wrong; then the status is validated."},
-                "narrative": {"type": "string", "description": "The corrected narrative of a use case, if it is wrong; then the status is validated."}
+                "name": {"type": "string", "description": "The corrected name, if it is wrong; never with the status wrong."},
+                "description": {"type": "string", "description": "The corrected description, if it is wrong; never with the status wrong."},
+                "narrative": {"type": "string", "description": "The corrected narrative of a use case, if it is wrong; never with the status wrong."}
             },
             "required": ["status", "comment", "evidence"]
         }),
@@ -249,7 +249,7 @@ pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal
         return Err(
             "Error: `wrong` means a claim of the section is wrong and left uncorrected, for the next \
              run to write it again: a proposal that corrects a field is `validated`, the section \
-             right once saved with its correction (ADR 0058)."
+             right once saved with its correction."
                 .to_string(),
         );
     }

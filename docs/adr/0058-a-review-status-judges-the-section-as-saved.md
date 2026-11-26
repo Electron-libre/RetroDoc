@@ -30,3 +30,5 @@ The next run reads a corrected section as validated with its edit (ADR 0056: the
 text to keep) and asks no unit again for it. A section the form saves `wrong` with an edit is still written again,
 which the hint of the form tells the reader; the form does not refuse it. The reviews saved before this decision keep
 their status: a `wrong` with an edit saved earlier asks its unit once more, as before.
+The counts of the reviews by status (the audit page, the history) no longer tell how often the generated text was
+wrong: a section corrected and saved `validated` counts as one validated untouched; its edit tells them apart.

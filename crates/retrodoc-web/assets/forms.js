@@ -13,9 +13,13 @@
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
   }
 
+  // The statuses whose choice unfolds the fields of the text (SFM-2): a correction is saved
+  // validated, a section wrong may be corrected too (ADR 0058).
+  const UNFOLDING_STATUSES = ["wrong", "validated"];
+
   document.addEventListener("change", function (event) {
     const input = event.target;
-    if (input.name !== "status" || input.value !== "wrong" || !input.form) {
+    if (input.name !== "status" || !UNFOLDING_STATUSES.includes(input.value) || !input.form) {
       return;
     }
     const fields = input.form.querySelector("details.text-fields");

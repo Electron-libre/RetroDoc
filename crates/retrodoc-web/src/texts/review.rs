@@ -79,8 +79,8 @@ impl ReviewTexts {
         statuses: ["Validé", "Faux", "À revoir"],
         status_label: "Statut",
         status_hint: "Validé : juste tel qu'enregistré, avec les corrections de ce formulaire. Faux : une \
-            affirmation est fausse et pas corrigée ici ; le prochain generate la réécrit. À revoir : pas \
-            tranché.",
+            affirmation est fausse et pas corrigée ici ; le prochain generate réécrit la section. À revoir : \
+            pas tranché.",
         no_status: "Pas de relecture",
         comment: "Commentaire",
         save: "Enregistrer",

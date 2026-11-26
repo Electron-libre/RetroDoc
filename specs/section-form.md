@@ -21,8 +21,8 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
   radio choices, its comment, and its name, its description and, for a use case, its narrative, each filled with the
   text the page shows (SED-23), and one button that saves them.
 - **SFM-2** (deterministic) The fields of the text (name, description, narrative) must be folded under the status
-  and the comment, and unfolded when the page shows the section reviewed `wrong`, when the status `wrong` is chosen in
-  the form, or when the form answers a save refused or failed (SFM-14).
+  and the comment, and unfolded when the page shows the section reviewed `wrong`, when the status `wrong` or `validated` is
+  chosen in the form (a correction is saved `validated`, ADR 0058), or when the form answers a save refused or failed (SFM-14).
 - **SFM-3** (deterministic) A save must write the edit of the section, then its review: the edit only when a field
   sent differs, cleaned (SFM-10), from the text the page shows, an edit left as it was otherwise, an outdated one
   included (SED-34), unless its confirmation is checked (SFM-17); the review as sent, a status recording it with the comment (REV-12), none removing it (REV-13).
@@ -79,9 +79,9 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
 - **SFM-H1** (happy; SFM-1, SFM-3, SFM-6, SFM-8) Given a feature with no review, when the reader follows "Review",
   chooses "validated" and saves, then the feature is reviewed validated, its edit unchanged, and the page says it is
   saved.
-- **SFM-H2** (happy; SFM-2, SFM-3, SFM-4) Given a use case with no review, when the reader chooses "wrong", writes
-  the comment "the customer pays, not the clerk", corrects its description in the fields the choice unfolded and
-  saves once, then the use case holds the edit and the review `wrong`, and the review is not outdated.
+- **SFM-H2** (happy; SFM-2, SFM-3, SFM-4) Given a use case with no review, when the reader chooses "validated",
+  writes the comment "the customer pays, not the clerk", corrects its description in the fields the choice unfolded
+  and saves once, then the use case holds the edit and the review `validated`, and the review is not outdated.
 - **SFM-H3** (happy; SFM-7, SFM-3) Given a debt item of low confidence, when the reader follows its "Review", chooses
   "to review" with a comment and saves, then the section is left to review and its text unchanged.
 - (SFM-3, SFM-4) Given a feature validated by A, when B corrects its name, the status `validated` kept as the form

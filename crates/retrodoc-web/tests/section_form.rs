@@ -464,10 +464,10 @@ async fn a_refused_htmx_save_answers_the_form_as_sent_with_its_error() {
 
 // spec: SFM-H2, SFM-3, SFM-4
 #[tokio::test]
-async fn marking_wrong_and_fixing_in_one_save_keeps_the_review_up_to_date() {
+async fn validating_and_fixing_in_one_save_keeps_the_review_up_to_date() {
     let dir = generated_repo();
     let root = dir.path();
-    let form = "status=wrong&comment=the+customer+pays%2C+not+the+clerk&name=Pay+by+card\
+    let form = "status=validated&comment=the+customer+pays%2C+not+the+clerk&name=Pay+by+card\
         &description=The+customer+pays+by+card&narrative=The+clerk+takes+the+card.";
 
     let answer = post(root, USE_CASE, form, false).await;
@@ -486,7 +486,7 @@ async fn marking_wrong_and_fixing_in_one_save_keeps_the_review_up_to_date() {
         reviews_saved(root),
         [(
             pay_by_card(),
-            Status::Wrong,
+            Status::Validated,
             "the customer pays, not the clerk".into()
         )]
     );
@@ -622,12 +622,13 @@ async fn the_fields_of_the_text_unfold_for_a_section_marked_wrong() {
 
 // spec: SFM-2 (internal: the script runs in a browser; the test reads what the page loads)
 #[tokio::test]
-async fn choosing_wrong_unfolds_the_fields_of_the_text() {
+async fn choosing_wrong_or_validated_unfolds_the_fields_of_the_text() {
     let dir = generated_repo();
     let script = get(dir.path(), "/assets/forms.js").await;
     for part in [
         "name !== \"status\"",
-        "value !== \"wrong\"",
+        "UNFOLDING_STATUSES = [\"wrong\", \"validated\"]",
+        "UNFOLDING_STATUSES.includes(input.value)",
         "details.text-fields",
         ".open = true",
     ] {

@@ -252,6 +252,16 @@ fn the_prompt_and_the_tool_say_how_to_write_the_comment_and_which_status_fits() 
     for fits in ["validated", "wrong", "to_review"] {
         assert!(status.contains(fits), "{status}");
     }
+    for meaning in ["once corrected", "cannot give its correction"] {
+        assert!(
+            SETTLING_PROMPT.contains(meaning),
+            "{meaning} in {SETTLING_PROMPT}"
+        );
+    }
+    assert!(
+        status.contains("corrected fields given") && status.contains("no correction"),
+        "a correction is validated, wrong has none: {status}"
+    );
     assert_eq!(
         tool.parameters["required"],
         serde_json::json!(["status", "comment", "evidence"])
