@@ -8,7 +8,7 @@ use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
-use retrodoc_agent::{Answer, Conversation, Disagreement, Disputed, Proposal, Step};
+use retrodoc_agent::{Answer, Conversation, Disagreement, Disputed, Proposal, Refusal, Step};
 use retrodoc_core::reconcile::ItemKind;
 use retrodoc_docs::reviews::{Section, SectionKind, Status};
 use retrodoc_docs::GeneratedDocs;
@@ -163,8 +163,8 @@ pub(super) fn proposal_href(site: &Site, proposal: &Proposal, number: u64) -> Op
 }
 
 /// Logs the usage of the question `running` that ended on `exchange`, then its tool calls, when it
-/// is a question of a settling, also once its session was reset or dropped meanwhile (STL-17,
-/// STL-19).
+/// is a question of a settling, also once its session was reset or dropped meanwhile, then the
+/// calls of `propose_verdict` refused in a question that answered (STL-17, STL-19, STL-20).
 pub(super) fn log_usage(running: &Running, exchange: &Exchange) {
     let Some(section) = &running.settled else {
         return;
@@ -182,6 +182,40 @@ pub(super) fn log_usage(running: &Running, exchange: &Exchange) {
     );
     tracing::info!("{line}");
     tracing::info!("{}", tools_line(section, number, &exchange.steps));
+    if let Ok(answer) = &exchange.outcome {
+        tracing::info!("{}", refusals_line(section, number, &answer.refusals));
+    }
+}
+
+/// The line the log of `ui` gets after the tool line of the question `number` of the settling of
+/// `section`: each call of `propose_verdict` refused in order, its status, the length of its
+/// comment and its error (STL-20).
+fn refusals_line(section: &Section, number: u64, refusals: &[Refusal]) -> String {
+    let refused = if refusals.is_empty() {
+        "none".to_string()
+    } else {
+        refusals
+            .iter()
+            .map(|refusal| {
+                let status = refusal
+                    .status
+                    .as_ref()
+                    .map_or("no status".to_string(), |status| {
+                        format!("status `{status}`")
+                    });
+                format!(
+                    "{status}, comment of {} characters, {}",
+                    refusal.comment_chars, refusal.error
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" | ")
+    };
+    format!(
+        "settling of the {} `{}`, question {number}, refused proposals: {refused}",
+        kind_name(section.kind),
+        section.id
+    )
 }
 
 /// The line the log of `ui` gets after the usage line of the question `number` of the settling

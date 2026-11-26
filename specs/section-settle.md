@@ -100,6 +100,11 @@ and ends on a proposed review and correction that the reader puts in the form an
 - **STL-19** (deterministic) Each question of a settling conversation that ended must write, after its line of
   STL-17, one line to the log of `ui` (stdout) naming the kind and id of the section, the number of the question in
   its settling and each tool call of the question in order, its tool and what it reads (ASK-25), or `none`.
+- **STL-20** (deterministic) Each question of a settling conversation that ended with an answer must write, after
+  its line of STL-19, one line to the log of `ui` (stdout) naming the kind and id of the section, the number of the
+  question in its settling and each call of `propose_verdict` the table of STL-13 refused, the last request's
+  included, in order: the `status` it gives, the length in characters of its `comment` and the error it got; or
+  `none`.
 
 ## Scenarios
 
@@ -154,6 +159,9 @@ and ends on a proposed review and correction that the reader puts in the form an
   round; given 0, that only `propose_verdict` is offered.
 - (STL-19) Given a settling question that read the feature then a file, then its line names `get_feature` with
   the feature's id then `read_source` with the file's path; one with no tool call names `none`.
+- (STL-20) Given a settling question whose first call of `propose_verdict` gives a comment of 401 characters and
+  whose second is accepted, then its line names one refusal, its status, 401 characters and the error of a comment
+  too long; one with no refused call names `none`; one refused in the last request names that refusal too.
 - (STL-12) Given a session with no exchange, then the button asks no confirmation; given one with an exchange, it
   asks one.
 - (STL-3) Given a settled session, when the reader resets it, then the page no longer names the section.

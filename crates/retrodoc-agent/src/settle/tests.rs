@@ -8,8 +8,8 @@ use retrodoc_llm::{Role, ToolCall};
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 
 use super::{
-    proposal_of, propose_verdict_spec, Disagreement, Disputed, Proposal, MAX_COMMENT_CHARS,
-    PROPOSE_VERDICT, SETTLING_LAST_ROUND, SETTLING_PROMPT,
+    proposal_of, propose_verdict_spec, Disagreement, Disputed, Proposal, Refusal,
+    MAX_COMMENT_CHARS, PROPOSE_VERDICT, SETTLING_LAST_ROUND, SETTLING_PROMPT,
 };
 use crate::{Conversation, DEFAULT_MAX_ROUNDS};
 
@@ -534,6 +534,46 @@ async fn the_last_request_holds_a_proposal_refused_in_a_round_and_its_error() {
     );
     assert!(asked.ends_with(SETTLING_LAST_ROUND), "{asked}");
     assert!(!asked.contains(crate::LAST_ROUND), "{asked}");
+}
+
+// spec: STL-20 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn an_answer_keeps_each_refused_proposal_in_order_the_last_requests_included() {
+    let long = "x".repeat(MAX_COMMENT_CHARS + 1);
+    let too_long = format!(r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#);
+    let no_evidence = r#"{"status":"validated","comment":"Right."}"#;
+    let accepted = r#"{"status":"validated","comment":"The customer pays.","evidence":"e"}"#;
+    let (_, answer, _) = after_its_round(
+        calls("", vec![call("p1", PROPOSE_VERDICT, &too_long)]),
+        calls(
+            "",
+            vec![
+                call("p2", PROPOSE_VERDICT, no_evidence),
+                call("p3", PROPOSE_VERDICT, accepted),
+            ],
+        ),
+    )
+    .await;
+    assert!(answer.proposal.is_some());
+    assert_eq!(
+        answer.refusals,
+        [
+            Refusal {
+                status: Some("wrong".into()),
+                comment_chars: MAX_COMMENT_CHARS + 1,
+                error: proposal_of(&feature(), &too_long).unwrap_err(),
+            },
+            Refusal {
+                status: Some("validated".into()),
+                comment_chars: 6,
+                error: proposal_of(&feature(), no_evidence).unwrap_err(),
+            },
+        ]
+    );
+
+    let (_, answer, _) =
+        after_its_one_round(calls("", vec![call("p1", PROPOSE_VERDICT, accepted)])).await;
+    assert_eq!(answer.refusals, []);
 }
 
 // spec: STL-5 (internal: the system prompt is seen through the fake provider only)

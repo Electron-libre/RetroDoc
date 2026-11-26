@@ -40,3 +40,30 @@ Read by someone taking an application over
 
 # Hints
 * A paid measure needs the user's go and the measures ledger read before.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-26
+
+## Understanding
+Log why each call of `propose_verdict` of a settling question is refused (STL-20), measure the settlings again to
+read the reasons, then fix the cause found so the first call is accepted in most settlings. The measure of
+`e3ae1a41` predates ADR 0058: a `validated` or `wrong` with a corrected field was refused then, so part of its
+refusals may already be gone. The fix is chosen after the measure; its deliverable is planned then (a stop).
+
+## Plan
+1. [x] Log of the refusals: `Answer` keeps each refused call of `propose_verdict` (status, comment length, error),
+   the last request's included, and `ui` writes the STL-20 line after the STL-19 one; verified by agent tests (a
+   refusal in a round, in the last request, none) and a web test of the line; makes true STL-20. (autonomous)
+2. [ ] Measure: the three settlings of `e3ae1a41` again on a copy of the kept run, at this code, the refusals read
+   from the `ui` log; recorded in `docs/findings.md` (section 4, item 5) and the measures ledger; verified by the
+   recorded figures.
+3. [ ] Fix of the reasons found (a candidate of the issue's Approach, or none needed), its spec amended, then the
+   same measure again; planned after deliverable 2, validated at a stop.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 98d11a1f15722a53dc78944adbf7d2c93defc76b
+- Measure (deliverable 2): the user runs the three settlings by hand on the sections of `e3ae1a41`, after the paid
+  run is confirmed; the agent prepares the copy and reads the log.
+- Fix (deliverable 3): planned after the measure, at a stop.

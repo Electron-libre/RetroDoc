@@ -208,6 +208,30 @@ pub(crate) fn propose_verdict_spec() -> ToolSpec {
     }
 }
 
+/// A call of `propose_verdict` the table of STL-13 refused, as the log of `ui` names it (STL-20).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Refusal {
+    /// The `status` the call gives, if a string.
+    pub status: Option<String>,
+    /// The length in characters of the `comment` it gives, 0 for none.
+    pub comment_chars: usize,
+    /// The error its result gave the model.
+    pub error: String,
+}
+
+impl Refusal {
+    /// The refusal of the call whose `arguments` got `error`.
+    pub(crate) fn of(arguments: &str, error: String) -> Self {
+        let arguments = serde_json::from_str::<Value>(arguments).ok();
+        let text = |key: &str| arguments.as_ref()?.get(key)?.as_str().map(str::to_string);
+        Self {
+            status: text("status"),
+            comment_chars: text("comment").map_or(0, |comment| comment.chars().count()),
+            error,
+        }
+    }
+}
+
 /// The proposal a call of `propose_verdict` makes for `section`, or the error its result gives the
 /// model (STL-13).
 pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal, String> {
@@ -278,8 +302,14 @@ pub(crate) enum LastAnswer {
 /// What the last request of the settling of `section` ended on, its message holding `calls` and
 /// `text`: the proposal of its first call of `propose_verdict` the table accepts, no round
 /// following to correct a refused one; else the text, blank replaced by the comment of the first
-/// refused call, else by its error.
-pub(crate) fn last_answer(section: &Section, calls: &[ToolCall], text: String) -> LastAnswer {
+/// refused call, else by its error. Each call refused before the accepted one is pushed to
+/// `refusals` (STL-20).
+pub(crate) fn last_answer(
+    section: &Section,
+    calls: &[ToolCall],
+    text: String,
+    refusals: &mut Vec<Refusal>,
+) -> LastAnswer {
     let mut refused = None;
     for (index, call) in calls.iter().enumerate() {
         if call.name != PROPOSE_VERDICT {
@@ -294,6 +324,7 @@ pub(crate) fn last_answer(section: &Section, calls: &[ToolCall], text: String) -
                 }
             }
             Err(error) => {
+                refusals.push(Refusal::of(&call.arguments, error.clone()));
                 refused.get_or_insert((call, error));
             }
         }

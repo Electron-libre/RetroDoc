@@ -56,7 +56,9 @@ refused (a status other than the three of a review, no comment, a comment over `
 no evidence, a narrative for a domain or a feature) gets the error as its result
 (STL-13); a valid one ends the question,
 the calls after it in its round not run, its `Proposal` in `Answer::proposal` and the text of the answer the text of
-its message, else the comment, its sources checked over that text and the evidence (`proposed`, STL-14). Nothing is written: the reader saves the proposal through the form of the
+its message, else the comment, its sources checked over that text and the evidence (`proposed`, STL-14). Each call refused, in a round or in the last
+request, is kept in `Answer::refusals` (`Refusal`: its status, the length of its comment, its error), for the log of
+`ui` (STL-20). Nothing is written: the reader saves the proposal through the form of the
 section. The kept turn of an answer with a proposal holds the proposal as text (STL-15), so a follow-up can amend it.
 
 Tested in `src/tests.rs` and `src/settle/tests.rs` with the scripted `FakeLlm` of `retrodoc-pipeline` (feature `testing`), and through the binary

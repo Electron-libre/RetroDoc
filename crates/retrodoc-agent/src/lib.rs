@@ -45,7 +45,7 @@ pub const MAX_RESULT_CHARS: usize = 40_000;
 pub const MAX_MEMORY_CHARS: usize = 10_000;
 
 mod settle;
-pub use settle::{Disagreement, Disputed, Proposal, PROPOSE_VERDICT};
+pub use settle::{Disagreement, Disputed, Proposal, Refusal, PROPOSE_VERDICT};
 
 const LAST_ROUND: &str =
     "You have used all your tool calls. Answer the question now from what the \
@@ -96,6 +96,9 @@ pub struct Answer {
     pub warnings: Vec<Warning>,
     /// The verdict proposed by `propose_verdict`, which ended a question of a settling (STL-14).
     pub proposal: Option<Proposal>,
+    /// Each call of `propose_verdict` refused in the question, in order, the last request's
+    /// included (STL-20).
+    pub refusals: Vec<Refusal>,
 }
 
 /// The note of an answer with no source.
@@ -475,7 +478,12 @@ async fn answer_after(
                         let text = response.content;
                         return Ok(proposed(answer, proposal, text, earlier, &docs).await);
                     }
-                    Err(error) => error,
+                    Err(error) => {
+                        answer
+                            .refusals
+                            .push(Refusal::of(&call.arguments, error.clone()));
+                        error
+                    }
                 }
             } else if runs {
                 within_budget(run_tool(&docs, &call).await, &mut used)
@@ -497,7 +505,7 @@ async fn answer_after(
 /// `answer` ended on the `response` to its last request: on the proposal of a `settled` section
 /// that response makes, told to the `observer` (STL-18), else on its text.
 async fn last_answered(
-    answer: Answer,
+    mut answer: Answer,
     response: CompletionResponse,
     settled: Option<&Section>,
     earlier: &[Turn],
@@ -505,7 +513,12 @@ async fn last_answered(
     observer: Observer<'_>,
 ) -> Answer {
     let ended = match settled {
-        Some(section) => settle::last_answer(section, &response.tool_calls, response.content),
+        Some(section) => settle::last_answer(
+            section,
+            &response.tool_calls,
+            response.content,
+            &mut answer.refusals,
+        ),
         None => settle::LastAnswer::Text(response.content),
     };
     match ended {

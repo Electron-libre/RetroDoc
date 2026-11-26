@@ -679,3 +679,56 @@ async fn each_question_of_a_settling_logs_its_tool_calls_in_order() {
         .expect("tool line");
     assert!(usage < calls, "the tool line follows the usage line");
 }
+
+// spec: STL-20
+#[tokio::test]
+async fn each_question_of_a_settling_logs_its_refused_proposals_in_order() {
+    let dir = generated_repo();
+    let long = "x".repeat(401);
+    let llm = Arc::new(FakeLlm::scripted(vec![
+        propose(&format!(
+            r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#
+        )),
+        propose(r#"{"status":"wrong","comment":"The customer sees them.","evidence":"e"}"#),
+        FakeTurn::Text("Anything else?".into()),
+    ]));
+    let router = router(dir.path(), Some(llm));
+    let lines = logged(async {
+        let cookie = session_cookie(&settle(&router, FEATURE, None).await).unwrap();
+        send(&router, get_request("/ask/questions/1", Some(&cookie))).await;
+        ask(&router, Some(&cookie)).await;
+    })
+    .await;
+    let refusals: Vec<&String> = lines
+        .iter()
+        .filter(|line| line.contains("settling of the feature `list-orders`"))
+        .filter(|line| line.contains("refused proposals:"))
+        .collect();
+    assert_eq!(
+        refusals.len(),
+        2,
+        "one line per settling question: {lines:#?}"
+    );
+    assert!(
+        refusals[0].contains(
+            "question 1, refused proposals: status `wrong`, comment of 401 characters, \
+             Error: `comment` is longer than 400 characters"
+        ),
+        "{}",
+        refusals[0]
+    );
+    assert!(
+        refusals[1].contains("question 2, refused proposals: none"),
+        "{}",
+        refusals[1]
+    );
+    let tools = lines
+        .iter()
+        .position(|line| line.contains("question 1, tool calls:"))
+        .expect("tool line");
+    let refused = lines
+        .iter()
+        .position(|line| line.contains("question 1, refused proposals:"))
+        .expect("refusals line");
+    assert!(tools < refused, "the refusals line follows the tool line");
+}
