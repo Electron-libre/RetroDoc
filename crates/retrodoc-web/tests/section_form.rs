@@ -707,3 +707,34 @@ async fn a_name_a_browser_sends_without_its_line_breaks_is_unchanged() {
 
     assert_eq!(both_files(root)[0], before);
 }
+
+// spec: SFM-18
+#[tokio::test]
+async fn the_form_says_under_its_statuses_what_each_one_means_once_saved() {
+    let dir = generated_repo();
+    let page = get(dir.path(), USE_CASE).await;
+    let block = form_block(&page);
+    let hint = block
+        .split("<p class=\"hint status-hint\">")
+        .nth(1)
+        .and_then(|rest| rest.split("</p>").next())
+        .unwrap_or_else(|| panic!("no hint under the statuses: {block}"));
+    assert!(hint.contains("Validated"), "{hint}");
+    assert!(hint.contains("writes it again"), "{hint}");
+    assert!(hint.contains("To review"), "{hint}");
+    assert!(
+        block.find("status-hint") < block.find("name=\"comment\""),
+        "the hint is under the statuses, before the comment: {block}"
+    );
+
+    let response = app(dir.path(), "fr")
+        .oneshot(Request::get(USE_CASE).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let page = String::from_utf8(body.to_vec()).unwrap();
+    assert!(page.contains("<p class=\"hint status-hint\">"), "{page}");
+    assert!(page.contains("réécrit"), "{page}");
+}

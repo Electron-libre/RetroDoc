@@ -22,6 +22,8 @@ pub struct ReviewTexts {
     /// Validated, wrong, to review.
     pub statuses: [&'static str; 3],
     pub status_label: &'static str,
+    /// Under the statuses of the form: what each one means for the section as saved (SFM-18).
+    pub status_hint: &'static str,
     /// The choice of the form that removes the review.
     pub no_status: &'static str,
     pub comment: &'static str,
@@ -54,6 +56,8 @@ impl ReviewTexts {
         by: "by",
         statuses: ["Validated", "Wrong", "To review"],
         status_label: "Status",
+        status_hint: "Validated: right as saved, with the corrections of this form. Wrong: a claim of it is \
+            wrong and not corrected here; the next generate writes it again. To review: not settled.",
         no_status: "No review",
         comment: "Comment",
         save: "Save",
@@ -74,6 +78,9 @@ impl ReviewTexts {
         by: "par",
         statuses: ["Validé", "Faux", "À revoir"],
         status_label: "Statut",
+        status_hint: "Validé : juste tel qu'enregistré, avec les corrections de ce formulaire. Faux : une \
+            affirmation est fausse et pas corrigée ici ; le prochain generate la réécrit. À revoir : pas \
+            tranché.",
         no_status: "Pas de relecture",
         comment: "Commentaire",
         save: "Enregistrer",

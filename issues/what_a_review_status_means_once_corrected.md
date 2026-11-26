@@ -61,8 +61,8 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
    refuses `wrong` with one, its error naming `validated`; its descriptions and the settling prompt say so; the ADR
    0058 and the spec drafts go with it; verified by the agent tests of the STL-13 scenarios and STL-H1; makes true
    STL-13, STL-5, STL-H1; ~150 lines. (autonomous)
-3. [ ] The form says what each status means: a hint under the statuses, English and French; verified by a web test
-   of the form of a use case in both languages; makes true SFM-18; ~60 lines.
+3. [x] The form says what each status means: a hint under the statuses, English and French; verified by a web test
+   of the form of a use case in both languages; makes true SFM-18; ~60 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -90,3 +90,12 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
 - red: STL-13: `called Result::unwrap_err() on an Ok value`: `wrong` with a corrected description was accepted.
 - Code review: no findings
 - not verified: what the model proposes under the new prompt (a paid measure, not run). decisions needed: none.
+
+### 3. The form says what each status means
+- done: a hint `p.hint.status-hint` under the statuses of the form (`ReviewTexts::status_hint`, English and French):
+  validated is right as saved with the corrections, wrong is written again by the next `generate`, to review is not
+  settled; `docs/dev/web-ui.md` and `docs/crates/render-mcp-cli.md` name it; SFM back to `accepted`.
+- checks: tests, lint, specs (`project-check`); docs: `docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`.
+- red: SFM-18: `no hint under the statuses`.
+- Code review: no findings
+- not verified: the look of the hint in a browser (no screenshots taken). decisions needed: none.
