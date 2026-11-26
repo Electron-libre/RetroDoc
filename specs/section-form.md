@@ -1,7 +1,7 @@
 ---
 id: SFM
-status: accepted
-adrs: [0039, 0044, 0045]
+status: draft
+adrs: [0039, 0044, 0045, 0058]
 ---
 
 # Section form
@@ -44,6 +44,10 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
   checkbox `confirm` that says, in the language of the interface, that the edited text still holds over the new
   generated text; a save with it checked writes the edit as sent confirmed (SED-36), an edit equal to the former one
   included; the form of a section whose edit is not outdated, or that has none, holds no such checkbox.
+- **SFM-18** (deterministic) The group of the statuses of the form must hold, under its choices, a hint in the
+  language of the interface that says what each status means for the section as saved with the form (ADR 0058):
+  validated, right with the corrections of the form; wrong, a claim of it wrong and not corrected, which the next
+  `generate` writes again (HCR-4); to review, not settled.
 
 ### Contract
 
@@ -112,9 +116,12 @@ save. It writes the review (`specs/section-review.md`) and the human edit (`spec
 - (SFM-8) Given a section with no review, when its page is asked with `?saved=1`, then the form shows the notice and
   no review.
 - (SFM-4) Given an outdated review, when the form saves the same status again, then the review is no longer outdated.
+- (SFM-18) Given the form of a use case, then under its statuses it says that a section saved wrong is written again
+  by the next `generate`, and in French on a French interface.
 
 ## Non-goals
 
+- No refusal of a save `wrong` with a corrected field: the hint of SFM-18 says the next `generate` writes it again.
 - No edit of the steps, the business rules nor the glossary (`specs/section-edit.md`); no button per field brings
   one field back: emptying it does.
 - No lock across the two files: a save that fails writing the review after its edit keeps the edit (the two stores

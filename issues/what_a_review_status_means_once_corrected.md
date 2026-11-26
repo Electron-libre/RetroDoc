@@ -42,3 +42,41 @@ Read by someone taking an application over
 
 # Hints
 * The reader of the measure is not a developer of the measured application: judge the method with them.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-26
+
+## Understanding
+The status judges the section as saved, its edit applied (option 1, ADR 0058): a corrected section is `validated`,
+`wrong` means wrong and not corrected, written again by the next run (HCR-4 unchanged). `propose_verdict` proposes
+`validated` with its correction and refuses `wrong` with one; the form says what each status means. Out of scope:
+the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the reviews saved before.
+
+## Plan
+1. [x] Move the review texts out of `texts.rs`: `ReviewTexts`, `OutdatedTexts` and their English and French values to
+   `crates/retrodoc-web/src/texts/review.rs`, no change of behaviour (`texts.rs` is over the file size limit);
+   verified by the existing tests; ~250 lines. (autonomous)
+2. [ ] The settling follows the status as saved: `propose_verdict` accepts `validated` with corrected fields and
+   refuses `wrong` with one, its error naming `validated`; its descriptions and the settling prompt say so; the ADR
+   0058 and the spec drafts go with it; verified by the agent tests of the STL-13 scenarios and STL-H1; makes true
+   STL-13, STL-5, STL-H1; ~150 lines.
+3. [ ] The form says what each status means: a hint under the statuses, English and French; verified by a web test
+   of the form of a use case in both languages; makes true SFM-18; ~60 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 998c83f7364bcc5c7934677fd9a679149c34129e
+- 1 a: the status judges the section as saved (ADR 0058).
+- 2 a: `propose_verdict` refuses `wrong` with a corrected field, its error naming `validated`.
+- The form refuses no save `wrong` with an edit: its hint warns; the reviews saved before keep their status.
+
+## Summaries
+
+### 1. Move the review texts
+- done: `ReviewTexts`, `OutdatedTexts` and their English and French values moved to `texts/review.rs`, re-exported by
+  `texts`; the spec drafts and the ADR 0058 draft go with it (the first deliverable).
+- checks: tests, lint, specs pass (`project-check`); docs: no doc names the moved items by file.
+- red: none (a move, no test).
+- Code review: no findings
+- not verified: none. decisions needed: none.

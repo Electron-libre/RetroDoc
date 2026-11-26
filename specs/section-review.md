@@ -1,7 +1,7 @@
 ---
 id: REV
 status: accepted
-adrs: [0039, 0043, 0044]
+adrs: [0039, 0043, 0044, 0058]
 ---
 
 # Section review
@@ -11,7 +11,8 @@ adrs: [0039, 0043, 0044]
 A human records what they checked in the generated docs: a domain, a feature or a use case marked validated, wrong
 or to review, with a comment. The reviews are one record kept in the repository, which the web form, the debt, the
 dashboard and the MCP answers read and write, so that a reader knows what a human has vouched for beside the
-model's confidence.
+model's confidence. A status judges the section as saved with its edit (ADR 0058): validated, right; wrong, a
+claim of it wrong and not corrected, which the next `generate` writes again; to review, not settled.
 
 ## Requirements
 

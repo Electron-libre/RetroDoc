@@ -1,7 +1,7 @@
 ---
 id: STL
-status: accepted
-adrs: [0047, 0048, 0049, 0057]
+status: draft
+adrs: [0047, 0048, 0049, 0057, 0058]
 ---
 
 # Settle a disputed section with the agent
@@ -70,7 +70,7 @@ and ends on a proposed review and correction that the reader puts in the form an
 
   | argument | required | value |
   |---|---|---|
-  | `status` | yes | `validated` (the section is right as it stands), `wrong` (a claim of it is wrong) or `to_review` (not settled) (REV-2); `validated` refused with a corrected field |
+  | `status` | yes | `validated` (the section is right as saved with the corrected fields the call gives, none when it is right as it stands), `wrong` (a claim of it is wrong and the call gives no correction of it: the next `generate` writes it again, HCR-4) or `to_review` (not settled) (REV-2, ADR 0058); `wrong` refused with a corrected field |
   | `comment` | yes | the reason of the verdict for the reader, at most 400 characters |
   | `evidence` | yes | what the verdict rests on: files, commits, the reader's answers |
   | `name`, `description` | no | the corrected text of the field |
@@ -106,7 +106,7 @@ and ends on a proposed review and correction that the reader puts in the form an
 - **STL-H1** (happy; STL-1, STL-2, STL-4, STL-5, STL-7, STL-8, STL-9, STL-17) Given a use case reviewed `wrong` with the
   comment "the clerk does not pay", when the reader presses "Settle with the agent", then the ask page follows a
   first question whose message holds the use case, its review and its contradictions; the agent reads its code and
-  asks who pays; the reader answers "the customer"; the agent proposes `wrong` with a corrected description; the
+  asks who pays; the reader answers "the customer"; the agent proposes `validated` with a corrected description; the
   reader reads its short comment, unfolds the evidence under it, follows "Fill the form", finds the status, the
   comment and the description filled, saves, and only then are the review and the edit written; the log of `ui`
   holds a line for each of the two questions, the second with the proposed status and the settling's sums.
@@ -119,8 +119,8 @@ and ends on a proposed review and correction that the reader puts in the form an
 - (STL-11) Given a feature id the last run does not have, when a settling starts, then it is answered with 404, and
   no LLM call is made.
 - (STL-13) Given a domain, when the agent proposes a narrative, then the call gets an error and the question goes on.
-- (STL-13) Given a call proposing `validated` with a corrected description, then it gets an error naming `wrong`
-  and the question goes on.
+- (STL-13) Given a call proposing `wrong` with a corrected description, then it gets an error naming `validated`
+  and the question goes on; a call proposing `validated` with a corrected description is accepted.
 - (STL-13) Given a comment of 401 characters, then the call gets an error asking for a shorter comment and the
   evidence apart; one of 400 is accepted.
 - (STL-13) Given a call with no `evidence`, then it gets an error and the question goes on.
