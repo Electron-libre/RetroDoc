@@ -68,6 +68,8 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
    of deliverable 4. (autonomous)
 6. [x] Measure again on a fresh copy, after the user's go; recorded in `docs/findings.md` and the ledger. (autonomous)
 
+7. [x] Fixes of the `high` review: the refusal's fields trimmed as checked, the status escaped in the log. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 98d11a1f15722a53dc78944adbf7d2c93defc76b
@@ -136,3 +138,22 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
 - not verified: none.
 - follow-up: the comments saved grow to the limit (516 to 598 characters); a shorter comment is a matter of the
   prompt, left out of this issue.
+
+## Deliverable 7: summary (fixes of the `high` review)
+- done: a refusal's status and comment are trimmed as `proposal_of` checks them (a blank status logs `no status`),
+  and the status is escaped in the log so the line stays one line.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass (`project-check`) |
+| specs | STL-20 unchanged |
+| docs | n/a (no documented behaviour changed) |
+| code review | `high` of the issue: 4 nits, 2 fixed; `low` of the fixes: clean |
+
+- red: none: the tests were written with the fix, not run red first.
+- Code review: no findings (the `low` of the fixes)
+- `high` review: 4 findings. Fixed: the length logged from the raw comment, the status logged unescaped. Not fixed,
+  as STL-20 states them: no line for a question that failed ("ended with an answer"), and a call past
+  `MAX_CALLS_PER_ROUND` is not a refusal of the table.
+- not verified: none.

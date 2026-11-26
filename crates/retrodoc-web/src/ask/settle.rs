@@ -201,7 +201,8 @@ fn refusals_line(section: &Section, number: u64, refusals: &[Refusal]) -> String
                     .status
                     .as_ref()
                     .map_or("no status".to_string(), |status| {
-                        format!("status `{status}`")
+                        // The model's text, escaped so that the line stays one line.
+                        format!("status `{}`", status.escape_debug())
                     });
                 format!(
                     "{status}, comment of {} characters, {}",

@@ -601,6 +601,21 @@ async fn an_answer_keeps_each_refused_proposal_in_order_the_last_requests_includ
     let (_, answer, _) =
         after_its_one_round(calls("", vec![call("p1", PROPOSE_VERDICT, accepted)])).await;
     assert_eq!(answer.refusals, []);
+
+    let padded = format!(r#"{{"status":" wrong ","comment":" {long} ","evidence":"e"}}"#);
+    let refusal = Refusal::of(&padded, String::new());
+    assert_eq!(
+        refusal.status.as_deref(),
+        Some("wrong"),
+        "trimmed as checked"
+    );
+    assert_eq!(
+        refusal.comment_chars,
+        MAX_COMMENT_CHARS + 1,
+        "trimmed as checked"
+    );
+    let blank = Refusal::of(r#"{"status":"","comment":"   "}"#, String::new());
+    assert_eq!((blank.status, blank.comment_chars), (None, 0));
 }
 
 // spec: STL-5 (internal: the system prompt is seen through the fake provider only)

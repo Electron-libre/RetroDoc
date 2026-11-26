@@ -689,6 +689,7 @@ async fn each_question_of_a_settling_logs_its_refused_proposals_in_order() {
         propose(&format!(
             r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#
         )),
+        propose("{\"status\":\"wrong\\nquestion 9 | x\",\"comment\":\"c\",\"evidence\":\"e\"}"),
         propose(r#"{"status":"wrong","comment":"The customer sees them.","evidence":"e"}"#),
         FakeTurn::Text("Anything else?".into()),
     ]));
@@ -713,9 +714,13 @@ async fn each_question_of_a_settling_logs_its_refused_proposals_in_order() {
         refusals[0].contains(
             "question 1, refused proposals: status `wrong`, comment of 601 characters, \
              Error: `comment` is longer than 600 characters"
-        ),
-        "{}",
+        ) && refusals[0].contains(" | status `wrong\\nquestion 9 | x`, comment of 1 characters"),
+        "a status is escaped to one line: {}",
         refusals[0]
+    );
+    assert!(
+        !lines.iter().any(|line| line.starts_with("question 9")),
+        "no line made of a status: {lines:#?}"
     );
     assert!(
         refusals[1].contains("question 2, refused proposals: none"),

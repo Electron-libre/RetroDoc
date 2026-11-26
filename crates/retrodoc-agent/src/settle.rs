@@ -217,9 +217,9 @@ pub(crate) fn propose_verdict_spec(section: &Section) -> ToolSpec {
 /// A call of `propose_verdict` the table of STL-13 refused, as the log of `ui` names it (STL-20).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Refusal {
-    /// The `status` the call gives, if a string.
+    /// The `status` the call gives, if a string not blank, trimmed.
     pub status: Option<String>,
-    /// The length in characters of the `comment` it gives, 0 for none.
+    /// The length in characters of the `comment` it gives, trimmed, 0 for none.
     pub comment_chars: usize,
     /// The error its result gave the model.
     pub error: String,
@@ -229,7 +229,11 @@ impl Refusal {
     /// The refusal of the call whose `arguments` got `error`.
     pub(crate) fn of(arguments: &str, error: String) -> Self {
         let arguments = serde_json::from_str::<Value>(arguments).ok();
-        let text = |key: &str| arguments.as_ref()?.get(key)?.as_str().map(str::to_string);
+        // Trimmed and blank as none, as `proposal_of` reads them.
+        let text = |key: &str| {
+            Some(arguments.as_ref()?.get(key)?.as_str()?.trim().to_string())
+                .filter(|value| !value.is_empty())
+        };
         Self {
             status: text("status"),
             comment_chars: text("comment").map_or(0, |comment| comment.chars().count()),
