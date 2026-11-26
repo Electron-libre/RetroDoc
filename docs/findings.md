@@ -885,6 +885,13 @@ rejected, 2 added):
   in the others, while the other batches stayed within a few narratives. The rating more than 25 points off the
   self-rated score is now marked and left out of the table (`specs/benchmark-narrative-rating.md`); a batch
   flipped in a rating within the bound (74%) still moves the figure.
+- **The flip is not seen on linkding or Lobsters** (2026-11-26,
+  `issues/rate_again_a_flipped_batch_of_narratives.md`): five ratings each of the hidden run-1 of the 2026-11-03
+  baselines gave 85, 90, 85, 89, 81% (linkding, 115 narratives, self-rated 96%) and 78, 83, 79, 82, 80% (Lobsters,
+  223, self-rated 95%); none of their 90 batches flipped. Two batches of Lobsters read low in every rating (5 to 11
+  and 5 to 10 of 20: technical use cases, 40 to 70 points below the median of the other batches), linkding's last
+  one 6 to 12 of 15. A flip reads 82 points or more below the others, so a batch more than 50 points below is now
+  rated twice more and keeps the middle rating (BNR-6): a technical batch stays low, at two calls a time.
 - **Missed in both series**: the powers by role (rules spread over every feature, not a feature of their own in the
   docs), laying notes and book pages on the table, the table kept on disk, and the links between notes.
 

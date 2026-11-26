@@ -1,6 +1,6 @@
 ---
 id: BNR
-status: accepted
+status: draft
 adrs: []
 ---
 
@@ -26,6 +26,14 @@ and a rating far from the run's own business-language score is marked and kept o
 - **BNR-3** (deterministic) `benchmark-table` must leave the runs of BNR-2 out of the mean and range of
   "Narratives in business language (judge)", the previous series' runs too, and name, under the series, the runs
   left out with their points; a run with no self-rated score or no rated narrative is never left out.
+- **BNR-6** (deterministic) When the share of a batch's narratives in business language is more than 50 points
+  below the median share of the other batches of the same rating as first rated, rounded to whole points, the
+  judge must rate that batch twice more.
+- **BNR-7** (deterministic) A batch rated again, and the totals of its rating, must count the rating whose share
+  is the middle one of the batch's ratings that gave a verdict (the higher of two; between equal shares, the
+  earlier rating).
+- **BNR-8** (deterministic) `retrodoc benchmark` must print, on the line of a batch rated again, how many
+  narratives each of its ratings found in business language, in the order they were made.
 
 ### Contract
 
@@ -36,6 +44,9 @@ and a rating far from the run's own business-language score is marked and kept o
 - **BNR-5** (deterministic) The mark of BNR-2 and BNR-3 must be computed from the figures the report already
   holds, so that a report saved before this spec is marked by `benchmark-table` and `benchmark --saved-judge`
   with no re-rating.
+- **BNR-9** (deterministic) `judge.yaml` and the run report must keep, for a batch rated again, the counts
+  (rated, business) of each of its ratings in the order they were made, the first included, next to the counts it
+  kept; a batch rated once keeps none, and a file saved before this requirement loads with none.
 
 ## Scenarios
 
@@ -46,6 +57,19 @@ and a rating far from the run's own business-language score is marked and kept o
   whose self-rated scores are all 98%, when `benchmark-table` reads it, then the judge's narratives row counts 3
   runs (86% to 93%) and a note under the series names the run left out, its rating 68 points off the self-rated
   score.
+- **BNR-H3** (happy; BNR-6, BNR-7, BNR-8, BNR-9) Given a run of 73 narratives whose batches the judge first rates
+  19 of 20, 0 of 20, 17 of 20 and 8 of 13 in business language, and whose second batch it then rates 17 and 15
+  of 20, when `retrodoc benchmark --judge` rates them, then the second batch keeps 15 of 20, the rating counts
+  59 of 73, and the summary line of that batch shows 0, 17 and 15.
+- (BNR-6) Given batches first rated 90%, 100% and 45% (50 points below the median of the others, 95%), then no
+  batch is rated again; at 44% the third is.
+- (BNR-6) Given a rating of a single batch, then it is never rated again.
+- (BNR-7) Given a batch rated again whose first re-rating gives no usable verdict and whose second reads 16 of
+  20, then the batch keeps 16 of 20 (the higher of 0 and 16), and the unusable rating is saved with none rated.
+- (BNR-7) Given a batch whose re-ratings read 1 and 2 of 20 after a first 0 of 20, then it keeps 1 of 20: a
+  batch that is technical stays so.
+- (BNR-6) Given a batch whose first answer gave no usable verdict, then it is not rated again (BNR-4 keeps it
+  with none rated).
 - (BNR-2) Given a judge's share of 73% and a self-rated score of 98% (25 points), then the figure is not marked;
   at 72% it is.
 - (BNR-2) Given a run whose judge rated no narrative, then no mark is printed.
@@ -56,8 +80,9 @@ and a rating far from the run's own business-language score is marked and kept o
 
 ## Non-goals
 
-- Rating each batch more than once and keeping the agreement: the per-batch counts of BNR-4 and a re-rating of
-  saved runs decide first whether one rating holds batch outliers the mark does not catch.
+- Rating every batch more than once: only a batch far below the other batches of its rating is rated again; a
+  rating whose every batch reads low is caught by the mark of BNR-2, not by BNR-6.
+- Smaller batches: they would change every judge's figure saved so far.
 - Whether a narrative is really written in business language: it depends on what the model answers.
 - The per-pass replay of the use cases (`pass_replay use-cases`): its table shows the judge's share and the
   self-rated score side by side already.
