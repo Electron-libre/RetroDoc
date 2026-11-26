@@ -127,7 +127,7 @@ pub fn summary(
         if let Some(points) = rating.off_by(metrics.business_language) {
             let _ = writeln!(
                 out,
-                "  off the self-rated business-language score by {points} points: rate it again before reading it"
+                "  off the self-rated business-language score by {points} points: rate it again before reading it (`--judge`, which also proposes the pairs again)"
             );
             // Logged here, the one place `retrodoc benchmark` reads both figures together.
             tracing::warn!(

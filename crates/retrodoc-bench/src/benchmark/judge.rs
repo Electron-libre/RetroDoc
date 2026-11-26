@@ -850,6 +850,30 @@ mod tests {
         assert_eq!(pairs, []);
     }
 
+    // spec: BNR-4, BNR-H1 (internal: the file is written and read back in a temporary directory)
+    #[test]
+    fn the_batches_of_the_narratives_are_saved_in_judge_yaml() {
+        let dir = tempfile::tempdir().unwrap();
+        let batch = |narratives, rated, business| BatchRating {
+            narratives,
+            rated,
+            business,
+        };
+        let judgement = Judgement {
+            narratives: NarrativeRating {
+                total: 25,
+                rated: 24,
+                business: 20,
+                batches: vec![batch(20, 19, 16), batch(5, 5, 4)],
+            },
+            ..Judgement::default()
+        };
+
+        judgement.save(dir.path()).unwrap();
+
+        assert_eq!(Judgement::load(dir.path()).unwrap(), judgement);
+    }
+
     // spec: BSC-18 (internal: the count is read from pairs built in memory)
     #[test]
     fn counts_the_proposals_neither_paired_nor_rejected_by_hand() {

@@ -97,6 +97,8 @@ const NARRATIVES_JUDGED: &str = "Narratives in business language (judge)";
 pub struct Series {
     pub name: String,
     pub runs: Vec<RunReport>,
+    /// The file name of each run, in the order of `runs`; a run past its end is named by its rank.
+    pub files: Vec<String>,
 }
 
 /// Reads `<dir>/<series>/*.json`, series and runs sorted by name.
@@ -118,6 +120,7 @@ pub fn load_series(dir: &Path) -> Result<Vec<Series>, PipelineError> {
             continue;
         }
         let mut runs = Vec::new();
+        let mut files = Vec::new();
         for file in sorted_entries(&folder).map_err(io_error(&folder))? {
             if file.extension().is_none_or(|e| e != "json") {
                 continue;
@@ -129,6 +132,12 @@ pub fn load_series(dir: &Path) -> Result<Vec<Series>, PipelineError> {
                     reason: error.to_string(),
                 })?;
             runs.push(run);
+            files.push(
+                file.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned(),
+            );
         }
         series.push(Series {
             name: folder
@@ -137,6 +146,7 @@ pub fn load_series(dir: &Path) -> Result<Vec<Series>, PipelineError> {
                 .to_string_lossy()
                 .into_owned(),
             runs,
+            files,
         });
     }
     Ok(series)
@@ -203,22 +213,7 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
                 );
             }
         }
-        let off: Vec<String> = series
-            .runs
-            .iter()
-            .filter_map(RunReport::narratives_off)
-            .map(|points| points.to_string())
-            .collect();
-        if !off.is_empty() {
-            let _ = writeln!(
-                out,
-                "{} run(s) left out of `{NARRATIVES_JUDGED}`: the judge's rating is off the \
-                 self-rated business-language score by more than {OFF_BOUND_POINTS} points ({}); \
-                 rate them again with `retrodoc benchmark --judge`.\n",
-                off.len(),
-                off.join(", ")
-            );
-        }
+        off_note(&mut out, series);
         out.push_str("| Metric | Mean | Range | Runs | Previous | Change |\n");
         out.push_str("|---|---|---|---|---|---|\n");
         for figure in FIGURES {
@@ -248,6 +243,35 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
     }
     out.push_str(READING_NOTE);
     out
+}
+
+/// The note naming the runs of `series` whose rating of the narratives is off (`RunReport::narratives_off`).
+fn off_note(out: &mut String, series: &Series) {
+    let off: Vec<String> = series
+        .runs
+        .iter()
+        .enumerate()
+        .filter_map(|(rank, run)| {
+            let points = run.narratives_off()?;
+            let name = series
+                .files
+                .get(rank)
+                .cloned()
+                .unwrap_or_else(|| format!("run {}", rank + 1));
+            Some(format!("{name} ({points} points)"))
+        })
+        .collect();
+    if !off.is_empty() {
+        let _ = writeln!(
+            out,
+            "{} run(s) left out of `{NARRATIVES_JUDGED}`, the previous runs' too: the judge's \
+             rating is off the self-rated business-language score by more than \
+             {OFF_BOUND_POINTS} points: {}. Rate them again with `retrodoc benchmark --judge`, \
+             which also proposes the judge's pairs again.\n",
+            off.len(),
+            off.join(", ")
+        );
+    }
 }
 
 /// The scoring versions of `runs`, each once, sorted, `None` (saved before versions existed) last.
@@ -546,6 +570,7 @@ mod tests {
     fn series(name: &str, runs: Vec<RunReport>) -> Series {
         Series {
             name: name.to_string(),
+            files: (1..=runs.len()).map(|n| format!("run-{n}.json")).collect(),
             runs,
         }
     }
@@ -845,6 +870,7 @@ mod tests {
             report(0.5, 6, 10, false),
             "run-1 comes first"
         );
+        assert_eq!(loaded[0].files, ["run-1.json", "run-2.json"]);
     }
 
     #[test]
@@ -896,9 +922,9 @@ mod tests {
         );
         assert!(
             hidden.contains(
-                "1 run(s) left out of `Narratives in business language (judge)`: the judge's rating \
-                 is off the self-rated business-language score by more than 25 points (68); rate \
-                 them again with `retrodoc benchmark --judge`."
+                "1 run(s) left out of `Narratives in business language (judge)`, the previous \
+                 runs' too: the judge's rating is off the self-rated business-language score by \
+                 more than 25 points: run-1.json (68 points)."
             ),
             "{text}"
         );
@@ -924,6 +950,6 @@ mod tests {
             row(&text, "Narratives in business language (judge)"),
             "| Narratives in business language (judge) | n/a | — | 0 |  |  |"
         );
-        assert!(text.contains("by more than 25 points (68)"), "{text}");
+        assert!(text.contains("run-1.json (68 points)"), "{text}");
     }
 }

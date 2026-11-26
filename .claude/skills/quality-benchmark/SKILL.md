@@ -103,7 +103,8 @@ a later run generates. The figures are therefore read like this:
   two measures to follow. The mean of the deterministic score saturates near 95% and hides differences.
   A run whose judge's rating is more than 25 points off its self-rated business-language score is left out
   of the judge's row and named under the series (`specs/benchmark-narrative-rating.md`): rate it again
-  (`retrodoc benchmark --judge`, a few judge calls) before reading it; `retrodoc benchmark` prints the
+  (`retrodoc benchmark --judge`: the whole judge again, its pairs included, about 8 calls on 70 use cases)
+  before reading it; `retrodoc benchmark` prints the
   rating of each batch of 20 to tell a bad batch from a bad rating.
 - **no suffix** (strict): the hand-written pairs and equal names only. An audited floor, which rises as
   verified pairs are added to `matches.yaml`.

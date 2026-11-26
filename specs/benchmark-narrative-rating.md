@@ -20,11 +20,12 @@ and a rating far from the run's own business-language score is marked and kept o
   of each batch: its number, how many of its narratives were rated and how many of those read as business language.
 - **BNR-2** (deterministic) When the judge's share of narratives in business language and the run's self-rated
   business-language score (the mean of the use cases' `business_language` scores) differ by more than 25 points,
+  rounded to whole points,
   `retrodoc benchmark` must print next to the judge's figure, and log at `warn`, that it is off the self-rated
   score by that many points and is to be rated again before it is read.
 - **BNR-3** (deterministic) `benchmark-table` must leave the runs of BNR-2 out of the mean and range of
-  "Narratives in business language (judge)" and say, under the series, how many runs are left out and why; a run
-  with no self-rated score or no rated narrative is never left out.
+  "Narratives in business language (judge)", the previous series' runs too, and name, under the series, the runs
+  left out with their points; a run with no self-rated score or no rated narrative is never left out.
 
 ### Contract
 
@@ -43,7 +44,7 @@ and a rating far from the run's own business-language score is marked and kept o
   under the judge's figure.
 - **BNR-H2** (happy; BNR-2, BNR-3) Given a series of 4 runs whose judge's shares are 30%, 93%, 92% and 86% and
   whose self-rated scores are all 98%, when `benchmark-table` reads it, then the judge's narratives row counts 3
-  runs (86% to 93%) and a note under the series says 1 run is left out, its rating 68 points off the self-rated
+  runs (86% to 93%) and a note under the series names the run left out, its rating 68 points off the self-rated
   score.
 - (BNR-2) Given a judge's share of 73% and a self-rated score of 98% (25 points), then the figure is not marked;
   at 72% it is.

@@ -55,7 +55,7 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
    Vingilot hidden run of `c959836` with the batches saved, to see whether a bad rating is one batch or every batch;
    recorded in `docs/findings.md` §12 and the ledger; a follow-up issue to rate each batch twice if the batches
    spread. (autonomous)
-5. [ ] Docs of the whole issue and fixes of its `high` review.
+5. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -101,3 +101,17 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
 - red: none (a measure).
 - Code review: no findings
 - not verified: whether a flipped batch shows on linkding or Lobsters (left to the follow-up's measure).
+
+## Deliverable 5
+- done: docs of the whole issue (`docs/ARCHITECTURE.md`, `docs/crates/render-mcp-cli.md`); fixes of the `high`
+  review: the table names the runs left out (`Series::files`), says the previous runs are left out too, and the
+  hint says `--judge` proposes the pairs again; BNR-2 says the points are rounded; a round trip of `judge.yaml`
+  with its batches tested.
+- checks: tests pass, clippy clean, specs check pass, docs updated.
+- red: none (review fixes; the new tests pass on their first run: the save already kept the batches).
+- High review: 6 findings: run not named (fixed), rounding before the bound (spec reworded, the rounding kept so
+  the printed points and the bound agree), previous runs left out silently (note says so), `--judge` redoes the
+  pairs (hint and skill say so), self-rated score over other use cases or a later run (not fixed: every run has a
+  narrative per use case so far, and `--saved-judge` after a new `generate` misreads every judged figure, not
+  only this one), BNR-H1 not proving `judge.yaml` (round-trip test added).
+- Code review: no findings
