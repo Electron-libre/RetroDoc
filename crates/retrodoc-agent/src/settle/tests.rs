@@ -145,7 +145,7 @@ async fn a_proposal_the_table_refuses_gets_its_error_and_the_question_goes_on() 
                 call(
                     "c3",
                     PROPOSE_VERDICT,
-                    r#"{"status":"wrong","comment":"c","evidence":"e","narrative":"n"}"#,
+                    r#"{"status":"validated","comment":"c","evidence":"e","narrative":"n"}"#,
                 ),
                 call("c4", PROPOSE_VERDICT, "not json"),
             ],
@@ -221,13 +221,20 @@ fn a_proposal_needs_its_evidence_a_short_comment_and_a_status_that_fits_its_corr
         ),
     );
     assert!(short.is_ok(), "{short:?}");
-    let validated = refused(
-        r#"{"status":"validated","comment":"c","evidence":"e","description":"The customer pays."}"#,
+    let wrong = refused(
+        r#"{"status":"wrong","comment":"c","evidence":"e","description":"The customer pays."}"#,
     );
     assert!(
-        validated.starts_with("Error:") && validated.contains("`wrong`"),
-        "{validated}"
+        wrong.starts_with("Error:") && wrong.contains("`validated`"),
+        "{wrong}"
     );
+    let corrected = proposal_of(
+        &section,
+        r#"{"status":"validated","comment":"c","evidence":"e","description":"The customer pays."}"#,
+    )
+    .unwrap();
+    assert_eq!(corrected.status, Status::Validated);
+    assert_eq!(corrected.description.as_deref(), Some("The customer pays."));
 }
 
 // spec: STL-5, STL-13 (internal: the prompt and the tool are what the model reads, seen as sent)
@@ -260,7 +267,7 @@ async fn a_valid_proposal_ends_the_question_and_the_calls_after_it_are_not_run()
             call(
                 "c1",
                 PROPOSE_VERDICT,
-                r#"{"status":"wrong","comment":"The customer pays.","evidence":"`app/invoice.rb` charges the card.","description":"The customer pays online."}"#,
+                r#"{"status":"validated","comment":"The customer pays.","evidence":"`app/invoice.rb` charges the card.","description":"The customer pays online."}"#,
             ),
             call("c2", "read_source", r#"{"path":"app/invoice.rb"}"#),
         ],
@@ -275,7 +282,7 @@ async fn a_valid_proposal_ends_the_question_and_the_calls_after_it_are_not_run()
     assert_eq!(llm.calls(), 1);
     assert_eq!(*steps.lock().unwrap(), [PROPOSE_VERDICT]);
     let proposal = answer.proposal.unwrap();
-    assert_eq!(proposal.status, Status::Wrong);
+    assert_eq!(proposal.status, Status::Validated);
     assert_eq!(
         proposal.description.as_deref(),
         Some("The customer pays online.")
@@ -310,7 +317,7 @@ async fn the_sources_of_a_proposal_are_checked_over_its_evidence_too() {
             vec![call(
                 "c2",
                 PROPOSE_VERDICT,
-                r#"{"status":"wrong","comment":"The customer pays.","evidence":"`billing/pay-invoice` names the clerk.","description":"The customer pays online."}"#,
+                r#"{"status":"validated","comment":"The customer pays.","evidence":"`billing/pay-invoice` names the clerk.","description":"The customer pays online."}"#,
             )],
         ),
     ]);
@@ -339,7 +346,7 @@ async fn the_kept_answer_of_a_proposal_holds_it_as_text() {
             vec![call(
                 "c1",
                 PROPOSE_VERDICT,
-                r#"{"status":"wrong","comment":"The customer pays.","evidence":"`app/invoice.rb`.","name":"Pay online"}"#,
+                r#"{"status":"validated","comment":"The customer pays.","evidence":"`app/invoice.rb`.","name":"Pay online"}"#,
             )],
         ),
         FakeTurn::Text("Kept to review.".into()),
@@ -365,7 +372,7 @@ async fn the_kept_answer_of_a_proposal_holds_it_as_text() {
     );
     assert!(earlier
         .content
-        .contains("Proposed verdict: wrong\nComment: The customer pays.\nEvidence: `app/invoice.rb`.\nName: Pay online"));
+        .contains("Proposed verdict: validated\nComment: The customer pays.\nEvidence: `app/invoice.rb`.\nName: Pay online"));
 }
 
 /// A settling of `pay-invoice` with one round, its tool calls then `last`, the answer of its last
@@ -402,7 +409,7 @@ async fn the_last_request_of_a_settling_offers_propose_verdict_alone() {
         vec![call(
             "p1",
             PROPOSE_VERDICT,
-            r#"{"status":"wrong","comment":"The customer pays.","evidence":"`app/invoice.rb`","description":"The customer pays."}"#,
+            r#"{"status":"validated","comment":"The customer pays.","evidence":"`app/invoice.rb`","description":"The customer pays."}"#,
         )],
     ))
     .await;
@@ -421,7 +428,7 @@ async fn the_last_request_of_a_settling_offers_propose_verdict_alone() {
     );
     assert_eq!(told, ["get_feature", PROPOSE_VERDICT]);
     let proposal = answer.proposal.expect("the proposal of the last request");
-    assert_eq!(proposal.status, Status::Wrong);
+    assert_eq!(proposal.status, Status::Validated);
     assert_eq!(answer.text, "Settled.");
     assert_eq!(answer.rounds, 1);
 
@@ -484,7 +491,7 @@ async fn a_refused_proposal_or_another_tool_in_the_last_request_ends_on_its_text
 async fn the_first_accepted_proposal_of_the_last_request_ends_the_question() {
     let long = "x".repeat(MAX_COMMENT_CHARS + 1);
     let refused = format!(r#"{{"status":"wrong","comment":"{long}","evidence":"e"}}"#);
-    let accepted = r#"{"status":"wrong","comment":"The customer pays.","evidence":"e","description":"The customer pays."}"#;
+    let accepted = r#"{"status":"validated","comment":"The customer pays.","evidence":"e","description":"The customer pays."}"#;
     let (_, answer, _) = after_its_one_round(calls(
         "",
         vec![

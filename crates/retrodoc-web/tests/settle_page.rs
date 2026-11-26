@@ -373,7 +373,7 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     let llm = Arc::new(FakeLlm::scripted(vec![
         FakeTurn::Text("Who sees the orders, the clerk or the customer?".into()),
         propose(
-            r#"{"status":"wrong","comment":"The customer sees them.","evidence":"`app/order.rb` filters by customer.","description":"The customer sees their orders"}"#,
+            r#"{"status":"validated","comment":"The customer sees them.","evidence":"`app/order.rb` filters by customer.","description":"The customer sees their orders"}"#,
         ),
     ]));
     let router = router(dir.path(), Some(llm));
@@ -388,7 +388,7 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     assert_eq!(response.status(), StatusCode::OK);
     let exchange = body(send(&router, get_request("/ask/questions/2", Some(&cookie))).await).await;
     let proposal = &exchange[exchange.find("class=\"proposal\"").expect(&exchange)..];
-    assert!(proposal.contains("Wrong"), "{proposal}");
+    assert!(proposal.contains("Validated"), "{proposal}");
     assert!(
         proposal.contains("<p class=\"comment\">The customer sees them.</p>"),
         "{proposal}"
@@ -422,7 +422,7 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     )
     .await;
     let form = review_form(&page);
-    assert!(form.contains("value=\"wrong\" checked"), "{form}");
+    assert!(form.contains("value=\"validated\" checked"), "{form}");
     assert!(
         form.contains(">The customer sees them.</textarea>"),
         "the comment alone, without its evidence: {form}"
@@ -443,7 +443,7 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     assert!(form.contains("class=\"proposed\""), "{form}");
     assert!(!reviews.exists() && !edits.exists());
 
-    let save = "status=wrong&comment=The+customer+sees+them.&name=List+orders\
+    let save = "status=validated&comment=The+customer+sees+them.&name=List+orders\
                 &description=The+customer+sees+their+orders\
                 &shown_name=List+orders&shown_description=The+clerk+sees+the+orders";
     let response = send(
@@ -453,6 +453,8 @@ async fn a_proposal_is_shown_in_its_exchange_and_fills_the_form_saved_only_by_th
     .await;
     assert_eq!(response.status(), StatusCode::OK);
     assert!(reviews.exists() && edits.exists());
+    let saved = std::fs::read_to_string(&reviews).unwrap();
+    assert!(saved.contains("\"status\": \"validated\""), "{saved}");
 }
 
 // spec: STL-16

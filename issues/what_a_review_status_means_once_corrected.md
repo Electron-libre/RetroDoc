@@ -57,10 +57,10 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
 1. [x] Move the review texts out of `texts.rs`: `ReviewTexts`, `OutdatedTexts` and their English and French values to
    `crates/retrodoc-web/src/texts/review.rs`, no change of behaviour (`texts.rs` is over the file size limit);
    verified by the existing tests; ~250 lines. (autonomous)
-2. [ ] The settling follows the status as saved: `propose_verdict` accepts `validated` with corrected fields and
+2. [x] The settling follows the status as saved: `propose_verdict` accepts `validated` with corrected fields and
    refuses `wrong` with one, its error naming `validated`; its descriptions and the settling prompt say so; the ADR
    0058 and the spec drafts go with it; verified by the agent tests of the STL-13 scenarios and STL-H1; makes true
-   STL-13, STL-5, STL-H1; ~150 lines.
+   STL-13, STL-5, STL-H1; ~150 lines. (autonomous)
 3. [ ] The form says what each status means: a hint under the statuses, English and French; verified by a web test
    of the form of a use case in both languages; makes true SFM-18; ~60 lines.
 
@@ -80,3 +80,13 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
 - red: none (a move, no test).
 - Code review: no findings
 - not verified: none. decisions needed: none.
+
+### 2. The settling follows the status as saved
+- done: `propose_verdict` refuses `wrong` with a corrected field, its error naming `validated`, and accepts
+  `validated` with one; its descriptions and the settling prompt say the status judges the section as saved; the
+  fixtures of the agent and of the settle page propose `validated` with their correction, and STL-H1 checks the saved
+  review is `validated`; `docs/crates/agent.md` names ADR 0058; STL back to `accepted`.
+- checks: tests, lint, specs (`project-check`); docs: `docs/crates/agent.md`.
+- red: STL-13: `called Result::unwrap_err() on an Ok value`: `wrong` with a corrected description was accepted.
+- Code review: no findings
+- not verified: what the model proposes under the new prompt (a paid measure, not run). decisions needed: none.

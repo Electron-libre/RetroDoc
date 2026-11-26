@@ -49,9 +49,11 @@ the verdict and keeps the calls of `propose_verdict` refused in a round with the
 the table accepts ends the question on its proposal, told to the observer, else the question ends on the text of the
 message, blank replaced by the comment of the first refused call, else by its error, no round following
 (`settle::last_answer`, STL-18). The paragraph and the tool ask a short comment for a reader who is not a developer, the
-evidence (files, commits, the reader's answers) apart, and say which status fits. A call of it whose arguments are
+evidence (files, commits, the reader's answers) apart, and say which status fits: the status judges the section as
+the reader saves it, so a proposal that corrects a field is `validated`, and `wrong` leaves the section for the next
+run to write again ([ADR 0058](../adr/0058-a-review-status-judges-the-section-as-saved.md)). A call of it whose arguments are
 refused (a status other than the three of a review, no comment, a comment over `MAX_COMMENT_CHARS` (400 characters),
-no evidence, `validated` with a corrected field, a narrative for a domain or a feature) gets the error as its result
+no evidence, `wrong` with a corrected field, a narrative for a domain or a feature) gets the error as its result
 (STL-13); a valid one ends the question,
 the calls after it in its round not run, its `Proposal` in `Answer::proposal` and the text of the answer the text of
 its message, else the comment, its sources checked over that text and the evidence (`proposed`, STL-14). Nothing is written: the reader saves the proposal through the form of the

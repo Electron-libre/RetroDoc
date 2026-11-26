@@ -1,6 +1,6 @@
 ---
 id: STL
-status: draft
+status: accepted
 adrs: [0047, 0048, 0049, 0057, 0058]
 ---
 
