@@ -36,4 +36,4 @@ Read by someone taking an application over
 # Resources
 * `crates/retrodoc-bench/src/benchmark/narratives.rs` (`rate_narratives`, `RATE_SYSTEM_PROMPT`).
 * The ratings of 2026-11-26: `repeat_the_narratives_rating_of_the_judge-6873831-rerate/` in the runs directory.
-* `issues/repeat_the_narratives_rating_of_the_judge.md`.
+* `issues/done/repeat_the_narratives_rating_of_the_judge.md`.
