@@ -221,13 +221,13 @@ fn a_proposal_needs_its_evidence_a_short_comment_and_a_status_that_fits_its_corr
         ),
     );
     assert!(short.is_ok(), "{short:?}");
-    let wrong = refused(
+    let partial = proposal_of(
+        &section,
         r#"{"status":"wrong","comment":"c","evidence":"e","description":"The customer pays."}"#,
-    );
-    assert!(
-        wrong.starts_with("Error:") && wrong.contains("`validated`"),
-        "{wrong}"
-    );
+    )
+    .unwrap();
+    assert_eq!(partial.status, Status::Wrong);
+    assert_eq!(partial.description.as_deref(), Some("The customer pays."));
     let corrected = proposal_of(
         &section,
         r#"{"status":"validated","comment":"c","evidence":"e","description":"The customer pays."}"#,
@@ -252,15 +252,15 @@ fn the_prompt_and_the_tool_say_how_to_write_the_comment_and_which_status_fits() 
     for fits in ["validated", "wrong", "to_review"] {
         assert!(status.contains(fits), "{status}");
     }
-    for meaning in ["once corrected", "cannot give its correction"] {
+    for meaning in ["once corrected", "you cannot correct"] {
         assert!(
             SETTLING_PROMPT.contains(meaning),
             "{meaning} in {SETTLING_PROMPT}"
         );
     }
     assert!(
-        status.contains("corrected fields given") && status.contains("no correction"),
-        "a correction is validated, wrong has none: {status}"
+        status.contains("corrected fields given") && status.contains("left uncorrected"),
+        "a correction is validated, wrong leaves a claim uncorrected: {status}"
     );
     assert_eq!(
         tool.parameters["required"],

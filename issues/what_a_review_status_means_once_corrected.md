@@ -45,6 +45,8 @@ Read by someone taking an application over
 
 # Tracking
 
+State: done: every deliverable committed.
+
 Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-26
 
 ## Understanding
@@ -67,12 +69,16 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
    (SFM-2, SFM-H2 saves `validated` with its edit), the tool fields never with `wrong`, the French hint names the
    section, no ADR number in the model's error, the prompt test checks the new meaning, the counts of the audit in
    the ADR's consequences, the finding of section 4 item 5 settled. (autonomous)
+5. [x] A partial correction: `propose_verdict` accepts `wrong` with corrected fields, a claim left uncorrected; the
+   prompt, the tool, STL-13 and ADR 0058 say so; verified by the agent test of STL-13; makes true STL-13; ~50 lines. (validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-26: answer b)
 
 ## Decisions
 - Mode: autonomous
 - Base commit: 998c83f7364bcc5c7934677fd9a679149c34129e
 - 1 a: the status judges the section as saved (ADR 0058).
-- 2 a: `propose_verdict` refuses `wrong` with a corrected field, its error naming `validated`.
+- 2 a: `propose_verdict` refuses `wrong` with a corrected field, its error naming `validated`. Reversed after the
+  `high` review (finding 2, answered b on 2026-11-26): `wrong` is accepted with the fields it can correct, a claim
+  left uncorrected; no status refuses corrected fields.
 - The form refuses no save `wrong` with an edit: its hint warns; the reviews saved before keep their status.
 
 ## Summaries
@@ -117,3 +123,13 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
 - red: SFM-2: `UNFOLDING_STATUSES = ["wrong", "validated"] in <forms.js>` not found.
 - Code review: no findings
 - not verified: the unfolding in a browser (the test reads the script). decisions needed: finding 2 of the high review.
+
+### 5. A partial correction
+- done: `propose_verdict` accepts `wrong` with the fields it can correct, a claim left uncorrected (no status
+  refuses corrected fields now); the prompt and the tool say so; STL-13, its scenario, ADR 0058,
+  `docs/crates/agent.md`, `docs/findings.md` and `issues/settling_proposal_refusals.md` follow.
+- checks: tests, lint, specs (`project-check`).
+- red: STL-13: `called Result::unwrap() on an Err value: "Error: `wrong` means a claim of the section is wrong and left
+  uncorrected..."`.
+- Code review: no findings
+- not verified: what the model proposes (a paid measure). decisions needed: none.

@@ -17,7 +17,7 @@ correction pays a call to rewrite what the reader already fixed.
 This amends ADR 0057. A status judges the section as saved, its edit applied: `validated` says the section is right
 as saved, with or without the corrections saved with it; `wrong` says a claim of it is wrong and not corrected, so
 the next `generate` writes it again; `to_review` says it is not settled. `propose_verdict` proposes `validated` with
-its corrected fields and refuses `wrong` with a corrected field, its error naming `validated`. The form says under
+its corrected fields, and `wrong` with the fields it can correct when a claim is left uncorrected. The form says under
 its statuses what each one means for the section as saved.
 
 Rejected: the status judging the section as generated (`wrong` with its correction), which matches neither the

@@ -417,8 +417,8 @@ Steps, each shippable:
    - Lesson: the comment is now one a reader judges; the rounds of a first question are spent checking before the
      agent proposes, and what a status means once the section is corrected is still to settle.
      Settled on 2026-11-26 (`issues/what_a_review_status_means_once_corrected.md`, ADR 0058): a status judges the
-     section as saved, so a corrected section is proposed `validated`, and `wrong` is left for the next run to write
-     again.
+     section as saved, so a corrected section is proposed `validated`, and `wrong`, a claim left uncorrected, is
+     written again by the next run.
    - Measured a third time (2026-11-26, at `e3ae1a41`, after `issues/done/settling_proposes_within_its_first_question.md`:
      the prompt states the rounds, the last request offers `propose_verdict` alone; same copy, model, reader and
      sections). About $0.03: 24 calls, 135k tokens in (103k cached), 8.5k out, with the tool calls of each question

@@ -25,8 +25,8 @@ developer: a few sentences in the words of the business, what is right or wrong 
 why it matters to them, with no file, commit or code name; put those in the evidence, with the \
 reader's answers. The status judges the section as the reader will save it, with your corrections: \
 validated when it is right as it stands or once corrected (then give the corrected text), wrong when \
-a claim of it is wrong and you cannot give its correction (the next run writes it again; give no \
-corrected field), to_review when it could not be settled.";
+a claim of it is wrong that you cannot correct (the next run writes it again; give the corrections \
+you can), to_review when it could not be settled.";
 
 /// The longest comment of a proposal, in characters: the evidence goes apart (STL-13).
 pub const MAX_COMMENT_CHARS: usize = 400;
@@ -177,8 +177,8 @@ pub(crate) fn propose_verdict_spec() -> ToolSpec {
         name: PROPOSE_VERDICT.to_string(),
         description: "Propose the verdict on the section being settled, once it is settled: its \
             review status, a short comment for a reader who is not a developer, the evidence \
-            apart, and the corrected text of each wrong field, with the status validated. Saves \
-            nothing: the reader checks it and saves it."
+            apart, and the corrected text of each wrong field. Saves nothing: the reader checks it \
+            and saves it."
             .to_string(),
         parameters: json!({
             "type": "object",
@@ -187,8 +187,8 @@ pub(crate) fn propose_verdict_spec() -> ToolSpec {
                     "type": "string",
                     "enum": ["validated", "wrong", "to_review"],
                     "description": "validated: the section is right as it stands, or once saved with \
-                        the corrected fields given; wrong: a claim of it is wrong and no correction is \
-                        given, so the next run writes it again; to_review: it could not be settled."
+                        the corrected fields given; wrong: a claim of it is wrong and left uncorrected, \
+                        with the corrected fields given if any, so the next run writes it again; to_review: it could not be settled."
                 },
                 "comment": {
                     "type": "string",
@@ -199,9 +199,9 @@ pub(crate) fn propose_verdict_spec() -> ToolSpec {
                     "type": "string",
                     "description": "What the verdict rests on: files, commits, the reader's answers."
                 },
-                "name": {"type": "string", "description": "The corrected name, if it is wrong; never with the status wrong."},
-                "description": {"type": "string", "description": "The corrected description, if it is wrong; never with the status wrong."},
-                "narrative": {"type": "string", "description": "The corrected narrative of a use case, if it is wrong; never with the status wrong."}
+                "name": {"type": "string", "description": "The corrected name, if it is wrong."},
+                "description": {"type": "string", "description": "The corrected description, if it is wrong."},
+                "narrative": {"type": "string", "description": "The corrected narrative of a use case, if it is wrong."}
             },
             "required": ["status", "comment", "evidence"]
         }),
@@ -245,14 +245,6 @@ pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal
             .to_string()
     })?;
     let (name, description, narrative) = (text("name"), text("description"), text("narrative"));
-    if status == Status::Wrong && (name.is_some() || description.is_some() || narrative.is_some()) {
-        return Err(
-            "Error: `wrong` means a claim of the section is wrong and left uncorrected, for the next \
-             run to write it again: a proposal that corrects a field is `validated`, the section \
-             right once saved with its correction."
-                .to_string(),
-        );
-    }
     if narrative.is_some() && section.kind != SectionKind::UseCase {
         return Err(format!(
             "Error: a {} has no narrative; propose its name or description only.",

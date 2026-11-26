@@ -70,7 +70,7 @@ and ends on a proposed review and correction that the reader puts in the form an
 
   | argument | required | value |
   |---|---|---|
-  | `status` | yes | `validated` (the section is right as saved with the corrected fields the call gives, none when it is right as it stands), `wrong` (a claim of it is wrong and the call gives no correction of it: the next `generate` writes it again, HCR-4) or `to_review` (not settled) (REV-2, ADR 0058); `wrong` refused with a corrected field |
+  | `status` | yes | `validated` (the section is right as saved with the corrected fields the call gives, none when it is right as it stands), `wrong` (a claim of it is wrong and left uncorrected, with the corrected fields the call gives if any: the next `generate` writes it again, HCR-4) or `to_review` (not settled) (REV-2, ADR 0058) |
   | `comment` | yes | the reason of the verdict for the reader, at most 400 characters |
   | `evidence` | yes | what the verdict rests on: files, commits, the reader's answers |
   | `name`, `description` | no | the corrected text of the field |
@@ -119,8 +119,8 @@ and ends on a proposed review and correction that the reader puts in the form an
 - (STL-11) Given a feature id the last run does not have, when a settling starts, then it is answered with 404, and
   no LLM call is made.
 - (STL-13) Given a domain, when the agent proposes a narrative, then the call gets an error and the question goes on.
-- (STL-13) Given a call proposing `wrong` with a corrected description, then it gets an error naming `validated`
-  and the question goes on; a call proposing `validated` with a corrected description is accepted.
+- (STL-13) Given a call proposing `validated` with a corrected description, then it is accepted; one proposing
+  `wrong` with a corrected description, a claim of the narrative left uncorrected, is accepted too.
 - (STL-13) Given a comment of 401 characters, then the call gets an error asking for a shorter comment and the
   evidence apart; one of 400 is accepted.
 - (STL-13) Given a call with no `evidence`, then it gets an error and the question goes on.

@@ -23,8 +23,7 @@ proposal accepted at the first call in most settlings.
 2. Candidate fixes, depending on the reasons found:
    1. A comment over 400 characters: say the limit again in the error with the length, or move the limit to the
       schema of the tool (`maxLength`).
-   2. `wrong` with a corrected field (refused since ADR 0058, the reverse of the measured rule): say in the error
-      which status to send with the same fields.
+   2. `validated` with a corrected field: no longer refused since ADR 0058, nor `wrong` with one.
    3. A refusal the reader would not have made: reconsider the rule of STL-13 (ADR 0058).
 3. Measure again on the same copy and sections, the refusals read from the `ui` log.
 
