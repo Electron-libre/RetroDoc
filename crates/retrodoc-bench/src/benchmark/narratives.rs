@@ -45,13 +45,6 @@ pub struct Verdicts {
     pub business: usize,
 }
 
-impl Verdicts {
-    #[allow(clippy::cast_precision_loss)]
-    fn share(self) -> Option<f32> {
-        (self.rated > 0).then(|| self.business as f32 / self.rated as f32)
-    }
-}
-
 impl NarrativeRating {
     /// Share of the rated narratives that read as business language; `None` when none was rated.
     #[must_use]
@@ -158,44 +151,61 @@ async fn rate_batch(llm: &dyn LlmProvider, batch: &[String]) -> Result<Verdicts,
 }
 
 /// Whether the first rating of batch `i` is more than [`RERATE_BOUND_POINTS`] below the median of
-/// the other batches' first ratings; a batch with no verdict, or with no other batch rated, is not.
-#[allow(clippy::cast_possible_truncation)]
+/// the other batches' first ratings, rounded to whole points; a batch with no verdict, or with no other
+/// batch rated, is not. Computed on the counts, with no float, so that the bound is exact.
 fn is_flipped(firsts: &[Verdicts], i: usize) -> bool {
-    let Some(share) = firsts[i].share() else {
+    let me = firsts[i];
+    if me.rated == 0 {
         return false;
-    };
-    let mut others: Vec<f32> = firsts
+    }
+    let mut others: Vec<Verdicts> = firsts
         .iter()
         .enumerate()
-        .filter(|&(j, _)| j != i)
-        .filter_map(|(_, v)| v.share())
+        .filter(|&(j, v)| j != i && v.rated > 0)
+        .map(|(_, &v)| v)
         .collect();
     if others.is_empty() {
         return false;
     }
-    others.sort_by(f32::total_cmp);
+    others.sort_by(cmp_share);
     let half = others.len() / 2;
-    let median = if others.len().is_multiple_of(2) {
-        f32::midpoint(others[half - 1], others[half])
+    let (lo, hi) = if others.len().is_multiple_of(2) {
+        (others[half - 1], others[half])
     } else {
-        others[half]
+        (others[half], others[half])
     };
-    ((median - share) * 100.0).round() as i64 > i64::from(RERATE_BOUND_POINTS)
+    // median - share, rounded, > bound  <=>  median - share >= (bound + 0.5) / 100, with the median
+    // (lo + hi) / 2, every side multiplied by 200 and by the three denominators.
+    let wide = |n: usize| i128::try_from(n).unwrap_or(i128::MAX);
+    let (lb, lr, hb, hr, mb, mr) = (
+        wide(lo.business),
+        wide(lo.rated),
+        wide(hi.business),
+        wide(hi.rated),
+        wide(me.business),
+        wide(me.rated),
+    );
+    let bound = i128::from(RERATE_BOUND_POINTS) * 2 + 1;
+    100 * (lb * hr + hb * lr) * mr - 200 * mb * lr * hr >= bound * lr * hr * mr
+}
+
+/// Orders two ratings by their share, on the counts.
+fn cmp_share(a: &Verdicts, b: &Verdicts) -> std::cmp::Ordering {
+    (a.business * b.rated).cmp(&(b.business * a.rated))
 }
 
 /// The rating whose share is the middle one of those that gave a verdict (the higher of two, the
 /// earlier between equal shares); none rated when none gave one.
 fn middle(ratings: &[Verdicts]) -> Verdicts {
-    let by_share = |a: &Verdicts, b: &Verdicts| (a.business * b.rated).cmp(&(b.business * a.rated));
     let mut usable: Vec<&Verdicts> = ratings.iter().filter(|v| v.rated > 0).collect();
-    usable.sort_by(|a, b| by_share(a, b));
+    usable.sort_by(|a, b| cmp_share(a, b));
     let Some(&kept) = usable.get(usable.len() / 2) else {
         return Verdicts::default();
     };
     // The earliest rating of that share.
     *ratings
         .iter()
-        .find(|v| v.rated > 0 && by_share(v, kept).is_eq())
+        .find(|v| v.rated > 0 && cmp_share(v, kept).is_eq())
         .unwrap_or(kept)
 }
 
@@ -433,6 +443,20 @@ mod tests {
         assert_eq!(rating.batches[1].business, 1);
     }
 
+    // spec: BNR-6 (internal: a share of half a point needs more narratives than a batch holds)
+    #[test]
+    fn a_gap_of_half_a_point_over_the_bound_rounds_up() {
+        let others = [verdicts(20, 19), verdicts(20, 19)];
+        let with = |me| [others[0], others[1], me];
+        assert!(
+            is_flipped(&with(verdicts(200, 89)), 2),
+            "50.5 points round to 51"
+        );
+        assert!(!is_flipped(&with(verdicts(200, 90)), 2), "50 points");
+        assert!(!is_flipped(&with(verdicts(0, 0)), 2), "no verdict");
+    }
+
+    // spec: BNR-7 (internal: the rating kept is chosen from counts built in memory)
     #[test]
     fn between_equal_shares_the_earlier_rating_is_kept() {
         let kept = middle(&[verdicts(20, 10), verdicts(10, 5)]);

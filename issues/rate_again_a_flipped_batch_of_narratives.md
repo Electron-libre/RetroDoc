@@ -57,7 +57,7 @@ every batch twice, smaller batches (non-goals of the spec). Means: candidate (a)
    tests with a fake judge; makes true BNR-6, BNR-7, BNR-8, BNR-9, BNR-H3.
 3. [x] Measure after: five ratings of the hidden copy of `6873831-rerate` at the new code (<$0.01), against the
    84/74/77/60/77% of 2026-11-26; recorded in `docs/findings.md` §12 and the ledger. (autonomous)
-4. [ ] Docs of the whole issue and fixes of its `high` review.
+4. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -65,6 +65,8 @@ every batch twice, smaller batches (non-goals of the spec). Means: candidate (a)
 - Bound of the re-rating: 50 points below the median of the other batches, as first rated.
 - A batch past the bound is rated twice more and keeps the middle of its ratings (not the higher: no upward bias).
 - The paid measures of deliverables 1 (~$0.02) and 3 (<$0.01) are agreed.
+- `SCORING_VERSION` stays 5 (high review): the re-rating corrects a judge's answer, and a bump would stop every
+  recall and precision comparison with the saved baselines; said in its doc and the spec's non-goals.
 
 ## Deliverable 1
 - done: five ratings each of the hidden run-1 of linkding (85, 90, 85, 89, 81%) and Lobsters (78, 83, 79, 82, 80%)
@@ -86,3 +88,15 @@ every batch twice, smaller batches (non-goals of the spec). Means: candidate (a)
 - red: none (a measure).
 - Code review: no findings
 - not verified: a flip on linkding or Lobsters at the new code (none in 90 batches before it).
+
+## Deliverable 4
+- done: docs of the whole issue already updated with deliverables 1 to 3 (no stale mention left); fixes of the
+  `high` review.
+- checks: tests pass, clippy clean, specs check pass, docs updated.
+- red: none (review fixes; the half-point boundary test passes on its first run with the exact comparison).
+- High review: 6 findings: re-rating not bumping `SCORING_VERSION` (not bumped, reason in its doc and the spec's
+  non-goals), upward bias of re-rating only low batches (accepted, stated in the spec's non-goals), batch line
+  saying "the middle one kept" with two usable ratings (now "<n> kept"), skill's Lobsters cost note (reworded:
+  0 to 2 batches, up to 4 calls), tie test untraced (`// spec: BNR-7` added), float rounding at the bound
+  (`is_flipped` compares the counts exactly, half-point test added).
+- Code review: no findings

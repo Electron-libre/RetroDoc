@@ -32,6 +32,9 @@ use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 /// Version 4: a domain no feature belongs to is not counted (BSC-20).
 /// Version 5: a second judge call pairs the unpaired generated items with the covered reference ones
 /// (BSC-21).
+/// Not bumped by the re-rating of a flipped batch of narratives (BNR-6, BNR-7): it corrects an answer of
+/// the judge rather than changes what counts, and bumping would stop the comparison of every recall and
+/// precision with the saved baselines; a previous series may still hold a flip within the bound of BNR-2.
 pub const SCORING_VERSION: u32 = 5;
 
 /// The version a run judged without the judge's second call is scored under: its judged precision

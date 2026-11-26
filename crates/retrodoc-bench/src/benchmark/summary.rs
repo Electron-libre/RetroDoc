@@ -163,9 +163,10 @@ fn batch_line(batch: &BatchRating) -> String {
             .collect();
         let _ = write!(
             line,
-            " (rated {} times: {}; the middle one kept)",
+            " (rated {} times: {}; {} kept)",
             batch.ratings.len(),
-            each.join(", ")
+            each.join(", "),
+            batch.business
         );
     }
     line
@@ -434,7 +435,7 @@ mod tests {
         );
         assert!(
             text.contains(
-                "  batch 2: 20 of 20 rated, 15 in business language (rated 3 times: 0, 17, 15; the middle one kept)"
+                "  batch 2: 20 of 20 rated, 15 in business language (rated 3 times: 0, 17, 15; 15 kept)"
             ),
             "{text}"
         );

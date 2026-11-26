@@ -83,6 +83,11 @@ and a rating far from the run's own business-language score is marked and kept o
 - Rating every batch more than once: only a batch far below the other batches of its rating is rated again; a
   rating whose every batch reads low is caught by the mark of BNR-2, not by BNR-6.
 - Smaller batches: they would change every judge's figure saved so far.
+- An unbiased figure for a technical batch: a batch is rated again only when its first rating is low, so a
+  technical batch whose first rating falls past the bound keeps a middle rating no lower than it; a batch read
+  too high is never rated again.
+- A new scoring version: the re-rating corrects an answer of the judge, and a previous series may still hold a
+  flip within the bound of BNR-2.
 - Whether a narrative is really written in business language: it depends on what the model answers.
 - The per-pass replay of the use cases (`pass_replay use-cases`): its table shows the judge's share and the
   self-rated score side by side already.
