@@ -39,6 +39,6 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [keep_the_outdated_mark_of_untouched_edited_fields](issues/done/keep_the_outdated_mark_of_untouched_edited_fields.md)
   - [estimate_counts_the_units_a_wrong_review_asks](issues/done/estimate_counts_the_units_a_wrong_review_asks.md)
   - [settling_proposal_in_the_readers_words](issues/done/settling_proposal_in_the_readers_words.md)
-  - [settling_proposes_within_its_first_question](issues/settling_proposes_within_its_first_question.md)
+  - [settling_proposes_within_its_first_question](issues/done/settling_proposes_within_its_first_question.md)
   - [what_a_review_status_means_once_corrected](issues/what_a_review_status_means_once_corrected.md)
   - [settling_proposal_refusals](issues/settling_proposal_refusals.md)

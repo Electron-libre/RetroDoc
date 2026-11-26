@@ -416,7 +416,7 @@ Steps, each shippable:
      domain of the first measure was the same choice of the reader.
    - Lesson: the comment is now one a reader judges; the rounds of a first question are spent checking before the
      agent proposes, and what a status means once the section is corrected is still to settle.
-   - Measured a third time (2026-11-26, at `e3ae1a41`, after `issues/settling_proposes_within_its_first_question.md`:
+   - Measured a third time (2026-11-26, at `e3ae1a41`, after `issues/done/settling_proposes_within_its_first_question.md`:
      the prompt states the rounds, the last request offers `propose_verdict` alone; same copy, model, reader and
      sections). About $0.03: 24 calls, 135k tokens in (103k cached), 8.5k out, with the tool calls of each question
      now in the `ui` log.

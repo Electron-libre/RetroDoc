@@ -9,7 +9,7 @@ why: 'a flaky test makes the project check red now and then; nothing of the prod
 now and then, which turns `cardinal run project-check` red for no change of behaviour. It must pass on every run.
 
 # Findings
-* 2026-11-25, while working `issues/settling_proposes_within_its_first_question.md`: 2 runs of 15 of the test file
+* 2026-11-25, while working `issues/done/settling_proposes_within_its_first_question.md`: 2 runs of 15 of the test file
   failed at `last_roles(&llm)`: left `[System, User, Assistant, Tool]`, right `[System, User]`.
 * Its first `POST /ask` (`question=Hi`, no cookie) starts a question that the test never waits for; its rounds run
   on the shared fake provider while the later questions run, so the last request recorded may be one of its rounds.
