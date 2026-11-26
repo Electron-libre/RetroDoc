@@ -171,8 +171,38 @@ impl Disputed {
     }
 }
 
-/// The tool of a settling question (STL-6), its arguments as STL-13 lists them.
-pub(crate) fn propose_verdict_spec() -> ToolSpec {
+/// The tool of a settling question of `section` (STL-6), its arguments as STL-13 lists them:
+/// `narrative` for a use case only.
+pub(crate) fn propose_verdict_spec(section: &Section) -> ToolSpec {
+    let mut parameters = json!({
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["validated", "wrong", "to_review"],
+                "description": "validated: the section is right as it stands, or once saved with \
+                    the corrected fields given; wrong: a claim of it is wrong and left uncorrected, \
+                    with the corrected fields given if any, so the next run writes it again; to_review: it could not be settled."
+            },
+            "comment": {
+                "type": "string",
+                "maxLength": MAX_COMMENT_CHARS,
+                "description": format!("Why, in a few sentences in the words of the business, \
+                    at most {MAX_COMMENT_CHARS} characters: no file, commit or code name.")
+            },
+            "evidence": {
+                "type": "string",
+                "description": "What the verdict rests on: files, commits, the reader's answers."
+            },
+            "name": {"type": "string", "description": "The corrected name, if it is wrong."},
+            "description": {"type": "string", "description": "The corrected description, if it is wrong."}
+        },
+        "required": ["status", "comment", "evidence"]
+    });
+    if section.kind == SectionKind::UseCase {
+        parameters["properties"]["narrative"] =
+            json!({"type": "string", "description": "The corrected narrative, if it is wrong."});
+    }
     ToolSpec {
         name: PROPOSE_VERDICT.to_string(),
         description: "Propose the verdict on the section being settled, once it is settled: its \
@@ -180,31 +210,7 @@ pub(crate) fn propose_verdict_spec() -> ToolSpec {
             apart, and the corrected text of each wrong field. Saves nothing: the reader checks it \
             and saves it."
             .to_string(),
-        parameters: json!({
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "enum": ["validated", "wrong", "to_review"],
-                    "description": "validated: the section is right as it stands, or once saved with \
-                        the corrected fields given; wrong: a claim of it is wrong and left uncorrected, \
-                        with the corrected fields given if any, so the next run writes it again; to_review: it could not be settled."
-                },
-                "comment": {
-                    "type": "string",
-                    "description": format!("Why, in a few sentences in the words of the business, \
-                        at most {MAX_COMMENT_CHARS} characters: no file, commit or code name.")
-                },
-                "evidence": {
-                    "type": "string",
-                    "description": "What the verdict rests on: files, commits, the reader's answers."
-                },
-                "name": {"type": "string", "description": "The corrected name, if it is wrong."},
-                "description": {"type": "string", "description": "The corrected description, if it is wrong."},
-                "narrative": {"type": "string", "description": "The corrected narrative of a use case, if it is wrong."}
-            },
-            "required": ["status", "comment", "evidence"]
-        }),
+        parameters,
     }
 }
 
@@ -258,10 +264,12 @@ pub(crate) fn proposal_of(section: &Section, arguments: &str) -> Result<Proposal
     let comment = text("comment").ok_or_else(|| {
         "Error: `comment` is required: give the reason of the verdict.".to_string()
     })?;
-    if comment.chars().count() > MAX_COMMENT_CHARS {
+    let length = comment.chars().count();
+    if length > MAX_COMMENT_CHARS {
         return Err(format!(
-            "Error: `comment` is longer than {MAX_COMMENT_CHARS} characters: say the verdict in a \
-             few sentences for the reader and put the files, commits and answers in `evidence`."
+            "Error: `comment` is longer than {MAX_COMMENT_CHARS} characters ({length} characters): \
+             say the verdict in a few sentences for the reader and put the files, commits and \
+             answers in `evidence`."
         ));
     }
     let evidence = text("evidence").ok_or_else(|| {

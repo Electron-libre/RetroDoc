@@ -437,6 +437,16 @@ Steps, each shippable:
      the feature as proposed.
    - Lesson: the first question now ends on a proposal or stops before the budget; the refusals of `propose_verdict`
      are where rounds are lost now, and their reason is not measured.
+   - Measured a fourth time (2026-11-26, at `82272de3`, after ADR 0058 and with the reason of each refusal in the `ui`
+     log, STL-20; same copy, model, reader and sections). About $0.03: 24 calls, 149k tokens in (109k cached), 7.6k
+     out.
+   - Each settling proposed at its first question, all three `validated` and saved as proposed: the domain and the
+     feature in the last request of their 8 rounds (17 tool calls each), the use case at its sixth round.
+   - `propose_verdict` was accepted at the first call for the domain only. The three refusals: a comment over 400
+     characters twice (497 for the use case, 483 for the feature), then a narrative for the feature, which has none.
+     No refusal of a status since ADR 0058.
+   - Lesson: the refusals left are the length of the comment and a field the section does not have, both rules the
+     schema of the tool could state instead of its error.
 
 ## 5. Smaller open items
 

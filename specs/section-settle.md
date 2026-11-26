@@ -66,7 +66,8 @@ and ends on a proposed review and correction that the reader puts in the form an
   running.
 - **STL-13** (deterministic) The tool `propose_verdict` must take the arguments of the table below; a call whose
   arguments the table refuses gets the error as its result, the question going on (ASK-4); its description and the
-  description of `status` say which status fits.
+  description of `status` say which status fits. Its schema gives `comment` the limit of its length (`maxLength`)
+  and offers `narrative` only to the settling of a use case; the error of a comment too long names its length.
 
   | argument | required | value |
   |---|---|---|
@@ -126,8 +127,10 @@ and ends on a proposed review and correction that the reader puts in the form an
 - (STL-13) Given a domain, when the agent proposes a narrative, then the call gets an error and the question goes on.
 - (STL-13) Given a call proposing `validated` with a corrected description, then it is accepted; one proposing
   `wrong` with a corrected description, a claim of the narrative left uncorrected, is accepted too.
-- (STL-13) Given a comment of 401 characters, then the call gets an error asking for a shorter comment and the
-  evidence apart; one of 400 is accepted.
+- (STL-13) Given a comment of 401 characters, then the call gets an error naming its 401 characters and asking
+  for a shorter comment and the evidence apart; one of 400 is accepted.
+- (STL-13) Given the settling of a feature, then the schema of `propose_verdict` has no `narrative` and gives
+  `comment` a `maxLength` of 400; given a use case, it has `narrative`.
 - (STL-13) Given a call with no `evidence`, then it gets an error and the question goes on.
 - (STL-8) Given a proposal with an evidence, when its form is filled, then the comment of the review is the
   proposal's comment alone.

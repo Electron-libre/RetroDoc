@@ -55,15 +55,45 @@ refusals may already be gone. The fix is chosen after the measure; its deliverab
 1. [x] Log of the refusals: `Answer` keeps each refused call of `propose_verdict` (status, comment length, error),
    the last request's included, and `ui` writes the STL-20 line after the STL-19 one; verified by agent tests (a
    refusal in a round, in the last request, none) and a web test of the line; makes true STL-20. (autonomous)
-2. [ ] Measure: the three settlings of `e3ae1a41` again on a copy of the kept run, at this code, the refusals read
+2. [x] Measure: the three settlings of `e3ae1a41` again on a copy of the kept run, at this code, the refusals read
    from the `ui` log; recorded in `docs/findings.md` (section 4, item 5) and the measures ledger; verified by the
-   recorded figures.
-3. [ ] Fix of the reasons found (a candidate of the issue's Approach, or none needed), its spec amended, then the
-   same measure again; planned after deliverable 2, validated at a stop.
+   recorded figures. (autonomous)
+3. [x] The schema of `propose_verdict` states its rules: `comment` has `maxLength` 400, `narrative` is offered for a
+   use case only (the tool built for the settled section), and the error of a long comment names its length;
+   verified by agent tests of the schema per kind and of the error; makes true STL-13 (amended). (autonomous)
+4. [ ] Measure again: the same three settlings on a fresh copy, the refusals read from the STL-20 lines; recorded
+   in `docs/findings.md` and the ledger; verified by the recorded figures.
 
 ## Decisions
 - Mode: autonomous
 - Base commit: 98d11a1f15722a53dc78944adbf7d2c93defc76b
 - Measure (deliverable 2): the user runs the three settlings by hand on the sections of `e3ae1a41`, after the paid
   run is confirmed; the agent prepares the copy and reads the log.
-- Fix (deliverable 3): planned after the measure, at a stop.
+- Fix (deliverable 3): planned after the measure, at a stop. Measure of `82272de3`: 3 refusals out of 3
+  settlings, 2 a comment over 400 characters (497, 483), 1 a narrative for a feature; none of a status.
+
+## Deliverable 2: summary
+- done: the fourth measure (`82272de3`, ~$0.03), recorded in `docs/findings.md` (section 4, item 5) and the ledger.
+- red: none (a measure).
+- Code review: no findings (a doc change only, reviewed with deliverable 3).
+- not verified: none.
+- decisions needed: the fix of deliverable 3 (plan above).
+
+## Deliverable 3: summary
+- done: the schema of `propose_verdict` is built for the settled section: `comment` with `maxLength` 400,
+  `narrative` for a use case only; the error of a long comment names its length. Commits the measure of
+  deliverable 2 too (`docs/findings.md`).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass (`project-check`) |
+| specs | STL-13 amended and traced, spec `accepted` |
+| docs | `docs/crates/agent.md`, `docs/findings.md` |
+| code review | `low`: clean |
+
+- red: STL-13: `this function takes 0 arguments but 1 argument was supplied` (`propose_verdict_spec(&section)`), and
+  the error of a 401-character comment did not name `401 characters`.
+- Code review: no findings
+- not verified: whether DeepSeek keeps a comment under `maxLength` (deliverable 4).
+- decisions needed: none.

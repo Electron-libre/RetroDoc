@@ -53,8 +53,9 @@ evidence (files, commits, the reader's answers) apart, and say which status fits
 the reader saves it, so a proposal that corrects the section is `validated`, and `wrong`, with the fields it can correct,
 leaves a claim uncorrected for the next run to write again ([ADR 0058](../adr/0058-a-review-status-judges-the-section-as-saved.md)). A call of it whose arguments are
 refused (a status other than the three of a review, no comment, a comment over `MAX_COMMENT_CHARS` (400 characters),
-no evidence, a narrative for a domain or a feature) gets the error as its result
-(STL-13); a valid one ends the question,
+no evidence, a narrative for a domain or a feature) gets the error as its result, the length of a comment too long
+named in it; the schema of the tool, built for the settled section (`settle::propose_verdict_spec`), states the limit
+of the comment (`maxLength`) and offers `narrative` to a use case only (STL-13); a valid one ends the question,
 the calls after it in its round not run, its `Proposal` in `Answer::proposal` and the text of the answer the text of
 its message, else the comment, its sources checked over that text and the evidence (`proposed`, STL-14). Each call refused, in a round or in the last
 request, is kept in `Answer::refusals` (`Refusal`: its status, the length of its comment, its error), for the log of

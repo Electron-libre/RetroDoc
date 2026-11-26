@@ -213,6 +213,10 @@ fn a_proposal_needs_its_evidence_a_short_comment_and_a_status_that_fits_its_corr
         long.contains("400 characters") && long.contains("`evidence`"),
         "{long}"
     );
+    assert!(
+        long.contains("401 characters"),
+        "the error names its length: {long}"
+    );
     let short = proposal_of(
         &section,
         &format!(
@@ -245,7 +249,7 @@ fn the_prompt_and_the_tool_say_how_to_write_the_comment_and_which_status_fits() 
         "{SETTLING_PROMPT}"
     );
     assert!(SETTLING_PROMPT.contains("evidence"), "{SETTLING_PROMPT}");
-    let tool = propose_verdict_spec();
+    let tool = propose_verdict_spec(&feature());
     let status = tool.parameters["properties"]["status"]["description"]
         .as_str()
         .unwrap();
@@ -266,6 +270,29 @@ fn the_prompt_and_the_tool_say_how_to_write_the_comment_and_which_status_fits() 
         tool.parameters["required"],
         serde_json::json!(["status", "comment", "evidence"])
     );
+}
+
+// spec: STL-13 (internal: the schema of the tool is what the model reads, seen as sent)
+#[test]
+fn the_schema_limits_the_comment_and_offers_a_narrative_to_a_use_case_only() {
+    for kind in [
+        SectionKind::Domain,
+        SectionKind::Feature,
+        SectionKind::UseCase,
+    ] {
+        let tool = propose_verdict_spec(&Section::new(kind, "pay-invoice"));
+        let properties = &tool.parameters["properties"];
+        assert_eq!(
+            properties["comment"]["maxLength"],
+            serde_json::json!(MAX_COMMENT_CHARS),
+            "{kind:?}"
+        );
+        assert_eq!(
+            properties.get("narrative").is_some(),
+            kind == SectionKind::UseCase,
+            "{kind:?}: {properties}"
+        );
+    }
 }
 
 // spec: STL-14 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
