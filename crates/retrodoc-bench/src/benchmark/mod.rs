@@ -12,6 +12,7 @@ pub mod frozen;
 pub mod judge;
 pub mod matching;
 pub mod metrics;
+pub mod narratives;
 pub mod questions;
 pub mod reference;
 pub mod replay;
@@ -23,9 +24,10 @@ pub mod table;
 
 pub use frame::{tree_evidence, Frame};
 pub use frozen::{FrozenInputs, Manifest, ReplayPass};
-pub use judge::{judge, second_calls, Judgement, NarrativeRating, SecondCall, Unaudited, Unjudged};
+pub use judge::{judge, second_calls, Judgement, SecondCall, Unaudited, Unjudged};
 pub use matching::{compare, Comparison, Matches, Pair, Rejected, Score, SCORING_VERSION};
 pub use metrics::{Cost, RunMetrics};
+pub use narratives::{rate_narratives, NarrativeRating};
 pub use questions::{check_questions, Question, QuestionKind, QuestionSet};
 pub use reference::{
     Checked, Evidence, EvidenceKind, Reference, ReferenceDomain, ReferenceFeature,

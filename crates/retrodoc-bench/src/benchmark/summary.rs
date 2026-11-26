@@ -131,8 +131,8 @@ pub fn summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::benchmark::judge::NarrativeRating;
     use crate::benchmark::metrics::Cost;
+    use crate::benchmark::narratives::NarrativeRating;
 
     fn score(
         recall: Option<f32>,

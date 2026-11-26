@@ -10,9 +10,10 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use super::judge::{Judgement, NarrativeRating, Unaudited, Unjudged};
+use super::judge::{Judgement, Unaudited, Unjudged};
 use super::matching::{Comparison, SCORING_BEFORE_SECOND_CALL, SCORING_VERSION};
 use super::metrics::RunMetrics;
+use super::narratives::NarrativeRating;
 use crate::error::PipelineError;
 use retrodoc_core::text::format_duration;
 

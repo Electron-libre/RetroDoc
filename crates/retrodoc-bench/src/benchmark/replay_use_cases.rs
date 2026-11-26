@@ -15,7 +15,7 @@ use retrodoc_llm::{LlmProvider, UsageTracker};
 
 use super::frame::Frame;
 use super::frozen::{FrozenInputs, ReplayPass};
-use super::judge::{rate_narratives, NarrativeRating};
+use super::narratives::{rate_narratives, NarrativeRating};
 use crate::actors::Actors;
 
 use crate::confidence::mechanical_score;
