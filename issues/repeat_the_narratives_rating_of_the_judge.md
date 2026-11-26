@@ -51,10 +51,10 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
    table leaves those runs out of the judge's narratives row with a note, computed from the saved figures; verified
    by summary and table tests, one on a report saved before the batches; makes true BNR-2, BNR-3, BNR-5, BNR-H2;
    spec `accepted` (~300 lines). (autonomous)
-4. [ ] Measure (paid, ~$0.01: 8 judge calls per re-rating): `retrodoc benchmark --judge` 5 times on a copy of the
+4. [x] Measure (paid, ~$0.01: 8 judge calls per re-rating): `retrodoc benchmark --judge` 5 times on a copy of the
    Vingilot hidden run of `c959836` with the batches saved, to see whether a bad rating is one batch or every batch;
    recorded in `docs/findings.md` §12 and the ledger; a follow-up issue to rate each batch twice if the batches
-   spread.
+   spread. (autonomous)
 5. [ ] Docs of the whole issue and fixes of its `high` review.
 
 ## Decisions
@@ -90,3 +90,14 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
   `90% | 86%–93% | 3`, the old report `30% | — | 1` for `n/a | — | 0`, the summary had no mark.
 - Code review: no findings
 - note: the table test fixture's self-rated score moved from 50% to 90%, its judge's 90% being off otherwise.
+
+## Deliverable 4
+- done: five ratings of the hidden copy at `6873831` (<$0.01): 84%, 74%, 77%, 60%, 77%; the low ones are the
+  second batch flipped to technical (3/20, 0/20; 15 to 20/20 otherwise); the 60% one marked and left out by the
+  table (78%, 74% to 84%, over 4 runs). Recorded in `docs/findings.md` §12 and the ledger; artifacts kept in
+  `repeat_the_narratives_rating_of_the_judge-6873831-rerate/` of the runs directory. The batches spread: follow-up
+  issue `rate_again_a_flipped_batch_of_narratives` (low, after this one), attached to the milestone.
+- checks: project check passes; no code changed.
+- red: none (a measure).
+- Code review: no findings
+- not verified: whether a flipped batch shows on linkding or Lobsters (left to the follow-up's measure).

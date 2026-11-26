@@ -879,6 +879,12 @@ rejected, 2 added):
   technical words is close in both series (3.4 and 2.7 per 100 words). The run's log shows the server refusing the
   JSON schema of a call and the judge proposing no domain pair twice: a degraded moment of the API is likely. A
   narratives figure from one rating is not a finding until repeated.
+- **A bad rating is one batch rated all technical** (2026-11-26, `issues/repeat_the_narratives_rating_of_the_judge.md`):
+  five more ratings of the hidden run, the batches of 20 kept, gave 84%, 74%, 77%, 60% and 77%; the second batch
+  (the same 20 narratives each time) read 0 and 3 of 20 in business language in the two low ones, 15 to 20 of 20
+  in the others, while the other batches stayed within a few narratives. The rating more than 25 points off the
+  self-rated score is now marked and left out of the table (`specs/benchmark-narrative-rating.md`); a batch
+  flipped in a rating within the bound (74%) still moves the figure.
 - **Missed in both series**: the powers by role (rules spread over every feature, not a feature of their own in the
   docs), laying notes and book pages on the table, the table kept on disk, and the links between notes.
 
