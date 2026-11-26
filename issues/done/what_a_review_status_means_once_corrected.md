@@ -53,7 +53,7 @@ Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-26
 The status judges the section as saved, its edit applied (option 1, ADR 0058): a corrected section is `validated`,
 `wrong` means wrong and not corrected, written again by the next run (HCR-4 unchanged). `propose_verdict` proposes
 `validated` with its correction and refuses `wrong` with one; the form says what each status means. Out of scope:
-the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the reviews saved before.
+the logged reasons of the refusals (`issues/done/settling_proposal_refusals.md`), the reviews saved before.
 
 ## Plan
 1. [x] Move the review texts out of `texts.rs`: `ReviewTexts`, `OutdatedTexts` and their English and French values to
@@ -115,7 +115,7 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
   with its edit); the fields of `propose_verdict` say never with `wrong`; the French hint says the section is
   rewritten; the model's error cites no ADR; the prompt test checks "once corrected" and "cannot give its
   correction"; ADR 0058 notes the counts by status; `docs/findings.md` section 4 item 5 records the decision;
-  `issues/settling_proposal_refusals.md` names the new refusal.
+  `issues/done/settling_proposal_refusals.md` names the new refusal.
 - high review: 7 findings; fixed 1 (form unfolds on `wrong` only), 3 (tool fields), 4 (French hint), 5 (ADR in the
   error), 6 (prompt test), 7 (audit counts, as a consequence of the ADR); 2 (a partial correction with `wrong`
   refused) left to the user: it reverses the decision 2 a.
@@ -127,7 +127,7 @@ the logged reasons of the refusals (`issues/settling_proposal_refusals.md`), the
 ### 5. A partial correction
 - done: `propose_verdict` accepts `wrong` with the fields it can correct, a claim left uncorrected (no status
   refuses corrected fields now); the prompt and the tool say so; STL-13, its scenario, ADR 0058,
-  `docs/crates/agent.md`, `docs/findings.md` and `issues/settling_proposal_refusals.md` follow.
+  `docs/crates/agent.md`, `docs/findings.md` and `issues/done/settling_proposal_refusals.md` follow.
 - checks: tests, lint, specs (`project-check`).
 - red: STL-13: `called Result::unwrap() on an Err value: "Error: `wrong` means a claim of the section is wrong and left
   uncorrected..."`.
