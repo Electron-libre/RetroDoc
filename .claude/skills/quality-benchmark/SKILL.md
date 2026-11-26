@@ -101,6 +101,10 @@ a later run generates. The figures are therefore read like this:
   one. The judged figures rest on them unchecked: at 0, a judged figure is a hand figure.
 - **Narratives in business language (judge)** and **use cases fully in business language (score 1)**: the
   two measures to follow. The mean of the deterministic score saturates near 95% and hides differences.
+  A run whose judge's rating is more than 25 points off its self-rated business-language score is left out
+  of the judge's row and named under the series (`specs/benchmark-narrative-rating.md`): rate it again
+  (`retrodoc benchmark --judge`, a few judge calls) before reading it; `retrodoc benchmark` prints the
+  rating of each batch of 20 to tell a bad batch from a bad rating.
 - **no suffix** (strict): the hand-written pairs and equal names only. An audited floor, which rises as
   verified pairs are added to `matches.yaml`.
 - A change smaller than the range between runs is noise, not progress. One run is a sample, not a

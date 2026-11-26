@@ -47,10 +47,10 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
 2. [x] Batches kept and printed: `judge.yaml` and the run report keep each batch's counts, `benchmark` prints them;
    verified by tests of the rating, the load of an old `judge.yaml` and the summary; makes true BNR-1, BNR-4, BNR-H1
    (~250 lines). (autonomous)
-3. [ ] Off rating marked: the summary marks and warns of a share more than 25 points off the self-rated score, the
+3. [x] Off rating marked: the summary marks and warns of a share more than 25 points off the self-rated score, the
    table leaves those runs out of the judge's narratives row with a note, computed from the saved figures; verified
    by summary and table tests, one on a report saved before the batches; makes true BNR-2, BNR-3, BNR-5, BNR-H2;
-   spec `accepted` (~300 lines).
+   spec `accepted` (~300 lines). (autonomous)
 4. [ ] Measure (paid, ~$0.01: 8 judge calls per re-rating): `retrodoc benchmark --judge` 5 times on a copy of the
    Vingilot hidden run of `c959836` with the batches saved, to see whether a bad rating is one batch or every batch;
    recorded in `docs/findings.md` §12 and the ledger; a follow-up issue to rate each batch twice if the batches
@@ -78,3 +78,15 @@ Spec: `specs/benchmark-narrative-rating.md` (BNR-1 to BNR-5).
 - checks: tests pass, clippy clean, specs check pass, docs (`docs/crates/bench.md`) updated.
 - red: BNR-4, BNR-1, BNR-H1: `cannot find struct BatchRating`, `NarrativeRating has no field named batches`.
 - Code review: no findings
+
+## Deliverable 3
+- done: `NarrativeRating::off_by` gives the points by which the judge's share is more than 25 points off the
+  self-rated score; `retrodoc benchmark` prints the mark under the judge's figure and warns; `benchmark-table`
+  leaves those runs out of the judge's narratives row and names them under the series, from the saved figures (an
+  old report is marked too). Spec `benchmark-narrative-rating` accepted.
+- checks: tests pass, clippy clean, specs check pass, docs (`docs/crates/bench.md`, skill `quality-benchmark`)
+  updated.
+- red: BNR-2, BNR-3, BNR-5, BNR-H2: `no method named off_by`; then the table row read `75% | 30%–93% | 4` for
+  `90% | 86%–93% | 3`, the old report `30% | — | 1` for `n/a | — | 0`, the summary had no mark.
+- Code review: no findings
+- note: the table test fixture's self-rated score moved from 50% to 90%, its judge's 90% being off otherwise.

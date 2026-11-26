@@ -124,6 +124,17 @@ pub fn summary(
             rating.rated,
             rating.total
         );
+        if let Some(points) = rating.off_by(metrics.business_language) {
+            let _ = writeln!(
+                out,
+                "  off the self-rated business-language score by {points} points: rate it again before reading it"
+            );
+            // Logged here, the one place `retrodoc benchmark` reads both figures together.
+            tracing::warn!(
+                points,
+                "the judge's rating of the narratives is off the self-rated business-language score"
+            );
+        }
         for (n, batch) in rating.batches.iter().enumerate() {
             let _ = writeln!(
                 out,
@@ -353,5 +364,50 @@ mod tests {
             text.contains("  batch 2: 1 of 5 rated, 1 in business language"),
             "{text}"
         );
+    }
+
+    // spec: BNR-2 (internal: the binary would need an LLM judge and a generated run)
+    #[test]
+    fn marks_and_warns_of_a_rating_off_the_self_rated_score() {
+        let comparison = Comparison {
+            domains: score(Some(1.0), Some(1.0), &[], &[]),
+            features: score(Some(1.0), Some(1.0), &[], &[]),
+        };
+        let rating = |business| Judgement {
+            narratives: NarrativeRating {
+                total: 10,
+                rated: 10,
+                business,
+                ..NarrativeRating::default()
+            },
+            ..Judgement::default()
+        };
+        let mut run = metrics(None);
+        run.business_language = Some(0.9);
+        let print = |judgement: &Judgement| {
+            summary(
+                &run,
+                &comparison,
+                Some((&comparison, judgement, Unaudited::default())),
+            )
+        };
+        let (logs, _guard) = crate::testing::capture_logs();
+
+        let off = print(&rating(3));
+        let close = print(&rating(8));
+
+        assert!(
+            off.contains(
+                "by the judge: 30% (3 of 10 rated, 10 use case(s) with a narrative)\n  \
+                 off the self-rated business-language score by 60 points: rate it again before \
+                 reading it"
+            ),
+            "{off}"
+        );
+        assert!(!close.contains("off the self-rated"), "{close}");
+        let logs = logs.text();
+        assert!(logs.contains("WARN"), "{logs}");
+        assert!(logs.contains("60"), "{logs}");
+        assert_eq!(logs.matches("WARN").count(), 1, "{logs}");
     }
 }

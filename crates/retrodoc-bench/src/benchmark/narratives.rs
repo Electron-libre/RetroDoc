@@ -40,7 +40,22 @@ impl NarrativeRating {
     pub fn business_share(&self) -> Option<f32> {
         (self.rated > 0).then(|| self.business as f32 / self.rated as f32)
     }
+
+    /// The points by which the judge's share is off the run's `self_rated` business-language score
+    /// (the mean of the use cases' own scores), when more than [`OFF_BOUND_POINTS`]: such a rating is
+    /// to be rated again before it is read. `None` within the bound, or with no share or no score.
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    pub fn off_by(&self, self_rated: Option<f32>) -> Option<u32> {
+        let points = ((self.business_share()? - self_rated?).abs() * 100.0).round() as u32;
+        (points > OFF_BOUND_POINTS).then_some(points)
+    }
 }
+
+/// How many points the judge's share of narratives in business language may be off the run's
+/// self-rated score: on the saved runs of 2026-11 a rating was within 18 points of it, and the bad
+/// ones 46 points or more off.
+pub const OFF_BOUND_POINTS: u32 = 25;
 
 /// Narratives per call.
 const BATCH: usize = 20;
@@ -194,5 +209,25 @@ mod tests {
 
         assert_eq!((rating.total, rating.rated, rating.business), (73, 73, 22));
         assert_eq!(rating.batches, []);
+    }
+
+    fn rated(business: usize, rated: usize) -> NarrativeRating {
+        NarrativeRating {
+            total: rated,
+            rated,
+            business,
+            ..NarrativeRating::default()
+        }
+    }
+
+    // spec: BNR-2 (internal: the bound is read on ratings built in memory)
+    #[test]
+    fn a_rating_more_than_the_bound_off_the_self_rated_score_is_off() {
+        assert_eq!(rated(73, 100).off_by(Some(0.98)), None, "25 points");
+        assert_eq!(rated(72, 100).off_by(Some(0.98)), Some(26));
+        assert_eq!(rated(22, 73).off_by(Some(0.976_712_3)), Some(68));
+        assert_eq!(rated(100, 100).off_by(Some(0.5)), Some(50), "above it too");
+        assert_eq!(rated(0, 0).off_by(Some(0.98)), None, "nothing rated");
+        assert_eq!(rated(22, 73).off_by(None), None, "no self-rated score");
     }
 }

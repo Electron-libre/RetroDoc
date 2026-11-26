@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use super::judge::{Judgement, Unaudited, Unjudged};
 use super::matching::{Comparison, SCORING_BEFORE_SECOND_CALL, SCORING_VERSION};
 use super::metrics::RunMetrics;
-use super::narratives::NarrativeRating;
+use super::narratives::{NarrativeRating, OFF_BOUND_POINTS};
 use crate::error::PipelineError;
 use retrodoc_core::text::format_duration;
 
@@ -76,6 +76,21 @@ impl RunReport {
         }
     }
 }
+
+impl RunReport {
+    /// The points by which the judge's rating of the narratives is off the self-rated score, when
+    /// it is to be rated again (`NarrativeRating::off_by`); read from the saved figures, so a
+    /// report saved before the mark existed is marked too.
+    #[must_use]
+    pub fn narratives_off(&self) -> Option<u32> {
+        self.narratives
+            .as_ref()?
+            .off_by(self.metrics.business_language)
+    }
+}
+
+/// The row of the judge's rating of the narratives, which leaves out the runs it is off for.
+const NARRATIVES_JUDGED: &str = "Narratives in business language (judge)";
 
 /// The runs of one configuration.
 #[derive(Debug, Clone, PartialEq)]
@@ -187,6 +202,22 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
                     Unjudged::REASON
                 );
             }
+        }
+        let off: Vec<String> = series
+            .runs
+            .iter()
+            .filter_map(RunReport::narratives_off)
+            .map(|points| points.to_string())
+            .collect();
+        if !off.is_empty() {
+            let _ = writeln!(
+                out,
+                "{} run(s) left out of `{NARRATIVES_JUDGED}`: the judge's rating is off the \
+                 self-rated business-language score by more than {OFF_BOUND_POINTS} points ({}); \
+                 rate them again with `retrodoc benchmark --judge`.\n",
+                off.len(),
+                off.join(", ")
+            );
         }
         out.push_str("| Metric | Mean | Range | Runs | Previous | Change |\n");
         out.push_str("|---|---|---|---|---|---|\n");
@@ -372,12 +403,13 @@ const FIGURES: &[Figure] = &[
         value: |r| r.unaudited.features.map(count),
     },
     Figure {
-        label: "Narratives in business language (judge)",
+        label: NARRATIVES_JUDGED,
         kind: Kind::Percent,
         scored: true,
         value: |r| {
             r.narratives
                 .as_ref()
+                .filter(|_| r.narratives_off().is_none())
                 .and_then(|n| share(n.business_share()))
         },
     },
@@ -486,7 +518,7 @@ mod tests {
                 use_cases: 10,
                 uncategorized_files: 0,
                 narrative_share: Some(1.0),
-                business_language: Some(0.5),
+                business_language: Some(0.9),
                 fully_business: Some(0.25),
                 confidence: None,
                 cost: Some(Cost {
@@ -826,5 +858,72 @@ mod tests {
 
         assert!(error.contains("run-1.json"), "{error}");
         assert!(load_series(&dir.path().join("missing")).is_err());
+    }
+
+    fn rated_report(business: usize, rated: usize, self_rated: f32) -> RunReport {
+        let mut run = report(1.0, 5, 10, true);
+        run.metrics.business_language = Some(self_rated);
+        run.narratives = Some(NarrativeRating {
+            total: rated,
+            rated,
+            business,
+            ..NarrativeRating::default()
+        });
+        run
+    }
+
+    // spec: BNR-H2, BNR-3 (internal: the series are built in memory, as `load_series` reads them)
+    #[test]
+    fn a_rating_off_the_self_rated_score_is_left_out_of_the_judge_row() {
+        let runs = vec![
+            rated_report(30, 100, 0.98),
+            rated_report(93, 100, 0.98),
+            rated_report(92, 100, 0.98),
+            rated_report(86, 100, 0.98),
+        ];
+        let mut no_self_rated = rated_report(10, 100, 0.98);
+        no_self_rated.metrics.business_language = None;
+
+        let text = table(
+            &[series("hidden", runs), series("shown", vec![no_self_rated])],
+            None,
+        );
+        let (hidden, shown) = text.split_once("## shown").unwrap();
+
+        assert_eq!(
+            row(hidden, "Narratives in business language (judge)"),
+            "| Narratives in business language (judge) | 90% | 86%–93% | 3 |  |  |"
+        );
+        assert!(
+            hidden.contains(
+                "1 run(s) left out of `Narratives in business language (judge)`: the judge's rating \
+                 is off the self-rated business-language score by more than 25 points (68); rate \
+                 them again with `retrodoc benchmark --judge`."
+            ),
+            "{text}"
+        );
+        assert_eq!(
+            row(shown, "Narratives in business language (judge)"),
+            "| Narratives in business language (judge) | 10% | — | 1 |  |  |",
+            "no self-rated score: never left out"
+        );
+        assert!(!shown.contains("left out of `Narratives"), "{text}");
+    }
+
+    // spec: BNR-5 (internal: the report is parsed from a string, as `load_series` reads the file)
+    #[test]
+    fn a_report_saved_before_the_batches_is_marked_too() {
+        let mut saved = serde_json::to_value(rated_report(22, 73, 0.976_712_3)).unwrap();
+        assert!(saved["narratives"].get("batches").is_none());
+        saved["scoring"] = serde_json::json!(5);
+        let old: RunReport = serde_json::from_value(saved).unwrap();
+
+        let text = table(&[series("hidden", vec![old])], None);
+
+        assert_eq!(
+            row(&text, "Narratives in business language (judge)"),
+            "| Narratives in business language (judge) | n/a | — | 0 |  |  |"
+        );
+        assert!(text.contains("by more than 25 points (68)"), "{text}");
     }
 }
